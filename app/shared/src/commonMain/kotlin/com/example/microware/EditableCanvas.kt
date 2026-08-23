@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlin.math.floor
@@ -44,43 +46,40 @@ import kotlin.math.min
 sealed interface Tool {
     fun toEdit(row: Int, col: Int): Sprite.Edits
 
-    data class Pen(val color: Color) : Tool {
+    data class Pen(val color: Palette) : Tool {
         override fun toEdit(row: Int, col: Int): Sprite.Edits = Sprite.Edits.Write(row, col, color)
     }
 }
 
+private const val TransparentTileSizeDp = 16
+
 @Composable
-private fun ColorPickerButton(color: Color, isSelected: Boolean, onClick: () -> Unit) {
+private fun ColorPickerButton(color: Palette, isSelected: Boolean, onClick: () -> Unit) {
+    val clearBrush = if (color == Palette.Clear) {
+        val tileSize = with(LocalDensity.current) { TransparentTileSizeDp.dp.roundToPx() }
+        remember(tileSize) { tiled(scaled(transparent, tileSize, tileSize)) }
+    } else {
+        null
+    }
+
     Button(
         onClick = onClick,
         modifier = Modifier
             .padding(4.dp)
             .size(40.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = color),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (color == Palette.Clear) Color.Transparent else color.color,
+            contentColor = color.color
+        ),
         shape = RectangleShape,
         border = if (isSelected) BorderStroke(2.dp, Color.Black) else null,
         contentPadding = PaddingValues(0.dp)
-    ) {}
+    ) {
+        if (clearBrush != null) {
+            Box(modifier = Modifier.fillMaxSize().background(clearBrush))
+        }
+    }
 }
-
-private val Pico8Palette = listOf(
-    Color(0xFF000000),
-    Color(0xFF1D2B53),
-    Color(0xFF7E2553),
-    Color(0xFF008751),
-    Color(0xFFAB5236),
-    Color(0xFF5F574F),
-    Color(0xFFC2C3C7),
-    Color(0xFFFFF1E8),
-    Color(0xFFFF004D),
-    Color(0xFFFFA300),
-    Color(0xFFFFEC27),
-    Color(0xFF00E436),
-    Color(0xFF29ADFF),
-    Color(0xFF83769C),
-    Color(0xFFFF77A8),
-    Color(0xFFFFCCAA),
-)
 
 private const val BackgroundTileSize = 128f
 
@@ -88,7 +87,7 @@ private const val BackgroundTileSize = 128f
 fun CanvasTools(tool: Tool, pickTool: (Tool) -> Unit) {
     val scrollState = rememberScrollState()
     Row(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
-        for (color in Pico8Palette) {
+        for (color in Palette.entries) {
             ColorPickerButton(color, (tool as? Tool.Pen)?.color == color) {
                 pickTool(Tool.Pen(color))
             }
@@ -98,7 +97,7 @@ fun CanvasTools(tool: Tool, pickTool: (Tool) -> Unit) {
 
 @Composable
 fun EditableCanvas(sprite: Sprite, edit: (Sprite.Edits) -> Unit) {
-    val toolState: MutableState<Tool> = remember { mutableStateOf(Tool.Pen(Pico8Palette[7])) }
+    val toolState: MutableState<Tool> = remember { mutableStateOf(Tool.Pen(Palette.Navy)) }
     Column(modifier = Modifier.fillMaxSize()) {
         CanvasTools(toolState.value) { toolState.value = it }
         Content(toolState.value, sprite, edit)
@@ -241,7 +240,7 @@ private fun SpriteCanvas(
                 val right = floor((col + 1) * exactCellWidth + pan.x + offsetInitialX)
                 val w = right - left
                 drawRect(
-                    color = sprite.get(row, col),
+                    color = sprite.get(row, col).color,
                     topLeft = Offset(left, top),
                     size = Size(w, h)
                 )

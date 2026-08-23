@@ -4,10 +4,9 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.toPersistentList
 
-data class Sprite(val rows: PersistentList<PersistentList<Color>>) {
+data class Sprite(val rows: PersistentList<PersistentList<Palette>>) {
     val width = rows[0].size
     val height = rows.size
-    val ratio = width.toFloat() / height
 
     fun get(row: Int, col: Int) = rows[row][col]
 
@@ -25,13 +24,35 @@ data class Sprite(val rows: PersistentList<PersistentList<Color>>) {
     }
 
     sealed interface Edits {
-        data class Write(val row: Int, val col: Int, val color: Color) : Edits
+        data class Write(val row: Int, val col: Int, val color: Palette) : Edits
     }
 
     companion object {
         fun empty(w: Int, h: Int): Sprite {
-            return Sprite(List(h) { List(w) { Color.Transparent }.toPersistentList() }.toPersistentList())
+            return Sprite(List(h) { List(w) { Palette.Clear }.toPersistentList() }.toPersistentList())
         }
     }
 }
+
+// Copied from the Pico8 color palette, but can be replaced or extended with something else if needed.
+enum class Palette(val color: Color) {
+    Black(Color(0xFF000000)),
+    Navy(Color(0xFF1D2B53)),
+    Maroon(Color(0xFF7E2553)),
+    Forest(Color(0xFF008751)),
+    Rust(Color(0xFFAB5236)),
+    DarkGray(Color(0xFF5F574F)),
+    LightGray(Color(0xFFC2C3C7)),
+    OffWhite(Color(0xFFFFF1E8)),
+    Red(Color(0xFFFF004D)),
+    Orange(Color(0xFFFFA300)),
+    Yellow(Color(0xFFFFEC27)),
+    Green(Color(0xFF00E436)),
+    Cyan(Color(0xFF29ADFF)),
+    Purple(Color(0xFF83769C)),
+    Pink(Color(0xFFFF77A8)),
+    Tan(Color(0xFFFFCCAA)),
+    Clear(Color(0x00000000)),
+}
+
 
