@@ -1,0 +1,258 @@
+package com.example.microware
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import kotlin.math.floor
+import kotlin.math.min
+
+sealed interface Tool {
+    fun toEdit(row: Int, col: Int): Sprite.Edits
+
+    data class Pen(val color: Color) : Tool {
+        override fun toEdit(row: Int, col: Int): Sprite.Edits = Sprite.Edits.Write(row, col, color)
+    }
+}
+
+@Composable
+private fun ColorPickerButton(color: Color, isSelected: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .padding(4.dp)
+            .size(40.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = color),
+        shape = RectangleShape,
+        border = if (isSelected) BorderStroke(2.dp, Color.Black) else null,
+        contentPadding = PaddingValues(0.dp)
+    ) {}
+}
+
+private val Pico8Palette = listOf(
+    Color(0xFF000000),
+    Color(0xFF1D2B53),
+    Color(0xFF7E2553),
+    Color(0xFF008751),
+    Color(0xFFAB5236),
+    Color(0xFF5F574F),
+    Color(0xFFC2C3C7),
+    Color(0xFFFFF1E8),
+    Color(0xFFFF004D),
+    Color(0xFFFFA300),
+    Color(0xFFFFEC27),
+    Color(0xFF00E436),
+    Color(0xFF29ADFF),
+    Color(0xFF83769C),
+    Color(0xFFFF77A8),
+    Color(0xFFFFCCAA),
+)
+
+private const val BackgroundTileSize = 128f
+
+@Composable
+fun CanvasTools(tool: Tool, pickTool: (Tool) -> Unit) {
+    val scrollState = rememberScrollState()
+    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
+        for (color in Pico8Palette) {
+            ColorPickerButton(color, (tool as? Tool.Pen)?.color == color) {
+                pickTool(Tool.Pen(color))
+            }
+        }
+    }
+}
+
+@Composable
+fun EditableCanvas(sprite: Sprite, edit: (Sprite.Edits) -> Unit) {
+    val toolState: MutableState<Tool> = remember { mutableStateOf(Tool.Pen(Pico8Palette[7])) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        CanvasTools(toolState.value) { toolState.value = it }
+        Content(toolState.value, sprite, edit)
+    }
+}
+
+@Composable
+private fun Content(tool: Tool, sprite: Sprite, edit: (Sprite.Edits) -> Unit) {
+    val pan = remember { mutableStateOf(Offset(0f, 0f)) }
+    val zoom = remember { mutableStateOf(1f) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        BackgroundCanvas(pan.value, zoom.value)
+        SpriteCanvas(tool, sprite, edit, pan, zoom)
+    }
+}
+
+@Composable
+private fun BackgroundCanvas(pan: Offset, zoom: Float) {
+    val infiniteTransition = rememberInfiniteTransition(label = "tileScroll")
+    val offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = BackgroundTileSize,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "tileScrollOffset"
+    )
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds()
+    ) {
+        val canvasSize = min(size.width, size.height)
+        val canvasOrigin = Offset((size.width - canvasSize) / 2f, 0f) + pan
+        val left = floor(canvasOrigin.x)
+        val top = floor(canvasOrigin.y)
+        val right = floor(canvasOrigin.x + canvasSize * zoom)
+        val bottom = floor(canvasOrigin.y + canvasSize * zoom)
+
+        clipRect(left = left, top = top, right = right, bottom = bottom) {
+            // Draw in the grid's unscaled coordinate space, then use the grid's
+            // exact screen transform. The animation is the only relative motion.
+            translate(canvasOrigin.x, canvasOrigin.y) {
+                scale(zoom, pivot = Offset.Zero) {
+                    translate(-offset, offset) {
+                        drawRect(
+                            brush = tiled(
+                                scaled(
+                                    transparent,
+                                    BackgroundTileSize.toInt(),
+                                    BackgroundTileSize.toInt()
+                                )
+                            ),
+                            // The rect moves by at most one tile, so one tile of
+                            // local-space overscan keeps it covered by the clip.
+                            topLeft = Offset(
+                                -BackgroundTileSize,
+                                -canvasSize * 0.2f - BackgroundTileSize
+                            ),
+                            size = Size(
+                                canvasSize + BackgroundTileSize * 2f,
+                                canvasSize * 1.2f + BackgroundTileSize * 2f
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpriteCanvas(
+    tool: Tool,
+    sprite: Sprite,
+    edit: (Sprite.Edits) -> Unit,
+    pan: MutableState<Offset>,
+    zoom: MutableState<Float>
+) {
+    var pan by pan
+    var zoom by zoom
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds()
+            .pointerInput(tool) {
+                racing {
+                    sequence {
+                        val visited = mutableSetOf<Pair<Int, Int>>()
+                        val minSize = min(size.width, size.height)
+                        val offsetInitialX = (size.width - minSize) / 2f
+                        val cellWidth = minSize / sprite.width * zoom
+                        val cellHeight = minSize / sprite.height * zoom
+                        followPointer {
+                            val offset = it.position - pan - Offset(offsetInitialX, 0f)
+                            val col = (offset.x / cellWidth).toInt()
+                            val row = (offset.y / cellHeight).toInt()
+
+                            if (sprite.inBounds(row, col) && !visited.contains(row to col)) {
+                                visited.add(row to col)
+                                edit(tool.toEdit(row, col))
+                            }
+                        }
+                    }
+                    sequence {
+                        var lastOffset: Offset? = null
+                        var lastSize: Float? = null
+                        followPinch { offset, size ->
+                            val lastOff = lastOffset ?: offset
+                            val lastSiz = lastSize ?: size
+                            val zoomFactor = size / lastSiz
+                            // Anchor zoom at focal point: keep content under fingers stationary
+                            // pan = offset - (lastOff - pan) * zoomFactor
+                            pan += (offset - lastOff) + (pan - lastOff) * (zoomFactor - 1)
+                            zoom *= zoomFactor
+                            lastOffset = offset
+                            lastSize = size
+                        }
+                    }
+                }
+            }
+    ) {
+        // Use exact (non-floored) cell size for math, then snap edges to pixels.
+        // This avoids banding/gaps from flooring the cell size and from
+        // fractional pan offsets. Each cell's edges are computed as
+        // floor(col * exactWidth + pan) so adjacent cells share an edge.
+        val minSize = min(size.width, size.height)
+        val offsetInitialX = (size.width - minSize) / 2
+        val exactCellWidth = minSize / sprite.width * zoom
+        val exactCellHeight = minSize / sprite.height * zoom
+
+        for (row in 0 until sprite.height) {
+            val top = floor(row * exactCellHeight + pan.y)
+            val bottom = floor((row + 1) * exactCellHeight + pan.y)
+            val h = bottom - top
+            for (col in 0 until sprite.width) {
+                val left = floor(col * exactCellWidth + pan.x + offsetInitialX)
+                val right = floor((col + 1) * exactCellWidth + pan.x + offsetInitialX)
+                val w = right - left
+                drawRect(
+                    color = sprite.get(row, col),
+                    topLeft = Offset(left, top),
+                    size = Size(w, h)
+                )
+            }
+        }
+    }
+}
+
+@Preview(widthDp = 400, heightDp = 400)
+@Composable
+private fun TestCanvas() {
+    val sprite by remember { mutableStateOf(Sprite.empty(20, 20)) }
+    EditableCanvas(sprite, sprite::update)
+}
