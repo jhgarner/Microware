@@ -385,7 +385,7 @@ private fun WorldSprite(
                     var accumulated = Offset.Zero
                     var sent = Offset.Zero
                     var started = false
-                    val pointer = followPointer { change ->
+                    val pointer = followDrag { change ->
                         if (!started) {
                             currentOnDragStart.value?.invoke(objectId)
                             started = true

@@ -213,7 +213,7 @@ private fun SpriteCanvas(
                             (size.height - spriteSize.height) / 2f
                         )
                         val cellSize = spriteSize.width / sprite.width * zoom
-                        followPointer {
+                        followDrag {
                             val offset = it.position - pan - offsetInitial
                             val col = (offset.x / cellSize).toInt()
                             val row = (offset.y / cellSize).toInt()

@@ -60,22 +60,25 @@ sealed class PointerScope {
         }
     }
 
-    suspend fun followPointer(chaser: (PointerInputChange) -> Unit): PointerInputChange {
-        val pointer = expectDown()
+    suspend fun followDrag(chaser: (PointerInputChange) -> Unit): PointerInputChange {
+        val initial = expectDown()
         var dragging = false
         var traveled = 0f
         while (true) {
-            val pointer = expectFor(pointer.id)
-            if (pointer.changedToUp()) {
-                return pointer
+            val latest = expectFor(initial.id)
+            if (latest.changedToUp()) {
+                if (!dragging) {
+                    unexpected(latest)
+                }
+                return latest
             }
-            traveled += pointer.positionChange().getDistance()
+            traveled += latest.positionChange().getDistance()
             if (traveled > DragDistance) {
                 dragging = true
             }
             if (dragging) {
                 claim()
-                chaser(pointer)
+                chaser(latest)
             }
         }
     }
