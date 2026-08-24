@@ -18,6 +18,8 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+private const val DragDistance = 10
+
 @RestrictsSuspension
 sealed class PointerScope {
     abstract suspend fun next(): PointerInputChange
@@ -44,6 +46,20 @@ sealed class PointerScope {
         return pointer
     }
 
+    suspend fun expectTap(): PointerInputChange {
+        val pointer = expectDown()
+        while (true) {
+            val latest = expectFor(pointer.id)
+            if ((latest.position - pointer.position).getDistance() > DragDistance) {
+                unexpected(latest)
+            }
+            if (latest.changedToUp()) {
+                claim()
+                return latest
+            }
+        }
+    }
+
     suspend fun followPointer(chaser: (PointerInputChange) -> Unit): PointerInputChange {
         val pointer = expectDown()
         var dragging = false
@@ -54,7 +70,7 @@ sealed class PointerScope {
                 return pointer
             }
             traveled += pointer.positionChange().getDistance()
-            if (traveled > 10) {
+            if (traveled > DragDistance) {
                 dragging = true
             }
             if (dragging) {

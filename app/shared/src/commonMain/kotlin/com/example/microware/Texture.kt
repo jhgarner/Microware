@@ -46,9 +46,14 @@ fun scaled(bitmap: ImageBitmap, width: Int, height: Int): ImageBitmap {
     return scaled
 }
 
-private fun generateTransparency(): ImageBitmap {
-    val bitmap = ImageBitmap(2, 2)
+fun render(width: Int, height: Int, draw: Canvas.() -> Unit): ImageBitmap {
+    val bitmap = ImageBitmap(width, height)
     val canvas = Canvas(bitmap)
+    canvas.draw()
+    return bitmap
+}
+
+private fun generateTransparency(): ImageBitmap {
     val light = Paint().apply {
         color = Color(0XFFa2a2a2)
         style = PaintingStyle.Fill
@@ -57,9 +62,10 @@ private fun generateTransparency(): ImageBitmap {
         color = Color(0XFF919191)
         style = PaintingStyle.Fill
     }
-    canvas.drawRect(0f, 0f, 1f, 1f, light)
-    canvas.drawRect(1f, 0f, 2f, 1f, dark)
-    canvas.drawRect(0f, 1f, 1f, 2f, dark)
-    canvas.drawRect(1f, 1f, 2f, 2f, light)
-    return bitmap
+    return render(2, 2) {
+        drawRect(0f, 0f, 1f, 1f, light)
+        drawRect(1f, 0f, 2f, 1f, dark)
+        drawRect(0f, 1f, 1f, 2f, dark)
+        drawRect(1f, 1f, 2f, 2f, light)
+    }
 }

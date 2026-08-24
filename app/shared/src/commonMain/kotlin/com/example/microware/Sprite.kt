@@ -1,6 +1,16 @@
 package com.example.microware
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.toPersistentList
 
@@ -11,6 +21,24 @@ data class Sprite(val rows: PersistentList<PersistentList<Palette>>) {
     fun get(row: Int, col: Int) = rows[row][col]
 
     fun inBounds(row: Int, col: Int) = row in 0..<height && col in 0..<width
+
+    val bitmap: ImageBitmap by lazy {
+        val paint = Paint()
+        render(width, height) {
+            for ((rowIndex, row) in rows.withIndex()) {
+                for ((colIndex, palette) in row.withIndex()) {
+                    paint.color = palette.color
+                    drawRect(
+                        left = colIndex.toFloat(),
+                        top = rowIndex.toFloat(),
+                        right = (colIndex + 1).toFloat(),
+                        bottom = (rowIndex + 1).toFloat(),
+                        paint = paint
+                    )
+                }
+            }
+        }
+    }
 
     fun update(edit: Edits): Sprite {
         return when (edit) {
@@ -29,7 +57,11 @@ data class Sprite(val rows: PersistentList<PersistentList<Palette>>) {
 
     companion object {
         fun empty(w: Int, h: Int): Sprite {
-            return Sprite(List(h) { List(w) { Palette.Clear }.toPersistentList() }.toPersistentList())
+            return solid(w, h, Palette.Clear)
+        }
+
+        fun solid(w: Int, h: Int, color: Palette): Sprite {
+            return Sprite(List(h) { List(w) { color }.toPersistentList() }.toPersistentList())
         }
     }
 }
@@ -55,4 +87,14 @@ enum class Palette(val color: Color) {
     Clear(Color(0x00000000)),
 }
 
-
+@Composable
+fun RenderSprite(offset: Offset, scale: Int, sprite: Sprite) {
+    val image = remember { scaled(sprite.bitmap, sprite.width * scale, sprite.height * scale) }
+    println("${image.width} by ${image.height}")
+    Canvas(
+        modifier = Modifier.requiredSize(sprite.width.dp * scale, sprite.height.dp * scale)
+            .offset(offset.x.dp, offset.y.dp)
+    ) {
+        drawImage(image)
+    }
+}
