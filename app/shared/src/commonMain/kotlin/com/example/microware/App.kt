@@ -63,7 +63,11 @@ fun App() {
                     )
                 )
             }
-            WorldEditor(world) { id, delta -> world = world.moveObject(id, delta) }
+            WorldEditor(
+                world = world,
+                moveObject = { id, delta -> world = world.moveObject(id, delta) },
+                updateObject = { id, edit -> world = world.updateObject(id, edit) }
+            )
         }
     }
 }

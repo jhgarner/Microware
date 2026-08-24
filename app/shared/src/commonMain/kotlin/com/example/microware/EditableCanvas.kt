@@ -96,9 +96,13 @@ fun CanvasTools(tool: Tool, pickTool: (Tool) -> Unit) {
 }
 
 @Composable
-fun EditableCanvas(sprite: Sprite, edit: (Sprite.Edits) -> Unit) {
+fun EditableCanvas(
+    sprite: Sprite,
+    edit: (Sprite.Edits) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val toolState: MutableState<Tool> = remember { mutableStateOf(Tool.Pen(Palette.Navy)) }
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize()) {
         CanvasTools(toolState.value) { toolState.value = it }
         Content(toolState.value, sprite, edit)
     }
