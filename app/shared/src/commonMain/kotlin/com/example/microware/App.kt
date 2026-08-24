@@ -72,6 +72,11 @@ fun App() {
                     } else {
                         world.placeObject(id, offset).clampObject(id)
                     }
+                },
+                createObject = { width, height ->
+                    val id = (world.objects.maxOfOrNull { it.id } ?: 0) + 1
+                    world = world.addObject(Obj(id, width, height))
+                    id
                 }
             )
         }
