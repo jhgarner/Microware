@@ -78,6 +78,14 @@ data class World(val background: Sprite, val objects: List<Obj>) {
         )
     }
 
+    fun placeObject(id: Int, offset: Offset): World {
+        return copy(
+            objects = objects.map { obj ->
+                if (obj.id == id) obj.copy(offset = offset) else obj
+            }
+        )
+    }
+
     fun clampObject(id: Int): World {
         return copy(
             objects = objects.map { obj ->
@@ -111,14 +119,14 @@ data class World(val background: Sprite, val objects: List<Obj>) {
 @Composable
 fun WorldEditor(
     world: World,
-    moveObject: (Int, Offset) -> Unit,
     updateObject: (Int, Sprite.Edits) -> Unit,
-    finishObjectDrag: (Int, Boolean) -> Unit
+    finishObjectDrag: (Int, Offset, Boolean) -> Unit
 ) {
     var selectedObjectId = remember { mutableStateOf<Int?>(null) }
     var editingObjectId = remember { mutableStateOf<Int?>(null) }
     var menuSize = remember { mutableStateOf(IntSize.Zero) }
     var draggingObjectId = remember { mutableStateOf<Int?>(null) }
+    var dragGhostOffset = remember { mutableStateOf<Offset?>(null) }
     var dragPointerPagePosition = remember { mutableStateOf<Offset?>(null) }
     val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId.value }
 
@@ -205,24 +213,28 @@ fun WorldEditor(
                         objectId = obj.id,
                         onTap = { selectedObjectId.value = it },
                         onDragStart = { id ->
-                            draggingObjectId.value = id
-                            dragPointerPagePosition.value = null
-                            selectedObjectId.value = null
+                            world.objects.firstOrNull { it.id == id }?.let { obj ->
+                                draggingObjectId.value = id
+                                dragGhostOffset.value = obj.offset
+                                dragPointerPagePosition.value = null
+                                selectedObjectId.value = null
+                            }
                         },
                         onDragMove = { id, delta, pointerPosition ->
                             val currentObject = world.objects.firstOrNull { it.id == id }
                             if (currentObject != null) {
+                                dragGhostOffset.value = (
+                                    dragGhostOffset.value ?: currentObject.offset
+                                ) + delta
                                 dragPointerPagePosition.value = Offset(
                                     worldLeft + currentObject.offset.x * scale + pointerPosition.x,
                                     worldTop + currentObject.offset.y * scale + pointerPosition.y
                                 )
                             }
-                            if (delta != Offset.Zero) {
-                                moveObject(id, delta)
-                            }
                         },
                         onDragEnd = { id, pointerPosition ->
                             val currentObject = world.objects.firstOrNull { it.id == id }
+                            val ghostOffset = dragGhostOffset.value ?: currentObject?.offset
                             val pointerPagePosition = currentObject?.let {
                                 Offset(
                                     worldLeft + it.offset.x * scale + pointerPosition.x,
@@ -231,13 +243,24 @@ fun WorldEditor(
                             }
                             finishObjectDrag(
                                 id,
+                                ghostOffset ?: Offset.Zero,
                                 pointerPagePosition?.let(trashBounds::contains) == true
                             )
                             draggingObjectId.value = null
+                            dragGhostOffset.value = null
                             dragPointerPagePosition.value = null
                             selectedObjectId.value = null
                         }
                     )
+                    if (draggingObjectId.value == obj.id && dragGhostOffset.value != null) {
+                        WorldSprite(
+                            offset = dragGhostOffset.value!!,
+                            origin = IntOffset(worldLeft, worldTop),
+                            scale = scale,
+                            sprite = obj.sprite,
+                            opacity = 0.5f
+                        )
+                    }
                 }
                 TrashTarget(
                     isActive = isOverTrash,
@@ -294,6 +317,7 @@ private fun WorldSprite(
     scale: Float,
     sprite: Sprite,
     origin: IntOffset = IntOffset.Zero,
+    opacity: Float = 1f,
     objectId: Int? = null,
     onTap: ((Int) -> Unit)? = null,
     onDragStart: ((Int) -> Unit)? = null,
@@ -323,6 +347,7 @@ private fun WorldSprite(
                 origin.y + (offset.y * scale).roundToInt()
             )
         }
+        .alpha(opacity)
 
     if (objectId != null) {
         modifier = modifier.pointerInput(objectId, scale) {

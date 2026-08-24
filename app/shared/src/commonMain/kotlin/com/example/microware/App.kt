@@ -65,10 +65,13 @@ fun App() {
             }
             WorldEditor(
                 world = world,
-                moveObject = { id, delta -> world = world.dragObject(id, delta) },
                 updateObject = { id, edit -> world = world.updateObject(id, edit) },
-                finishObjectDrag = { id, overTrash ->
-                    world = if (overTrash) world.deleteObject(id) else world.clampObject(id)
+                finishObjectDrag = { id, offset, overTrash ->
+                    world = if (overTrash) {
+                        world.deleteObject(id)
+                    } else {
+                        world.placeObject(id, offset).clampObject(id)
+                    }
                 }
             )
         }
