@@ -3,24 +3,21 @@ package com.example.microware
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,14 +26,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -48,8 +42,6 @@ import kotlin.math.roundToInt
 
 const val WorldWidth = 128
 const val WorldHeight = 256
-private val TrashSize = 56.dp
-private val TrashGap = 8.dp
 
 data class World(val background: Sprite, val objects: List<Obj>) {
     constructor() : this(Sprite.empty(WorldWidth, WorldHeight), emptyList())
@@ -133,8 +125,11 @@ fun WorldEditor(
     var menuSize by remember { mutableStateOf(IntSize.Zero) }
     var draggingObjectId by remember { mutableStateOf<Int?>(null) }
     var dragGhostOffset by remember { mutableStateOf<Offset?>(null) }
-    var dragPointerPagePosition by remember { mutableStateOf<Offset?>(null) }
+    var dragPointerRootPosition by remember { mutableStateOf<Offset?>(null) }
     var showingCreateDialog by remember { mutableStateOf(false) }
+    var editorRootPosition by remember { mutableStateOf(Offset.Zero) }
+    var controlsLeft by remember { mutableStateOf(0) }
+    var trashBounds by remember { mutableStateOf<Rect?>(null) }
     val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId }
 
     if (objectBeingEdited != null) {
@@ -152,38 +147,21 @@ fun WorldEditor(
             )
         }
     } else {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { coordinates ->
+                    editorRootPosition = coordinates.localToRoot(Offset.Zero)
+                }
+        ) {
             val density = LocalDensity.current
             val availableWidth = with(density) { maxWidth.roundToPx() }
-            val availableHeight = with(density) { maxHeight.roundToPx() }
-            val trashSize = with(density) { TrashSize.roundToPx() }
-            val trashGap = with(density) { TrashGap.roundToPx() }
-            val boardAvailableHeight = (availableHeight - trashSize - trashGap).coerceAtLeast(1)
-            val fitScale = min(
-                availableWidth.toFloat() / world.background.width,
-                boardAvailableHeight.toFloat() / world.background.height
-            )
-            val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
-            val worldWidth = (world.background.width * scale).roundToInt()
-            val worldHeight = (world.background.height * scale).roundToInt()
-            val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
-            val worldTop = (
-                    (availableHeight - worldHeight - trashGap - trashSize) / 2
-                    ).coerceAtLeast(0)
-            val trashTop = worldTop + worldHeight + trashGap
-            val trashBounds = Rect(
-                left = worldLeft.toFloat(),
-                top = trashTop.toFloat(),
-                right = (worldLeft + trashSize).toFloat(),
-                bottom = (trashTop + trashSize).toFloat()
-            )
             val isDragging = draggingObjectId != null
-            val isOverTrash = dragPointerPagePosition?.let(trashBounds::contains) == true
-            val hiddenTrashSlide = -(availableWidth + trashSize).toFloat()
-            val trashSlideX = remember(worldLeft, trashSize) {
+            val hiddenTrashSlide = -availableWidth.toFloat()
+            val trashSlideX = remember(availableWidth) {
                 Animatable(hiddenTrashSlide)
             }
-            LaunchedEffect(isDragging, worldLeft) {
+            LaunchedEffect(isDragging, availableWidth) {
                 if (isDragging) {
                     trashSlideX.snapTo(hiddenTrashSlide)
                     trashSlideX.animateTo(
@@ -198,138 +176,150 @@ fun WorldEditor(
                 }
             }
 
-            if (scale > 0f) {
-                Box(
+            Column(modifier = Modifier.fillMaxSize()) {
+                BoxWithConstraints(
                     modifier = Modifier
-                        .requiredSize(
-                            with(density) { worldWidth.toDp() },
-                            with(density) { worldHeight.toDp() }
-                        )
-                        .offset { IntOffset(worldLeft, worldTop) }
-                        .clipToBounds()
+                        .fillMaxWidth()
+                        .weight(1f)
                 ) {
-                    WorldSprite(Offset.Zero, scale, world.background)
-                }
-                for (obj in world.objects) {
-                    WorldSprite(
-                        offset = obj.offset,
-                        origin = IntOffset(worldLeft, worldTop),
-                        scale = scale,
-                        sprite = obj.sprite,
-                        objectId = obj.id,
-                        onTap = { selectedObjectId = it },
-                        onDragStart = { id ->
-                            world.objects.firstOrNull { it.id == id }?.let { obj ->
-                                draggingObjectId = id
-                                dragGhostOffset = obj.offset
-                                dragPointerPagePosition = null
-                                selectedObjectId = null
-                            }
-                        },
-                        onDragMove = { id, delta, pointerPosition ->
-                            val currentObject = world.objects.firstOrNull { it.id == id }
-                            if (currentObject != null) {
-                                dragGhostOffset = (
-                                        dragGhostOffset ?: currentObject.offset
-                                        ) + delta
-                                dragPointerPagePosition = Offset(
-                                    worldLeft + currentObject.offset.x * scale + pointerPosition.x,
-                                    worldTop + currentObject.offset.y * scale + pointerPosition.y
-                                )
-                            }
-                        },
-                        onDragEnd = { id, pointerPosition ->
-                            val currentObject = world.objects.firstOrNull { it.id == id }
-                            val ghostOffset = dragGhostOffset ?: currentObject?.offset
-                            val pointerPagePosition = currentObject?.let {
-                                Offset(
-                                    worldLeft + it.offset.x * scale + pointerPosition.x,
-                                    worldTop + it.offset.y * scale + pointerPosition.y
-                                )
-                            }
-                            finishObjectDrag(
-                                id,
-                                ghostOffset ?: Offset.Zero,
-                                pointerPagePosition?.let(trashBounds::contains) == true
-                            )
-                            draggingObjectId = null
-                            dragGhostOffset = null
-                            dragPointerPagePosition = null
-                            selectedObjectId = null
-                        }
+                    val availableHeight = with(density) { maxHeight.roundToPx() }
+                    val fitScale = min(
+                        availableWidth.toFloat() / world.background.width,
+                        availableHeight.toFloat() / world.background.height
                     )
-                    if (draggingObjectId == obj.id && dragGhostOffset != null) {
-                        WorldSprite(
-                            offset = dragGhostOffset!!,
-                            origin = IntOffset(worldLeft, worldTop),
-                            scale = scale,
-                            sprite = obj.sprite,
-                            opacity = 0.5f
-                        )
-                    }
-                }
-                TrashTarget(
-                    isActive = isOverTrash,
-                    modifier = Modifier.offset {
-                        IntOffset(
-                            worldLeft + trashSlideX.value.roundToInt(),
-                            trashTop
-                        )
-                    }
-                )
-                Button(
-                    onClick = { showingCreateDialog = true },
-                    modifier = Modifier.offset {
-                        IntOffset(worldLeft + trashSize + trashGap, trashTop)
-                    }
-                ) {
-                    Text("Create")
-                }
-            }
+                    val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
+                    val worldWidth = (world.background.width * scale).roundToInt()
+                    val worldHeight = (world.background.height * scale).roundToInt()
+                    val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
+                    val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
+                    SideEffect { controlsLeft = worldLeft }
 
-            val selectedObject = world.objects.firstOrNull { it.id == selectedObjectId }
-            if (selectedObject != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(selectedObject.id) {
-                            racing {
-                                sequence {
-                                    expectTap()
+                    if (scale > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .requiredSize(
+                                    with(density) { worldWidth.toDp() },
+                                    with(density) { worldHeight.toDp() }
+                                )
+                                .offset { IntOffset(worldLeft, worldTop) }
+                                .clipToBounds()
+                        ) {
+                            WorldSprite(Offset.Zero, scale, world.background)
+                        }
+                        for (obj in world.objects) {
+                            WorldSprite(
+                                offset = obj.offset,
+                                origin = IntOffset(worldLeft, worldTop),
+                                scale = scale,
+                                sprite = obj.sprite,
+                                objectId = obj.id,
+                                onTap = { selectedObjectId = it },
+                                onDragStart = { id ->
+                                    world.objects.firstOrNull { it.id == id }?.let { obj ->
+                                        draggingObjectId = id
+                                        dragGhostOffset = obj.offset
+                                        dragPointerRootPosition = null
+                                        selectedObjectId = null
+                                    }
+                                },
+                                onDragMove = { id, delta, pointerPosition ->
+                                    val currentObject = world.objects.firstOrNull { it.id == id }
+                                    if (currentObject != null) {
+                                        dragGhostOffset = (
+                                                dragGhostOffset ?: currentObject.offset
+                                                ) + delta
+                                        dragPointerRootPosition = editorRootPosition + Offset(
+                                            worldLeft + currentObject.offset.x * scale + pointerPosition.x,
+                                            worldTop + currentObject.offset.y * scale + pointerPosition.y
+                                        )
+                                    }
+                                },
+                                onDragEnd = { id, pointerPosition ->
+                                    val currentObject = world.objects.firstOrNull { it.id == id }
+                                    val ghostOffset = dragGhostOffset ?: currentObject?.offset
+                                    val pointerRootPosition = currentObject?.let {
+                                        editorRootPosition + Offset(
+                                            worldLeft + it.offset.x * scale + pointerPosition.x,
+                                            worldTop + it.offset.y * scale + pointerPosition.y
+                                        )
+                                    }
+                                    finishObjectDrag(
+                                        id,
+                                        ghostOffset ?: Offset.Zero,
+                                        pointerRootPosition?.let { trashBounds?.contains(it) == true } == true
+                                    )
+                                    draggingObjectId = null
+                                    dragGhostOffset = null
+                                    dragPointerRootPosition = null
                                     selectedObjectId = null
                                 }
+                            )
+                            if (draggingObjectId == obj.id && dragGhostOffset != null) {
+                                WorldSprite(
+                                    offset = dragGhostOffset!!,
+                                    origin = IntOffset(worldLeft, worldTop),
+                                    scale = scale,
+                                    sprite = obj.sprite,
+                                    opacity = 0.5f
+                                )
                             }
                         }
-                )
-                val objectLeft = worldLeft + (selectedObject.offset.x * scale).roundToInt()
-                val objectTop = worldTop + (selectedObject.offset.y * scale).roundToInt()
-                val objectWidth = (selectedObject.sprite.width * scale).roundToInt()
-                val menuGap = with(density) { 4.dp.roundToPx() }
-                val menuLeft = (
-                        objectLeft + (objectWidth - menuSize.width) / 2
-                        ).coerceIn(0, (availableWidth - menuSize.width).coerceAtLeast(0))
-                val menuTop = (objectTop - menuSize.height - menuGap).coerceAtLeast(0)
-                ObjMenu(
-                    obj = selectedObject,
-                    onEdit = {
-                        editingObjectId = selectedObject.id
-                        selectedObjectId = null
-                    },
-                    modifier = Modifier
-                        .offset { IntOffset(menuLeft, menuTop) }
-                        .alpha(if (menuSize == IntSize.Zero) 0f else 1f)
-                        .onSizeChanged { menuSize = it }
-                )
-            }
-
-            if (showingCreateDialog) {
-                CreateObjectDialog(
-                    onDismiss = { showingCreateDialog = false },
-                    onCreate = { width, height ->
-                        val id = createObject(width, height)
-                        showingCreateDialog = false
-                        editingObjectId = id
                     }
+
+                    val selectedObject = world.objects.firstOrNull { it.id == selectedObjectId }
+                    if (selectedObject != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(selectedObject.id) {
+                                    racing {
+                                        sequence {
+                                            expectTap()
+                                            selectedObjectId = null
+                                        }
+                                    }
+                                }
+                        )
+                        val objectLeft = worldLeft + (selectedObject.offset.x * scale).roundToInt()
+                        val objectTop = worldTop + (selectedObject.offset.y * scale).roundToInt()
+                        val objectWidth = (selectedObject.sprite.width * scale).roundToInt()
+                        val menuGap = with(density) { 4.dp.roundToPx() }
+                        val menuLeft = (
+                                objectLeft + (objectWidth - menuSize.width) / 2
+                                ).coerceIn(0, (availableWidth - menuSize.width).coerceAtLeast(0))
+                        val menuTop = (objectTop - menuSize.height - menuGap).coerceAtLeast(0)
+                        ObjMenu(
+                            obj = selectedObject,
+                            onEdit = {
+                                editingObjectId = selectedObject.id
+                                selectedObjectId = null
+                            },
+                            modifier = Modifier
+                                .offset { IntOffset(menuLeft, menuTop) }
+                                .alpha(if (menuSize == IntSize.Zero) 0f else 1f)
+                                .onSizeChanged { menuSize = it }
+                        )
+                    }
+
+                    if (showingCreateDialog) {
+                        CreateObjectDialog(
+                            onDismiss = { showingCreateDialog = false },
+                            onCreate = { width, height ->
+                                val id = createObject(width, height)
+                                showingCreateDialog = false
+                                editingObjectId = id
+                            }
+                        )
+                    }
+                }
+                TrashControls(
+                    isTrashActive = dragPointerRootPosition?.let {
+                        trashBounds?.contains(it) == true
+                    } == true,
+                    trashOffsetX = trashSlideX.value.roundToInt(),
+                    onCreate = { showingCreateDialog = true },
+                    onTrashBoundsChanged = { trashBounds = it },
+                    modifier = Modifier.offset { IntOffset(controlsLeft, 0) }
                 )
             }
         }
@@ -409,57 +399,6 @@ private fun WorldSprite(
 
     Canvas(modifier) {
         drawImage(image)
-    }
-}
-
-@Composable
-private fun TrashTarget(isActive: Boolean, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(8.dp)
-    val background = if (isActive) {
-        MaterialTheme.colorScheme.errorContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-    val foreground = if (isActive) {
-        MaterialTheme.colorScheme.onErrorContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Box(
-        modifier = modifier
-            .size(TrashSize)
-            .background(background, shape)
-            .border(2.dp, foreground, shape)
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
-            val strokeWidth = 2.dp.toPx()
-            val canLeft = size.width * 0.28f
-            val canTop = size.height * 0.25f
-            val canWidth = size.width * 0.44f
-            val canHeight = size.height * 0.58f
-            drawRoundRect(
-                color = foreground,
-                topLeft = Offset(canLeft, canTop),
-                size = Size(canWidth, canHeight),
-                cornerRadius = CornerRadius(strokeWidth, strokeWidth),
-                style = Stroke(strokeWidth)
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(size.width * 0.2f, size.height * 0.18f),
-                end = Offset(size.width * 0.8f, size.height * 0.18f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(size.width * 0.43f, size.height * 0.08f),
-                end = Offset(size.width * 0.57f, size.height * 0.08f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-        }
     }
 }
 
