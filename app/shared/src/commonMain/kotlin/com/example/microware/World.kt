@@ -1,7 +1,5 @@
 package com.example.microware
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,8 +14,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,9 +124,16 @@ fun WorldEditor(
     var dragPointerRootPosition by remember { mutableStateOf<Offset?>(null) }
     var showingCreateDialog by remember { mutableStateOf(false) }
     var editorRootPosition by remember { mutableStateOf(Offset.Zero) }
-    var controlsLeft by remember { mutableStateOf(0) }
     var trashBounds by remember { mutableStateOf<Rect?>(null) }
     val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId }
+    var trash by remember { mutableStateOf(Trash()) }
+    trash = dragPointerRootPosition?.let {
+        if (trashBounds?.contains(it) == true) {
+            trash.hover()
+        } else {
+            trash.open()
+        }
+    } ?: trash.close()
 
     if (objectBeingEdited != null) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -156,25 +159,6 @@ fun WorldEditor(
         ) {
             val density = LocalDensity.current
             val availableWidth = with(density) { maxWidth.roundToPx() }
-            val isDragging = draggingObjectId != null
-            val hiddenTrashSlide = -availableWidth.toFloat()
-            val trashSlideX = remember(availableWidth) {
-                Animatable(hiddenTrashSlide)
-            }
-            LaunchedEffect(isDragging, availableWidth) {
-                if (isDragging) {
-                    trashSlideX.snapTo(hiddenTrashSlide)
-                    trashSlideX.animateTo(
-                        targetValue = 0f,
-                        animationSpec = tween(durationMillis = 180)
-                    )
-                } else {
-                    trashSlideX.animateTo(
-                        targetValue = hiddenTrashSlide,
-                        animationSpec = tween(durationMillis = 180)
-                    )
-                }
-            }
 
             Column(modifier = Modifier.fillMaxSize()) {
                 BoxWithConstraints(
@@ -192,7 +176,6 @@ fun WorldEditor(
                     val worldHeight = (world.background.height * scale).roundToInt()
                     val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
                     val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
-                    SideEffect { controlsLeft = worldLeft }
 
                     if (scale > 0f) {
                         Box(
@@ -243,11 +226,13 @@ fun WorldEditor(
                                             worldTop + it.offset.y * scale + pointerPosition.y
                                         )
                                     }
-                                    finishObjectDrag(
-                                        id,
-                                        ghostOffset ?: Offset.Zero,
+
+                                    val overTrash =
                                         pointerRootPosition?.let { trashBounds?.contains(it) == true } == true
-                                    )
+                                    if (overTrash) {
+                                        trash = trash.discard(currentObject)
+                                    }
+                                    finishObjectDrag(id, ghostOffset ?: Offset.Zero, overTrash)
                                     draggingObjectId = null
                                     dragGhostOffset = null
                                     dragPointerRootPosition = null
@@ -313,13 +298,10 @@ fun WorldEditor(
                     }
                 }
                 TrashControls(
-                    isTrashActive = dragPointerRootPosition?.let {
-                        trashBounds?.contains(it) == true
-                    } == true,
-                    trashOffsetX = trashSlideX.value.roundToInt(),
+                    trash = trash,
                     onCreate = { showingCreateDialog = true },
                     onTrashBoundsChanged = { trashBounds = it },
-                    modifier = Modifier.offset { IntOffset(controlsLeft, 0) }
+                    modifier = Modifier
                 )
             }
         }
