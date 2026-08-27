@@ -25,7 +25,7 @@ fun App() {
     MaterialTheme {
         Column(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .background(Palette.OffWhite.color)
                 .windowInsetsPadding(
                     WindowInsets.safeContent.only(WindowInsetsSides.Vertical)
                 )

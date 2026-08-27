@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
@@ -152,11 +153,6 @@ private fun LibraryTarget(
         bottomEnd = 0.dp,
         bottomStart = 8.dp
     )
-    val background = if (isActive) {
-        Palette.OffWhite
-    } else {
-        Palette.OffWhite
-    }.color
     val foreground = if (isActive) {
         Palette.Green
     } else {
@@ -166,8 +162,9 @@ private fun LibraryTarget(
     Box(
         modifier = modifier
             .size(HandleSize)
+            .shadow(OverlayShadowElevation, shape)
             .clickable(onClick = onClick)
-            .background(background, shape)
+            .background(Palette.OffWhite.color, shape)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 2.dp.toPx()

@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,6 +44,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 val HandleSize = 56.dp
+val OverlayShadowElevation = 8.dp
 
 enum class Side { Left, Right }
 
@@ -76,6 +78,7 @@ fun Drawer(
                     with(density) { drawerWidth.toDp() },
                     maxHeight
                 )
+                .shadow(OverlayShadowElevation, panelShape)
                 .background(MaterialTheme.colorScheme.surface, panelShape)
                 .border(2.dp, MaterialTheme.colorScheme.outline, panelShape)
                 .padding(12.dp)

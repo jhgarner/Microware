@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -54,11 +55,6 @@ fun TrashTarget(
         bottomEnd = 8.dp,
         bottomStart = 0.dp
     )
-    val background = if (isActive) {
-        Palette.OffWhite
-    } else {
-        Palette.OffWhite
-    }.color
     val foreground = if (isActive) {
         Palette.Red
     } else {
@@ -67,11 +63,12 @@ fun TrashTarget(
 
     var targetModifier = modifier
         .size(HandleSize)
+        .shadow(OverlayShadowElevation, shape)
     if (onClick != null) {
         targetModifier = targetModifier.clickable(onClick = onClick)
     }
 
-    Box(modifier = targetModifier.background(background, shape)) {
+    Box(modifier = targetModifier.background(Palette.OffWhite.color, shape)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 2.dp.toPx()
             val inset = strokeWidth / 2f
