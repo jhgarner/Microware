@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,15 +55,15 @@ fun TrashTarget(
         bottomStart = 0.dp
     )
     val background = if (isActive) {
-        MaterialTheme.colorScheme.errorContainer
+        Palette.OffWhite
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+        Palette.OffWhite
+    }.color
     val foreground = if (isActive) {
-        MaterialTheme.colorScheme.onErrorContainer
+        Palette.Red
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+        Palette.Maroon
+    }.color
 
     var targetModifier = modifier
         .size(HandleSize)

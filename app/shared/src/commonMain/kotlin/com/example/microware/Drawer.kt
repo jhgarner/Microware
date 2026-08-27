@@ -56,8 +56,9 @@ fun Drawer(
     onItemDragMove: (Offset) -> Unit,
     onItemDragEnd: (Offset) -> Unit,
     emptyText: String? = null,
+    modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val handleWidth = with(density) { HandleSize.toPx() }
         val drawerWidth = (with(density) { maxWidth.toPx() } - handleWidth).coerceAtLeast(0f)

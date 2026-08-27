@@ -1,5 +1,7 @@
 package com.example.microware
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,6 +34,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -174,11 +177,17 @@ fun WorldEditor(
             val availableWidth = with(density) { maxWidth.roundToPx() }
 
             Column(modifier = Modifier.fillMaxSize()) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .zIndex(
+                                if (draggingObjectId != null ||
+                                    draggingTrashObject != null ||
+                                    draggingLibraryObject != null
+                                ) 1f else 0f
+                            )
+                    ) {
                     val availableHeight = with(density) { maxHeight.roundToPx() }
                     val fitScale = min(
                         availableWidth.toFloat() / world.background.width,
@@ -216,7 +225,7 @@ fun WorldEditor(
                                 origin = IntOffset(worldLeft, worldTop),
                                 scale = scale,
                                 sprite = obj.sprite,
-                                opacity = if (objectOverTrash) 0f else 1f,
+                                opacity = if (objectOverTrash) 0.5f else 1f,
                                 objectId = obj.id,
                                 onTap = { selectedObjectId = it },
                                 onDragStart = { id ->
@@ -367,20 +376,32 @@ fun WorldEditor(
                             trash = if (trash.state is TrashState.DrawerOpen) {
                                 trash.close()
                             } else {
+                                libraryDrawerOpen = false
                                 trash.openDrawer()
                             }
                         },
                         onTrashBoundsChanged = { trashBounds = it },
-                        modifier = Modifier
+                        modifier = Modifier.zIndex(
+                            if (trash.state is TrashState.DrawerOpen) 1f else 0f
+                        )
                     )
                     LibraryControls(
                         isActive = dragPointerRootPosition?.let {
                             libraryBounds?.contains(it) == true
                         } == true,
+                        isDragging = draggingObjectId != null,
                         isOpen = libraryDrawerOpen,
-                        onClick = { libraryDrawerOpen = !libraryDrawerOpen },
+                        onClick = {
+                            val opening = !libraryDrawerOpen
+                            if (opening) {
+                                trash = trash.close()
+                            }
+                            libraryDrawerOpen = opening
+                        },
                         onBoundsChanged = { libraryBounds = it },
-                        modifier = Modifier
+                        modifier = Modifier.zIndex(
+                            if (libraryDrawerOpen) 1f else 0f
+                        )
                     )
                 }
             }
@@ -416,7 +437,10 @@ fun WorldEditor(
                     dragPointerRootPosition = null
                     selectedObjectId = null
                 },
-                emptyText = "Trash is empty"
+                emptyText = "Trash is empty",
+                modifier = Modifier.zIndex(
+                    if (trash.state is TrashState.DrawerOpen) 1f else 0f
+                )
             )
 
             Drawer(
@@ -450,7 +474,10 @@ fun WorldEditor(
                     dragPointerRootPosition = null
                     selectedObjectId = null
                 },
-                emptyText = "Library is empty"
+                emptyText = "Library is empty",
+                modifier = Modifier.zIndex(
+                    if (libraryDrawerOpen) 1f else 0f
+                )
             )
         }
     }
@@ -470,6 +497,11 @@ private fun WorldSprite(
     onDragEnd: ((Int, Offset) -> Unit)? = null
 ) {
     val density = LocalDensity.current
+    val animatedOpacity by animateFloatAsState(
+        targetValue = opacity,
+        animationSpec = tween(durationMillis = 120),
+        label = "sprite opacity"
+    )
     val image = remember(sprite, scale) {
         scaled(
             sprite.bitmap,
@@ -492,7 +524,7 @@ private fun WorldSprite(
                 origin.y + (offset.y * scale).roundToInt()
             )
         }
-        .alpha(opacity)
+        .alpha(animatedOpacity)
 
     if (objectId != null) {
         modifier = modifier.pointerInput(objectId, scale) {

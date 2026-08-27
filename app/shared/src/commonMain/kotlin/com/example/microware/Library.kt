@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -29,12 +28,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.collections.immutable.toPersistentList
+import kotlin.math.roundToInt
 
 private const val LibraryStorageKey = "microware.library.v1"
 
@@ -88,7 +85,7 @@ private fun Obj.toStoredObj(): StoredObj = StoredObj(
 private fun StoredObj.toObj(): Obj {
     require(width > 0 && height > 0)
     require(pixels.size == width * height)
-    val palette = Palette.values()
+    val palette = Palette.entries
     val rows = pixels.chunked(width).map { row ->
         row.map { palette.getOrNull(it) ?: error("Unknown palette value: $it") }
             .toPersistentList()
@@ -103,6 +100,7 @@ private fun StoredObj.toObj(): Obj {
 @Composable
 fun LibraryControls(
     isActive: Boolean,
+    isDragging: Boolean,
     isOpen: Boolean,
     onClick: () -> Unit,
     onBoundsChanged: (Rect) -> Unit,
@@ -115,12 +113,17 @@ fun LibraryControls(
     ) {
         val density = LocalDensity.current
         val openSlide = -(
-            with(density) { maxWidth.toPx() } - with(density) { HandleSize.toPx() }
-        )
-        val librarySlideX = remember { Animatable(0f) }
-        LaunchedEffect(isOpen, openSlide) {
+                with(density) { maxWidth.toPx() } - with(density) { HandleSize.toPx() }
+                )
+        val hiddenLibrarySlide = 16f
+        val librarySlideX = remember { Animatable(hiddenLibrarySlide) }
+        LaunchedEffect(isDragging, isOpen, openSlide) {
             librarySlideX.animateTo(
-                targetValue = if (isOpen) openSlide else 0f,
+                targetValue = when {
+                    isOpen -> openSlide
+                    isDragging -> 0f
+                    else -> hiddenLibrarySlide
+                },
                 animationSpec = tween(durationMillis = 180)
             )
         }
@@ -150,15 +153,15 @@ private fun LibraryTarget(
         bottomStart = 8.dp
     )
     val background = if (isActive) {
-        MaterialTheme.colorScheme.primaryContainer
+        Palette.OffWhite
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+        Palette.OffWhite
+    }.color
     val foreground = if (isActive) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        Palette.Green
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+        Palette.Forest
+    }.color
 
     Box(
         modifier = modifier
