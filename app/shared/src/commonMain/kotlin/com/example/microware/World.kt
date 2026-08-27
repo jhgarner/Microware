@@ -138,6 +138,7 @@ fun WorldEditor(
     var worldScale by remember { mutableStateOf(1f) }
     var trashBounds by remember { mutableStateOf<Rect?>(null) }
     var libraryBounds by remember { mutableStateOf<Rect?>(null) }
+    var createBounds by remember { mutableStateOf<Rect?>(null) }
     var libraryDrawerOpen by remember { mutableStateOf(false) }
     val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId }
     var trash by remember { mutableStateOf(Trash()) }
@@ -222,12 +223,16 @@ fun WorldEditor(
                                     dragPointerRootPosition?.let {
                                         trashBounds?.contains(it) == true
                                     } == true
+                            val objectOverEdit = draggingObjectId == obj.id &&
+                                    dragPointerRootPosition?.let {
+                                        createBounds?.contains(it) == true
+                                    } == true
                             WorldSprite(
                                 offset = obj.offset,
                                 origin = IntOffset(worldLeft, worldTop),
                                 scale = scale,
                                 sprite = obj.sprite,
-                                opacity = if (objectOverTrash) 0.5f else 1f,
+                                opacity = if (objectOverTrash || objectOverEdit) 0.5f else 1f,
                                 objectId = obj.id,
                                 onTap = { selectedObjectId = it },
                                 onDragStart = { id ->
@@ -266,6 +271,9 @@ fun WorldEditor(
                                     val overLibrary = pointerRootPosition?.let {
                                         libraryBounds?.contains(it) == true
                                     } == true
+                                    val overEdit = pointerRootPosition?.let {
+                                        createBounds?.contains(it) == true
+                                    } == true
                                     if (currentObject != null) {
                                         if (overTrash) {
                                             trash = trash.discard(currentObject)
@@ -275,13 +283,15 @@ fun WorldEditor(
                                                     offset = ghostOffset ?: currentObject.offset
                                                 )
                                             )
+                                        } else if (overEdit) {
+                                            editingObjectId = id
                                         }
                                     }
                                     finishObjectDrag(
                                         id,
                                         when {
                                             currentObject == null -> Offset.Zero
-                                            overLibrary -> currentObject.offset
+                                            overLibrary || overEdit -> currentObject.offset
                                             else -> ghostOffset ?: currentObject.offset
                                         },
                                         overTrash
@@ -399,6 +409,11 @@ fun WorldEditor(
                         )
                         CreateTarget(
                             onClick = { showingCreateDialog = true },
+                            isEditMode = draggingObjectId != null,
+                            isActive = dragPointerRootPosition?.let {
+                                createBounds?.contains(it) == true
+                            } == true,
+                            onBoundsChanged = { createBounds = it },
                             modifier = Modifier.zIndex(1f)
                         )
                         LibraryControls(

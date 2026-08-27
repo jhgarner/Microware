@@ -79,8 +79,8 @@ fun Drawer(
                     maxHeight
                 )
                 .shadow(OverlayShadowElevation, panelShape)
-                .background(MaterialTheme.colorScheme.surface, panelShape)
-                .border(2.dp, MaterialTheme.colorScheme.outline, panelShape)
+                .background(Palette.OffWhite.color, panelShape)
+//                .border(2.dp, MaterialTheme.colorScheme.outline, panelShape)
                 .padding(12.dp)
         ) {
             if (items.isEmpty() && emptyText != null) {
