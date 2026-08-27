@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -23,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
@@ -179,6 +182,8 @@ fun WorldEditor(
             val density = LocalDensity.current
             val availableWidth = with(density) { maxWidth.roundToPx() }
 
+            // Reserve toolbar height so world doesn't underlay the toolbar overlay
+            val toolbarHeight = HandleSize + TrashGap
             Column(modifier = Modifier.fillMaxSize()) {
                 BoxWithConstraints(
                     modifier = Modifier
@@ -380,63 +385,7 @@ fun WorldEditor(
                         )
                     }
                 }
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = TrashGap)
-                ) {
-                    val controlsWidth = with(density) { maxWidth.toPx() }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        TrashControls(
-                            trash = trash,
-                            availableWidth = controlsWidth,
-                            onTrashClick = {
-                                trash = if (trash.state is TrashState.DrawerOpen) {
-                                    trash.close()
-                                } else {
-                                    libraryDrawerOpen = false
-                                    trash.openDrawer()
-                                }
-                            },
-                            onTrashBoundsChanged = { trashBounds = it },
-                            modifier = Modifier.zIndex(
-                                if (trash.state is TrashState.DrawerOpen) 1f else 0f
-                            )
-                        )
-                        CreateTarget(
-                            onClick = { showingCreateDialog = true },
-                            isEditMode = draggingObjectId != null,
-                            isActive = dragPointerRootPosition?.let {
-                                createBounds?.contains(it) == true
-                            } == true,
-                            onBoundsChanged = { createBounds = it },
-                            modifier = Modifier.zIndex(1f)
-                        )
-                        LibraryControls(
-                            isActive = dragPointerRootPosition?.let {
-                                libraryBounds?.contains(it) == true
-                            } == true,
-                            isDragging = draggingObjectId != null,
-                            isOpen = libraryDrawerOpen,
-                            availableWidth = controlsWidth,
-                            onClick = {
-                                val opening = !libraryDrawerOpen
-                                if (opening) {
-                                    trash = trash.close()
-                                }
-                                libraryDrawerOpen = opening
-                            },
-                            onBoundsChanged = { libraryBounds = it },
-                            modifier = Modifier.zIndex(
-                                if (libraryDrawerOpen) 1f else 0f
-                            )
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(toolbarHeight))
             }
 
             Drawer(
@@ -471,6 +420,7 @@ fun WorldEditor(
                     selectedObjectId = null
                 },
                 emptyText = "Trash is empty",
+                onDismissRequest = { trash = trash.close() },
                 modifier = Modifier.zIndex(
                     if (trash.state is TrashState.DrawerOpen) 1f else 0f
                 )
@@ -508,10 +458,96 @@ fun WorldEditor(
                     selectedObjectId = null
                 },
                 emptyText = "Library is empty",
+                onDismissRequest = { libraryDrawerOpen = false },
                 modifier = Modifier.zIndex(
                     if (libraryDrawerOpen) 1f else 0f
                 )
             )
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(top = TrashGap)
+                    .zIndex(1f)
+            ) {
+                val trashDrawerOpen = trash.state == TrashState.DrawerOpen
+                val controlsWidth = with(density) { maxWidth.toPx() }
+
+                val fleeingTarget = if (libraryDrawerOpen) {
+                    -controlsWidth
+                } else if (trashDrawerOpen) {
+                    controlsWidth
+                } else {
+                    0f
+                }
+                val trashFleeingOffset by animateFloatAsState(
+                    targetValue = if (libraryDrawerOpen) fleeingTarget else 0f,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "Fleeing buttons"
+                )
+                val createFleeingOffset by animateFloatAsState(
+                    targetValue = if (libraryDrawerOpen || trashDrawerOpen) fleeingTarget else 0f,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "Fleeing buttons"
+                )
+                val libraryFleeingOffset by animateFloatAsState(
+                    targetValue = if (trashDrawerOpen) fleeingTarget else 0f,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "Fleeing buttons"
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TrashControls(
+                        trash = trash,
+                        availableWidth = controlsWidth,
+                        onTrashClick = {
+                            trash = if (trash.state is TrashState.DrawerOpen) {
+                                trash.close()
+                            } else {
+                                libraryDrawerOpen = false
+                                trash.openDrawer()
+                            }
+                        },
+                        onTrashBoundsChanged = { trashBounds = it },
+                        modifier = Modifier.zIndex(if (trash.state is TrashState.DrawerOpen) 1f else 0f)
+                            .offset { IntOffset(trashFleeingOffset.roundToInt(), 0) }
+                    )
+                    CreateTarget(
+                        onClick = { showingCreateDialog = true },
+                        isEditMode = draggingObjectId != null,
+                        isActive = dragPointerRootPosition?.let {
+                            createBounds?.contains(it) == true
+                        } == true,
+                        onBoundsChanged = { createBounds = it },
+                        modifier = Modifier.zIndex(0.75f)
+                            .offset { IntOffset(createFleeingOffset.roundToInt(), 0) }
+                    )
+                    LibraryControls(
+                        isActive = dragPointerRootPosition?.let {
+                            libraryBounds?.contains(it) == true
+                        } == true,
+                        isDragging = draggingObjectId != null,
+                        isOpen = libraryDrawerOpen,
+                        availableWidth = controlsWidth,
+                        onClick = {
+                            val opening = !libraryDrawerOpen
+                            if (opening) {
+                                trash = trash.close()
+                            }
+                            libraryDrawerOpen = opening
+                        },
+                        onBoundsChanged = { libraryBounds = it },
+                        modifier = Modifier.zIndex(if (libraryDrawerOpen) 1f else 0f)
+                            .offset {
+                                IntOffset(libraryFleeingOffset.roundToInt(), 0)
+                            }
+                    )
+                }
+            }
         }
     }
 }

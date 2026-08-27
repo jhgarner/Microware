@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,6 +61,7 @@ fun Drawer(
     onItemDragMove: (Offset) -> Unit,
     onItemDragEnd: (Offset) -> Unit,
     emptyText: String? = null,
+    onDismissRequest: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -65,6 +69,32 @@ fun Drawer(
         val handleWidth = with(density) { HandleSize.toPx() }
         val drawerWidth = (with(density) { maxWidth.toPx() } - handleWidth).coerceAtLeast(0f)
         val panelShape = RoundedCornerShape(0.dp)
+        val availableWidthPx = with(density) { maxWidth.toPx() }
+        val fraction = if (drawerWidth < 1f) {
+            0f
+        } else {
+            when (placement.side) {
+                Side.Left -> ((availableWidthPx - placement.offset) / drawerWidth).coerceIn(0f, 1f)
+                Side.Right -> (placement.offset / drawerWidth).coerceIn(0f, 1f)
+            }
+        }
+        val scrimAlpha = fraction * 0.32f
+        if (scrimAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+                    .then(
+                        if (onDismissRequest != null) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onDismissRequest
+                            )
+                        } else Modifier
+                    )
+            )
+        }
 
         Box(
             modifier = Modifier
