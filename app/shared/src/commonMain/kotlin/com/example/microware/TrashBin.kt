@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -50,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
@@ -194,7 +196,7 @@ fun TrashControls(
             Animatable(hiddenTrashSlide)
         }
         val (lastTrashState, setLastTrashState) = remember { mutableStateOf(trash.state) }
-        LaunchedEffect(trash.state, drawerOpenSlide) {
+        LaunchedEffect(trash.state, trash.isEmpty(), drawerOpenSlide) {
             when (trash.state) {
                 is TrashState.Open, is TrashState.Hovered -> {
                     if (lastTrashState is TrashState.Closed) {
@@ -309,9 +311,10 @@ fun TrashDrawer(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(trash.garbage, key = { it.id }) { obj ->
+                    itemsIndexed(trash.garbage, key = { _, obj -> obj.id }) { index, obj ->
                         TrashItemPreview(
                             obj = obj,
+                            zIndex = -index.toFloat(),
                             onDragStart = { pointerPosition ->
                                 draggingItem = true
                                 onItemDragStart(obj, pointerPosition)
@@ -332,19 +335,35 @@ fun TrashDrawer(
 @Composable
 private fun TrashItemPreview(
     obj: Obj,
+    zIndex: Float,
     onDragStart: (Offset) -> Unit,
     onDragMove: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit
 ) {
     var itemRootPosition by remember { mutableStateOf(Offset.Zero) }
+    var wiggleCount by remember { mutableStateOf(0) }
+    val wiggle = remember { Animatable(0f) }
+    val wiggleDistance = with(LocalDensity.current) { 32.dp.toPx() }
     val currentOnDragStart = rememberUpdatedState(onDragStart)
     val currentOnDragMove = rememberUpdatedState(onDragMove)
     val currentOnDragEnd = rememberUpdatedState(onDragEnd)
+    LaunchedEffect(wiggleCount) {
+        if (wiggleCount == 0) return@LaunchedEffect
+        wiggle.snapTo(0f)
+        wiggle.animateTo(wiggleDistance, tween(durationMillis = 70))
+        wiggle.animateTo(0f, tween(durationMillis = 70))
+        wiggle.animateTo(wiggleDistance / 2f, tween(durationMillis = 70))
+        wiggle.animateTo(0f, tween(durationMillis = 70))
+    }
     val shape = RoundedCornerShape(4.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .zIndex(zIndex)
+            .graphicsLayer {
+                translationX = wiggle.value
+            }
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .padding(4.dp)
@@ -353,6 +372,10 @@ private fun TrashItemPreview(
             }
             .pointerInput(obj.id) {
                 racing {
+                    sequence {
+                        expectTap()
+                        wiggleCount += 1
+                    }
                     sequence {
                         var started = false
                         val pointer = followHorizontalDrag { change ->
