@@ -114,26 +114,34 @@ fun WorldEditor(
     world: World,
     updateObject: (Int, Sprite.Edits) -> Unit,
     finishObjectDrag: (Int, Offset, Boolean) -> Unit,
-    createObject: (Int, Int) -> Int
+    createObject: (Int, Int) -> Int,
+    spawnObject: (Obj) -> Unit
 ) {
     var selectedObjectId by remember { mutableStateOf<Int?>(null) }
     var editingObjectId by remember { mutableStateOf<Int?>(null) }
     var menuSize by remember { mutableStateOf(IntSize.Zero) }
     var draggingObjectId by remember { mutableStateOf<Int?>(null) }
+    var draggingTrashObject by remember { mutableStateOf<Obj?>(null) }
     var dragGhostOffset by remember { mutableStateOf<Offset?>(null) }
     var dragPointerRootPosition by remember { mutableStateOf<Offset?>(null) }
     var showingCreateDialog by remember { mutableStateOf(false) }
     var editorRootPosition by remember { mutableStateOf(Offset.Zero) }
+    var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+    var worldScale by remember { mutableStateOf(1f) }
     var trashBounds by remember { mutableStateOf<Rect?>(null) }
     val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId }
     var trash by remember { mutableStateOf(Trash()) }
-    trash = dragPointerRootPosition?.let {
-        if (trashBounds?.contains(it) == true) {
+    if (draggingTrashObject != null) {
+        trash = trash.close()
+    } else if (dragPointerRootPosition != null) {
+        trash = if (trashBounds?.contains(dragPointerRootPosition!!) == true) {
             trash.hover()
         } else {
             trash.open()
         }
-    } ?: trash.close()
+    } else if (trash.state !is TrashState.DrawerOpen) {
+        trash = trash.close()
+    }
 
     if (objectBeingEdited != null) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -185,6 +193,10 @@ fun WorldEditor(
                                     with(density) { worldHeight.toDp() }
                                 )
                                 .offset { IntOffset(worldLeft, worldTop) }
+                                .onGloballyPositioned { coordinates ->
+                                    worldOriginInRoot = coordinates.localToRoot(Offset.Zero)
+                                    worldScale = scale
+                                }
                                 .clipToBounds()
                         ) {
                             WorldSprite(Offset.Zero, scale, world.background)
@@ -249,6 +261,16 @@ fun WorldEditor(
                                 )
                             }
                         }
+                        val trashObject = draggingTrashObject
+                        if (trashObject != null && dragGhostOffset != null) {
+                            WorldSprite(
+                                offset = dragGhostOffset!!,
+                                origin = IntOffset(worldLeft, worldTop),
+                                scale = scale,
+                                sprite = trashObject.sprite,
+                                opacity = 0.5f
+                            )
+                        }
                     }
 
                     val selectedObject = world.objects.firstOrNull { it.id == selectedObjectId }
@@ -300,10 +322,49 @@ fun WorldEditor(
                 TrashControls(
                     trash = trash,
                     onCreate = { showingCreateDialog = true },
+                    onTrashClick = {
+                        trash = if (trash.state is TrashState.DrawerOpen) {
+                            trash.close()
+                        } else {
+                            trash.openDrawer()
+                        }
+                    },
                     onTrashBoundsChanged = { trashBounds = it },
                     modifier = Modifier
                 )
             }
+
+            TrashDrawer(
+                trash = trash,
+                handleLeft = (trashBounds?.left ?: -500f) - editorRootPosition.x,
+                onItemDragStart = { obj, pointerRootPosition ->
+                    draggingTrashObject = obj
+                    dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
+                            Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
+                    dragPointerRootPosition = null
+                    trash = trash.close()
+                    selectedObjectId = null
+                },
+                onItemDragMove = { pointerRootPosition ->
+                    draggingTrashObject?.let { obj ->
+                        dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
+                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
+                    }
+                },
+                onItemDragEnd = { pointerRootPosition ->
+                    draggingTrashObject?.let { obj ->
+                        val offset = (pointerRootPosition - worldOriginInRoot) / worldScale -
+                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
+                        trash = trash.retrieve(obj)
+                        spawnObject(obj.copy(offset = offset))
+                    }
+                    draggingTrashObject = null
+                    dragGhostOffset = null
+                    dragPointerRootPosition = null
+                    selectedObjectId = null
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

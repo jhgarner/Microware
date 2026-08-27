@@ -9,6 +9,7 @@ import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.positionChange
 import kotlinx.coroutines.CancellationException
+import kotlin.math.abs
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.RestrictsSuspension
@@ -78,6 +79,33 @@ sealed class PointerScope {
             }
             if (dragging) {
                 claim()
+                chaser(latest)
+            }
+        }
+    }
+
+    suspend fun followHorizontalDrag(chaser: (PointerInputChange) -> Unit): PointerInputChange {
+        val initial = expectDown()
+        var dragging = false
+        var accumulated = Offset.Zero
+        while (true) {
+            val latest = expectFor(initial.id)
+            if (latest.changedToUp()) {
+                if (!dragging) {
+                    unexpected(latest)
+                }
+                return latest
+            }
+            accumulated += latest.positionChange()
+            if (!dragging && accumulated.getDistance() > DragDistance) {
+                if (abs(accumulated.x) <= abs(accumulated.y)) {
+                    unexpected(latest)
+                }
+                dragging = true
+            }
+            if (dragging) {
+                claim()
+                latest.consume()
                 chaser(latest)
             }
         }

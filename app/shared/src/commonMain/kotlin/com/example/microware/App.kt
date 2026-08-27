@@ -77,6 +77,10 @@ fun App() {
                     val id = (world.objects.maxOfOrNull { it.id } ?: 0) + 1
                     world = world.addObject(Obj(id, width, height))
                     id
+                },
+                spawnObject = { obj ->
+                    val id = (world.objects.maxOfOrNull { it.id } ?: 0) + 1
+                    world = world.addObject(obj.copy(id = id)).clampObject(id)
                 }
             )
         }
