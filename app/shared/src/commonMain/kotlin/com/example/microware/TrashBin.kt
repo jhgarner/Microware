@@ -4,62 +4,43 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.delay
-import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.milliseconds
 
-val TrashSize = 56.dp
 val TrashGap = 8.dp
 
 @Composable
@@ -86,7 +67,7 @@ fun TrashTarget(
     }
 
     var targetModifier = modifier
-        .size(TrashSize)
+        .size(HandleSize)
     if (onClick != null) {
         targetModifier = targetModifier.clickable(onClick = onClick)
     }
@@ -188,14 +169,14 @@ fun TrashControls(
             .padding(top = TrashGap)
     ) {
         val density = LocalDensity.current
-        val handleWidth = with(density) { TrashSize.toPx() }
+        val handleWidth = with(density) { HandleSize.toPx() }
         val drawerOpenSlide = with(density) { maxWidth.toPx() } - handleWidth
         val hiddenTrashSlide = -500f
         val visibleTrashSlide = -16f
         val trashSlideX = remember {
             Animatable(hiddenTrashSlide)
         }
-        val (lastTrashState, setLastTrashState) = remember { mutableStateOf(trash.state) }
+        val lastTrashState = rememberLast(trash.state)
         LaunchedEffect(trash.state, trash.isEmpty(), drawerOpenSlide) {
             when (trash.state) {
                 is TrashState.Open, is TrashState.Hovered -> {
@@ -233,7 +214,6 @@ fun TrashControls(
                 }
             }
         }
-        setLastTrashState(trash.state)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(TrashGap),
@@ -256,159 +236,6 @@ fun TrashControls(
             Button(onClick = onCreate) {
                 Text("Create")
             }
-        }
-    }
-}
-
-@Composable
-fun TrashDrawer(
-    trash: Trash,
-    handleLeft: Float,
-    onItemDragStart: (Obj, Offset) -> Unit,
-    onItemDragMove: (Offset) -> Unit,
-    onItemDragEnd: (Offset) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var drawerVisible by remember { mutableStateOf(false) }
-    var draggingItem by remember { mutableStateOf(false) }
-    LaunchedEffect(trash.state) {
-        if (trash.state is TrashState.DrawerOpen) {
-            drawerVisible = true
-        } else if (drawerVisible) {
-            delay(180.milliseconds)
-            drawerVisible = false
-        }
-    }
-
-    if (!drawerVisible && !draggingItem) return
-
-    BoxWithConstraints(modifier = modifier) {
-        val density = LocalDensity.current
-        val handleWidth = with(density) { TrashSize.toPx() }
-        val drawerWidth = (with(density) { maxWidth.toPx() } - handleWidth).coerceAtLeast(0f)
-        val drawerLeft = handleLeft - drawerWidth
-        val panelShape = RoundedCornerShape(0.dp)
-
-        Box(
-            modifier = Modifier
-                .offset { IntOffset(drawerLeft.roundToInt(), 0) }
-                .requiredSize(
-                    with(density) { drawerWidth.toDp() },
-                    maxHeight
-                )
-                .background(MaterialTheme.colorScheme.surface, panelShape)
-                .border(2.dp, MaterialTheme.colorScheme.outline, panelShape)
-                .padding(12.dp)
-        ) {
-            if (trash.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Text("Trash is empty")
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 64.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    itemsIndexed(trash.garbage, key = { _, obj -> obj.id }) { index, obj ->
-                        TrashItemPreview(
-                            obj = obj,
-                            zIndex = -index.toFloat(),
-                            onDragStart = { pointerPosition ->
-                                draggingItem = true
-                                onItemDragStart(obj, pointerPosition)
-                            },
-                            onDragMove = onItemDragMove,
-                            onDragEnd = { pointerPosition ->
-                                onItemDragEnd(pointerPosition)
-                                draggingItem = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TrashItemPreview(
-    obj: Obj,
-    zIndex: Float,
-    onDragStart: (Offset) -> Unit,
-    onDragMove: (Offset) -> Unit,
-    onDragEnd: (Offset) -> Unit
-) {
-    var itemRootPosition by remember { mutableStateOf(Offset.Zero) }
-    var wiggleCount by remember { mutableStateOf(0) }
-    val wiggle = remember { Animatable(0f) }
-    val wiggleDistance = with(LocalDensity.current) { 32.dp.toPx() }
-    val currentOnDragStart = rememberUpdatedState(onDragStart)
-    val currentOnDragMove = rememberUpdatedState(onDragMove)
-    val currentOnDragEnd = rememberUpdatedState(onDragEnd)
-    LaunchedEffect(wiggleCount) {
-        if (wiggleCount == 0) return@LaunchedEffect
-        wiggle.snapTo(0f)
-        wiggle.animateTo(wiggleDistance, tween(durationMillis = 70))
-        wiggle.animateTo(0f, tween(durationMillis = 70))
-        wiggle.animateTo(wiggleDistance / 2f, tween(durationMillis = 70))
-        wiggle.animateTo(0f, tween(durationMillis = 70))
-    }
-    val shape = RoundedCornerShape(4.dp)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .zIndex(zIndex)
-            .graphicsLayer {
-                translationX = wiggle.value
-            }
-            .background(MaterialTheme.colorScheme.surfaceVariant, shape)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .padding(4.dp)
-            .onGloballyPositioned { coordinates ->
-                itemRootPosition = coordinates.localToRoot(Offset.Zero)
-            }
-            .pointerInput(obj.id) {
-                racing {
-                    sequence {
-                        expectTap()
-                        wiggleCount += 1
-                    }
-                    sequence {
-                        var started = false
-                        val pointer = followHorizontalDrag { change ->
-                            val pointerRootPosition = itemRootPosition + change.position
-                            if (!started) {
-                                currentOnDragStart.value(pointerRootPosition)
-                                started = true
-                            }
-                            currentOnDragMove.value(pointerRootPosition)
-                        }
-                        if (started) {
-                            currentOnDragEnd.value(itemRootPosition + pointer.position)
-                        }
-                    }
-                }
-            }
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val scale = min(
-                size.width / obj.sprite.width,
-                size.height / obj.sprite.height
-            )
-            val width = (obj.sprite.width * scale).roundToInt().coerceAtLeast(1)
-            val height = (obj.sprite.height * scale).roundToInt().coerceAtLeast(1)
-            drawImage(
-                image = obj.sprite.bitmap,
-                dstOffset = IntOffset(
-                    ((size.width - width) / 2f).roundToInt(),
-                    ((size.height - height) / 2f).roundToInt()
-                ),
-                dstSize = IntSize(width, height),
-                filterQuality = FilterQuality.None
-            )
         }
     }
 }

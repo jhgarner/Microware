@@ -334,9 +334,12 @@ fun WorldEditor(
                 )
             }
 
-            TrashDrawer(
-                trash = trash,
-                handleLeft = (trashBounds?.left ?: -500f) - editorRootPosition.x,
+            Drawer(
+                placement = Placement(
+                    Side.Right,
+                    (trashBounds?.left ?: -500f) - editorRootPosition.x
+                ),
+                items = trash.garbage,
                 onItemDragStart = { obj, pointerRootPosition ->
                     draggingTrashObject = obj
                     dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
@@ -355,7 +358,6 @@ fun WorldEditor(
                     draggingTrashObject?.let { obj ->
                         val offset = (pointerRootPosition - worldOriginInRoot) / worldScale -
                                 Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                        trash = trash.retrieve(obj)
                         spawnObject(obj.copy(offset = offset))
                     }
                     draggingTrashObject = null
@@ -363,7 +365,6 @@ fun WorldEditor(
                     dragPointerRootPosition = null
                     selectedObjectId = null
                 },
-                modifier = Modifier.fillMaxSize()
             )
         }
     }
