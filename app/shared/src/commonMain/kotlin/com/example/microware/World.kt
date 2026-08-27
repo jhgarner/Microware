@@ -115,13 +115,16 @@ fun WorldEditor(
     updateObject: (Int, Sprite.Edits) -> Unit,
     finishObjectDrag: (Int, Offset, Boolean) -> Unit,
     createObject: (Int, Int) -> Int,
-    spawnObject: (Obj) -> Unit
+    spawnObject: (Obj) -> Unit,
+    library: Library,
+    onObjectDroppedOnLibrary: (Obj) -> Unit
 ) {
     var selectedObjectId by remember { mutableStateOf<Int?>(null) }
     var editingObjectId by remember { mutableStateOf<Int?>(null) }
     var menuSize by remember { mutableStateOf(IntSize.Zero) }
     var draggingObjectId by remember { mutableStateOf<Int?>(null) }
     var draggingTrashObject by remember { mutableStateOf<Obj?>(null) }
+    var draggingLibraryObject by remember { mutableStateOf<Obj?>(null) }
     var dragGhostOffset by remember { mutableStateOf<Offset?>(null) }
     var dragPointerRootPosition by remember { mutableStateOf<Offset?>(null) }
     var showingCreateDialog by remember { mutableStateOf(false) }
@@ -129,6 +132,8 @@ fun WorldEditor(
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
     var trashBounds by remember { mutableStateOf<Rect?>(null) }
+    var libraryBounds by remember { mutableStateOf<Rect?>(null) }
+    var libraryDrawerOpen by remember { mutableStateOf(false) }
     val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId }
     var trash by remember { mutableStateOf(Trash()) }
     if (draggingTrashObject != null) {
@@ -239,12 +244,28 @@ fun WorldEditor(
                                         )
                                     }
 
-                                    val overTrash =
-                                        pointerRootPosition?.let { trashBounds?.contains(it) == true } == true
-                                    if (overTrash) {
-                                        trash = trash.discard(currentObject)
+                                    val overTrash = pointerRootPosition?.let {
+                                        trashBounds?.contains(it) == true
+                                    } == true
+                                    val overLibrary = pointerRootPosition?.let {
+                                        libraryBounds?.contains(it) == true
+                                    } == true
+                                    if (currentObject != null) {
+                                        if (overTrash) {
+                                            trash = trash.discard(currentObject)
+                                        } else if (overLibrary) {
+                                            onObjectDroppedOnLibrary(
+                                                currentObject.copy(
+                                                    offset = ghostOffset ?: currentObject.offset
+                                                )
+                                            )
+                                        }
                                     }
-                                    finishObjectDrag(id, ghostOffset ?: Offset.Zero, overTrash)
+                                    finishObjectDrag(
+                                        id,
+                                        ghostOffset ?: Offset.Zero,
+                                        overTrash || overLibrary
+                                    )
                                     draggingObjectId = null
                                     dragGhostOffset = null
                                     dragPointerRootPosition = null
@@ -268,6 +289,16 @@ fun WorldEditor(
                                 origin = IntOffset(worldLeft, worldTop),
                                 scale = scale,
                                 sprite = trashObject.sprite,
+                                opacity = 0.5f
+                            )
+                        }
+                        val libraryObject = draggingLibraryObject
+                        if (libraryObject != null && dragGhostOffset != null) {
+                            WorldSprite(
+                                offset = dragGhostOffset!!,
+                                origin = IntOffset(worldLeft, worldTop),
+                                scale = scale,
+                                sprite = libraryObject.sprite,
                                 opacity = 0.5f
                             )
                         }
@@ -319,19 +350,30 @@ fun WorldEditor(
                         )
                     }
                 }
-                TrashControls(
-                    trash = trash,
-                    onCreate = { showingCreateDialog = true },
-                    onTrashClick = {
-                        trash = if (trash.state is TrashState.DrawerOpen) {
-                            trash.close()
-                        } else {
-                            trash.openDrawer()
-                        }
-                    },
-                    onTrashBoundsChanged = { trashBounds = it },
-                    modifier = Modifier
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    TrashControls(
+                        trash = trash,
+                        onCreate = { showingCreateDialog = true },
+                        onTrashClick = {
+                            trash = if (trash.state is TrashState.DrawerOpen) {
+                                trash.close()
+                            } else {
+                                trash.openDrawer()
+                            }
+                        },
+                        onTrashBoundsChanged = { trashBounds = it },
+                        modifier = Modifier
+                    )
+                    LibraryControls(
+                        isActive = dragPointerRootPosition?.let {
+                            libraryBounds?.contains(it) == true
+                        } == true,
+                        isOpen = libraryDrawerOpen,
+                        onClick = { libraryDrawerOpen = !libraryDrawerOpen },
+                        onBoundsChanged = { libraryBounds = it },
+                        modifier = Modifier
+                    )
+                }
             }
 
             Drawer(
@@ -365,6 +407,41 @@ fun WorldEditor(
                     dragPointerRootPosition = null
                     selectedObjectId = null
                 },
+                emptyText = "Trash is empty"
+            )
+
+            Drawer(
+                placement = Placement(
+                    Side.Left,
+                    (libraryBounds?.right?.minus(editorRootPosition.x)
+                        ?: availableWidth.toFloat())
+                ),
+                items = library.objects,
+                onItemDragStart = { obj, pointerRootPosition ->
+                    draggingLibraryObject = obj
+                    dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
+                            Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
+                    libraryDrawerOpen = false
+                    selectedObjectId = null
+                },
+                onItemDragMove = { pointerRootPosition ->
+                    draggingLibraryObject?.let { obj ->
+                        dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
+                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
+                    }
+                },
+                onItemDragEnd = { pointerRootPosition ->
+                    draggingLibraryObject?.let { obj ->
+                        val offset = (pointerRootPosition - worldOriginInRoot) / worldScale -
+                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
+                        spawnObject(obj.copy(offset = offset))
+                    }
+                    draggingLibraryObject = null
+                    dragGhostOffset = null
+                    dragPointerRootPosition = null
+                    selectedObjectId = null
+                },
+                emptyText = "Library is empty"
             )
         }
     }

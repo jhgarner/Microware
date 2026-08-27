@@ -62,6 +62,7 @@ fun App() {
                     )
                 )
             }
+            var library by remember { mutableStateOf(loadLibrary()) }
             WorldEditor(
                 world = world,
                 updateObject = { id, edit -> world = world.updateObject(id, edit) },
@@ -80,6 +81,11 @@ fun App() {
                 spawnObject = { obj ->
                     val id = (world.objects.maxOfOrNull { it.id } ?: 0) + 1
                     world = world.addObject(obj.copy(id = id)).clampObject(id)
+                },
+                library = library,
+                onObjectDroppedOnLibrary = { obj ->
+                    library = library.add(obj)
+                    saveLibrary(library)
                 }
             )
         }

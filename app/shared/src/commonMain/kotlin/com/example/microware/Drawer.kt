@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,9 +55,8 @@ fun Drawer(
     onItemDragStart: (Obj, Offset) -> Unit,
     onItemDragMove: (Offset) -> Unit,
     onItemDragEnd: (Offset) -> Unit,
+    emptyText: String? = null,
 ) {
-    var draggingItem by remember { mutableStateOf(false) }
-
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val handleWidth = with(density) { HandleSize.toPx() }
@@ -79,26 +79,28 @@ fun Drawer(
                 .border(2.dp, MaterialTheme.colorScheme.outline, panelShape)
                 .padding(12.dp)
         ) {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 64.dp),
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                itemsIndexed(items, key = { _, obj -> obj.id }) { index, obj ->
-                    ItemPreview(
-                        obj = obj,
-                        zIndex = -index.toFloat(),
-                        onDragStart = { pointerPosition ->
-                            draggingItem = true
-                            onItemDragStart(obj, pointerPosition)
-                        },
-                        onDragMove = onItemDragMove,
-                        onDragEnd = { pointerPosition ->
-                            onItemDragEnd(pointerPosition)
-                            draggingItem = false
-                        }
-                    )
+            if (items.isEmpty() && emptyText != null) {
+                Text(emptyText)
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 64.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(items, key = { _, obj -> obj.id }) { index, obj ->
+                        ItemPreview(
+                            obj = obj,
+                            zIndex = -index.toFloat(),
+                            onDragStart = { pointerPosition ->
+                                onItemDragStart(obj, pointerPosition)
+                            },
+                            onDragMove = onItemDragMove,
+                            onDragEnd = { pointerPosition ->
+                                onItemDragEnd(pointerPosition)
+                            }
+                        )
+                    }
                 }
             }
         }
