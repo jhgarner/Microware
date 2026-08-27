@@ -5,24 +5,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -120,6 +111,54 @@ fun TrashTarget(
     }
 }
 
+@Composable
+fun CreateTarget(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(8.dp)
+    val foreground = Palette.Navy.color
+
+    Box(
+        modifier = modifier
+            .size(HandleSize)
+            .shadow(OverlayShadowElevation, shape)
+            .clickable(onClick = onClick)
+            .background(Palette.OffWhite.color, shape)
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 2.dp.toPx()
+            val inset = strokeWidth / 2f
+            drawRoundRect(
+                color = foreground,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx()),
+                style = Stroke(strokeWidth)
+            )
+        }
+        Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
+            val strokeWidth = 2.dp.toPx()
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val halfLength = size.minDimension * 0.34f
+            drawLine(
+                color = foreground,
+                start = Offset(center.x - halfLength, center.y),
+                end = Offset(center.x + halfLength, center.y),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = foreground,
+                start = Offset(center.x, center.y - halfLength),
+                end = Offset(center.x, center.y + halfLength),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
 data class Trash(val garbage: PersistentList<Obj>, val state: TrashState) {
     constructor() : this(persistentListOf<Obj>(), TrashState.Closed)
 
@@ -154,84 +193,64 @@ sealed interface TrashState {
 @Composable
 fun TrashControls(
     trash: Trash,
-    onCreate: () -> Unit,
+    availableWidth: Float,
     onTrashClick: () -> Unit,
     onTrashBoundsChanged: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = TrashGap)
-    ) {
-        val density = LocalDensity.current
-        val handleWidth = with(density) { HandleSize.toPx() }
-        val drawerOpenSlide = with(density) { maxWidth.toPx() } - handleWidth
-        val hiddenTrashSlide = -500f
-        val visibleTrashSlide = -16f
-        val trashSlideX = remember {
-            Animatable(hiddenTrashSlide)
-        }
-        val lastTrashState = rememberLast(trash.state)
-        LaunchedEffect(trash.state, trash.isEmpty(), drawerOpenSlide) {
-            when (trash.state) {
-                is TrashState.Open, is TrashState.Hovered -> {
-                    if (lastTrashState is TrashState.Closed) {
-                        val start = if (trash.isEmpty()) hiddenTrashSlide else visibleTrashSlide
-                        trashSlideX.snapTo(start)
-                        trashSlideX.animateTo(
-                            targetValue = 0f,
-                            animationSpec = tween(durationMillis = 180)
-                        )
-                    }
-                }
-
-                is TrashState.DrawerOpen -> {
-                    if (lastTrashState is TrashState.Closed) {
-                        val start = if (trash.isEmpty()) hiddenTrashSlide else visibleTrashSlide
-                        trashSlideX.snapTo(start)
-                    }
+    val density = LocalDensity.current
+    val handleWidth = with(density) { HandleSize.toPx() }
+    val drawerOpenSlide = availableWidth - handleWidth
+    val hiddenTrashSlide = -500f
+    val visibleTrashSlide = -16f
+    val trashSlideX = remember {
+        Animatable(hiddenTrashSlide)
+    }
+    val lastTrashState = rememberLast(trash.state)
+    LaunchedEffect(trash.state, trash.isEmpty(), drawerOpenSlide) {
+        when (trash.state) {
+            is TrashState.Open, is TrashState.Hovered -> {
+                if (lastTrashState is TrashState.Closed) {
+                    val start = if (trash.isEmpty()) hiddenTrashSlide else visibleTrashSlide
+                    trashSlideX.snapTo(start)
                     trashSlideX.animateTo(
-                        targetValue = drawerOpenSlide,
-                        animationSpec = tween(durationMillis = 180)
-                    )
-                }
-
-                is TrashState.Closed -> if (trash.isEmpty()) {
-                    trashSlideX.animateTo(
-                        targetValue = hiddenTrashSlide,
-                        animationSpec = tween(durationMillis = 180)
-                    )
-                } else {
-                    trashSlideX.animateTo(
-                        targetValue = visibleTrashSlide,
+                        targetValue = 0f,
                         animationSpec = tween(durationMillis = 180)
                     )
                 }
             }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(TrashGap),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TrashTarget(
-                isActive = trash.state is TrashState.Hovered,
-                onClick = onTrashClick,
-                modifier = Modifier
-                    .offset { IntOffset(trashSlideX.value.roundToInt(), 0) }
-                    .onGloballyPositioned { coordinates ->
-                        onTrashBoundsChanged(coordinates.boundsInRoot())
-                    }
-            )
-            Spacer(
-                modifier = Modifier.width(
-                    16.dp
+
+            is TrashState.DrawerOpen -> {
+                if (lastTrashState is TrashState.Closed) {
+                    val start = if (trash.isEmpty()) hiddenTrashSlide else visibleTrashSlide
+                    trashSlideX.snapTo(start)
+                }
+                trashSlideX.animateTo(
+                    targetValue = drawerOpenSlide,
+                    animationSpec = tween(durationMillis = 180)
                 )
-            )
-            Button(onClick = onCreate) {
-                Text("Create")
+            }
+
+            is TrashState.Closed -> if (trash.isEmpty()) {
+                trashSlideX.animateTo(
+                    targetValue = hiddenTrashSlide,
+                    animationSpec = tween(durationMillis = 180)
+                )
+            } else {
+                trashSlideX.animateTo(
+                    targetValue = visibleTrashSlide,
+                    animationSpec = tween(durationMillis = 180)
+                )
             }
         }
     }
+    TrashTarget(
+        isActive = trash.state is TrashState.Hovered,
+        onClick = onTrashClick,
+        modifier = modifier
+            .offset { IntOffset(trashSlideX.value.roundToInt(), 0) }
+            .onGloballyPositioned { coordinates ->
+                onTrashBoundsChanged(coordinates.boundsInRoot())
+            }
+    )
 }

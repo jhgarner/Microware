@@ -3,9 +3,11 @@ package com.example.microware
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -177,17 +179,17 @@ fun WorldEditor(
             val availableWidth = with(density) { maxWidth.roundToPx() }
 
             Column(modifier = Modifier.fillMaxSize()) {
-                    BoxWithConstraints(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .zIndex(
-                                if (draggingObjectId != null ||
-                                    draggingTrashObject != null ||
-                                    draggingLibraryObject != null
-                                ) 1f else 0f
-                            )
-                    ) {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .zIndex(
+                            if (draggingObjectId != null ||
+                                draggingTrashObject != null ||
+                                draggingLibraryObject != null
+                            ) 1f else 0f
+                        )
+                ) {
                     val availableHeight = with(density) { maxHeight.roundToPx() }
                     val fitScale = min(
                         availableWidth.toFloat() / world.background.width,
@@ -368,41 +370,57 @@ fun WorldEditor(
                         )
                     }
                 }
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    TrashControls(
-                        trash = trash,
-                        onCreate = { showingCreateDialog = true },
-                        onTrashClick = {
-                            trash = if (trash.state is TrashState.DrawerOpen) {
-                                trash.close()
-                            } else {
-                                libraryDrawerOpen = false
-                                trash.openDrawer()
-                            }
-                        },
-                        onTrashBoundsChanged = { trashBounds = it },
-                        modifier = Modifier.zIndex(
-                            if (trash.state is TrashState.DrawerOpen) 1f else 0f
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = TrashGap)
+                ) {
+                    val controlsWidth = with(density) { maxWidth.toPx() }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        TrashControls(
+                            trash = trash,
+                            availableWidth = controlsWidth,
+                            onTrashClick = {
+                                trash = if (trash.state is TrashState.DrawerOpen) {
+                                    trash.close()
+                                } else {
+                                    libraryDrawerOpen = false
+                                    trash.openDrawer()
+                                }
+                            },
+                            onTrashBoundsChanged = { trashBounds = it },
+                            modifier = Modifier.zIndex(
+                                if (trash.state is TrashState.DrawerOpen) 1f else 0f
+                            )
                         )
-                    )
-                    LibraryControls(
-                        isActive = dragPointerRootPosition?.let {
-                            libraryBounds?.contains(it) == true
-                        } == true,
-                        isDragging = draggingObjectId != null,
-                        isOpen = libraryDrawerOpen,
-                        onClick = {
-                            val opening = !libraryDrawerOpen
-                            if (opening) {
-                                trash = trash.close()
-                            }
-                            libraryDrawerOpen = opening
-                        },
-                        onBoundsChanged = { libraryBounds = it },
-                        modifier = Modifier.zIndex(
-                            if (libraryDrawerOpen) 1f else 0f
+                        CreateTarget(
+                            onClick = { showingCreateDialog = true },
+                            modifier = Modifier.zIndex(1f)
                         )
-                    )
+                        LibraryControls(
+                            isActive = dragPointerRootPosition?.let {
+                                libraryBounds?.contains(it) == true
+                            } == true,
+                            isDragging = draggingObjectId != null,
+                            isOpen = libraryDrawerOpen,
+                            availableWidth = controlsWidth,
+                            onClick = {
+                                val opening = !libraryDrawerOpen
+                                if (opening) {
+                                    trash = trash.close()
+                                }
+                                libraryDrawerOpen = opening
+                            },
+                            onBoundsChanged = { libraryBounds = it },
+                            modifier = Modifier.zIndex(
+                                if (libraryDrawerOpen) 1f else 0f
+                            )
+                        )
+                    }
                 }
             }
 

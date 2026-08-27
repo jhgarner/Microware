@@ -6,9 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -103,42 +100,36 @@ fun LibraryControls(
     isActive: Boolean,
     isDragging: Boolean,
     isOpen: Boolean,
+    availableWidth: Float,
     onClick: () -> Unit,
     onBoundsChanged: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = TrashGap)
-    ) {
-        val density = LocalDensity.current
-        val openSlide = -(
-                with(density) { maxWidth.toPx() } - with(density) { HandleSize.toPx() }
-                )
-        val hiddenLibrarySlide = 16f
-        val librarySlideX = remember { Animatable(hiddenLibrarySlide) }
-        LaunchedEffect(isDragging, isOpen, openSlide) {
-            librarySlideX.animateTo(
-                targetValue = when {
-                    isOpen -> openSlide
-                    isDragging -> 0f
-                    else -> hiddenLibrarySlide
-                },
-                animationSpec = tween(durationMillis = 180)
+    val density = LocalDensity.current
+    val openSlide = -(
+            availableWidth - with(density) { HandleSize.toPx() }
             )
-        }
-        LibraryTarget(
-            isActive = isActive,
-            onClick = onClick,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .offset { IntOffset(librarySlideX.value.roundToInt(), 0) }
-                .onGloballyPositioned { coordinates ->
-                    onBoundsChanged(coordinates.boundsInRoot())
-                }
+    val hiddenLibrarySlide = 16f
+    val librarySlideX = remember { Animatable(hiddenLibrarySlide) }
+    LaunchedEffect(isDragging, isOpen, openSlide) {
+        librarySlideX.animateTo(
+            targetValue = when {
+                isOpen -> openSlide
+                isDragging -> 0f
+                else -> hiddenLibrarySlide
+            },
+            animationSpec = tween(durationMillis = 180)
         )
     }
+    LibraryTarget(
+        isActive = isActive,
+        onClick = onClick,
+        modifier = modifier
+            .offset { IntOffset(librarySlideX.value.roundToInt(), 0) }
+            .onGloballyPositioned { coordinates ->
+                onBoundsChanged(coordinates.boundsInRoot())
+            }
+    )
 }
 
 @Composable
