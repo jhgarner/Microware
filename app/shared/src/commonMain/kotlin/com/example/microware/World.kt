@@ -207,11 +207,16 @@ fun WorldEditor(
                             WorldSprite(Offset.Zero, scale, world.background)
                         }
                         for (obj in world.objects) {
+                            val objectOverTrash = draggingObjectId == obj.id &&
+                                    dragPointerRootPosition?.let {
+                                        trashBounds?.contains(it) == true
+                                    } == true
                             WorldSprite(
                                 offset = obj.offset,
                                 origin = IntOffset(worldLeft, worldTop),
                                 scale = scale,
                                 sprite = obj.sprite,
+                                opacity = if (objectOverTrash) 0f else 1f,
                                 objectId = obj.id,
                                 onTap = { selectedObjectId = it },
                                 onDragStart = { id ->
@@ -263,8 +268,12 @@ fun WorldEditor(
                                     }
                                     finishObjectDrag(
                                         id,
-                                        ghostOffset ?: Offset.Zero,
-                                        overTrash || overLibrary
+                                        when {
+                                            currentObject == null -> Offset.Zero
+                                            overLibrary -> currentObject.offset
+                                            else -> ghostOffset ?: currentObject.offset
+                                        },
+                                        overTrash
                                     )
                                     draggingObjectId = null
                                     dragGhostOffset = null
