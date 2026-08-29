@@ -142,7 +142,7 @@ private fun LibraryTarget(
 
     ButtonHandle(
         foreground = foreground,
-        openSide = Side.Right,
+        openEdge = HandleEdge.Right,
         onClick = onClick,
         onBoundsChanged = onBoundsChanged,
         modifier = modifier

@@ -21,16 +21,18 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 
+enum class HandleEdge { Left, Right, Bottom }
+
 @Composable
 fun ButtonHandle(
     foreground: Color,
-    openSide: Side? = null,
+    openEdge: HandleEdge? = null,
     onClick: (() -> Unit)? = null,
     onBoundsChanged: ((Rect) -> Unit)? = null,
     modifier: Modifier = Modifier,
     content: @Composable (Color) -> Unit,
 ) {
-    val shape = handleShape(openSide)
+    val shape = handleShape(openEdge)
     var targetModifier = Modifier
         .size(HandleSize)
         .then(modifier)
@@ -47,31 +49,38 @@ fun ButtonHandle(
     }
 
     Box(modifier = targetModifier) {
-        HandleBorder(openSide = openSide, color = foreground)
+        HandleBorder(openEdge = openEdge, color = foreground)
         content(foreground)
     }
 }
 
-private fun handleShape(openSide: Side?) = when (openSide) {
-    Side.Left -> RoundedCornerShape(
+private fun handleShape(openEdge: HandleEdge?) = when (openEdge) {
+    HandleEdge.Left -> RoundedCornerShape(
         topStart = 0.dp,
         topEnd = 8.dp,
         bottomEnd = 8.dp,
         bottomStart = 0.dp
     )
 
-    Side.Right -> RoundedCornerShape(
+    HandleEdge.Right -> RoundedCornerShape(
         topStart = 8.dp,
         topEnd = 0.dp,
         bottomEnd = 0.dp,
         bottomStart = 8.dp
     )
 
+    HandleEdge.Bottom -> RoundedCornerShape(
+        topStart = 8.dp,
+        topEnd = 8.dp,
+        bottomEnd = 0.dp,
+        bottomStart = 0.dp
+    )
+
     null -> RoundedCornerShape(8.dp)
 }
 
 @Composable
-private fun HandleBorder(openSide: Side?, color: Color) {
+private fun HandleBorder(openEdge: HandleEdge?, color: Color) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val strokeWidth = 2.dp.toPx()
         val inset = strokeWidth / 2f
@@ -79,7 +88,7 @@ private fun HandleBorder(openSide: Side?, color: Color) {
         val bottom = size.height - inset
         val radius = 8.dp.toPx().coerceAtMost(size.height / 2f)
 
-        if (openSide == null) {
+        if (openEdge == null) {
             drawRoundRect(
                 color = color,
                 topLeft = Offset(inset, inset),
@@ -89,20 +98,33 @@ private fun HandleBorder(openSide: Side?, color: Color) {
             )
         } else {
             val borderPath = Path().apply {
-                if (openSide == Side.Left) {
-                    moveTo(0f, inset)
-                    lineTo(right - radius, inset)
-                    quadraticTo(right, inset, right, inset + radius)
-                    lineTo(right, bottom - radius)
-                    quadraticTo(right, bottom, right - radius, bottom)
-                    lineTo(0f, bottom)
-                } else {
-                    moveTo(right, inset)
-                    lineTo(inset + radius, inset)
-                    quadraticTo(inset, inset, inset, inset + radius)
-                    lineTo(inset, bottom - radius)
-                    quadraticTo(inset, bottom, inset + radius, bottom)
-                    lineTo(right, bottom)
+                when (openEdge) {
+                    HandleEdge.Left -> {
+                        moveTo(0f, inset)
+                        lineTo(right - radius, inset)
+                        quadraticTo(right, inset, right, inset + radius)
+                        lineTo(right, bottom - radius)
+                        quadraticTo(right, bottom, right - radius, bottom)
+                        lineTo(0f, bottom)
+                    }
+
+                    HandleEdge.Right -> {
+                        moveTo(right, inset)
+                        lineTo(inset + radius, inset)
+                        quadraticTo(inset, inset, inset, inset + radius)
+                        lineTo(inset, bottom - radius)
+                        quadraticTo(inset, bottom, inset + radius, bottom)
+                        lineTo(right, bottom)
+                    }
+
+                    HandleEdge.Bottom -> {
+                        moveTo(0f, bottom)
+                        lineTo(0f, inset + radius)
+                        quadraticTo(0f, inset, inset + radius, inset)
+                        lineTo(right - radius, inset)
+                        quadraticTo(right, inset, right, inset + radius)
+                        lineTo(right, bottom)
+                    }
                 }
             }
             drawPath(

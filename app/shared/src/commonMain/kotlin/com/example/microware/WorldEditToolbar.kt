@@ -22,13 +22,14 @@ import kotlin.math.roundToInt
 fun BoxWithConstraintsScope.WorldEditToolbar(
     settableOffer: MutableState<Offer?>,
     settableWorld: MutableState<World>,
+    onCreate: () -> Unit,
+    isCreateDrawerOpen: Boolean,
     editObject: (Obj) -> Unit,
     settableTrash: MutableState<Trash>,
     library: MutableState<Library>,
 ) {
     var trashDrawerOpen by remember { mutableStateOf(false) }
     var libraryDrawerOpen by remember { mutableStateOf(false) }
-    var showingCreateDialog by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     var trash by settableTrash
     var world by settableWorld
@@ -54,6 +55,15 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         targetValue = if (libraryDrawerOpen || trashDrawerOpen) fleeingTarget else 0f,
         animationSpec = tween(durationMillis = 180),
         label = "Fleeing buttons"
+    )
+    val createDrawerOffset by animateFloatAsState(
+        targetValue = if (isCreateDrawerOpen) {
+            -(with(density) { maxHeight.toPx() } - with(density) { HandleSize.toPx() })
+        } else {
+            0f
+        },
+        animationSpec = tween(durationMillis = 180),
+        label = "Create drawer handle offset"
     )
     val libraryFleeingOffset by animateFloatAsState(
         targetValue = if (trashDrawerOpen) fleeingTarget else 0f,
@@ -90,12 +100,17 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
 
     var createState: TrashState by remember { mutableStateOf(TrashState.Closed) }
     CreateTarget(
-        onClick = { showingCreateDialog = true },
+        onClick = onCreate,
         isEditMode = offered != null,
         isActive = createState == TrashState.Hovered,
         modifier = Modifier.zIndex(0.75f)
             .align(Alignment.BottomCenter)
-            .offset { IntOffset(createFleeingOffset.roundToInt(), 0) }
+            .offset {
+                IntOffset(
+                    createFleeingOffset.roundToInt(),
+                    createDrawerOffset.roundToInt()
+                )
+            }
             .dropTarget(
                 offered,
                 onStart = { createState = TrashState.Open },

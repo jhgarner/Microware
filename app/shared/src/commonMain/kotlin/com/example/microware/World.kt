@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -90,31 +89,13 @@ fun WorldEditor(
     var selectedObjectId by remember { mutableStateOf<Int?>(null) }
     val mutableOffer = remember { mutableStateOf<Offer?>(null) }
     var offer by mutableOffer
-    var showingCreateDialog by remember { mutableStateOf(false) }
+    var createDrawerOpen by remember { mutableStateOf(false) }
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
     var objectBeingEdited by remember { mutableStateOf<Obj?>(null) }
     val mutableTrash = remember { mutableStateOf(Trash()) }
 
-    objectBeingEdited?.let { obj ->
-        Column(modifier = Modifier.fillMaxSize()) {
-            Button(
-                onClick = { objectBeingEdited = null },
-                modifier = Modifier.padding(8.dp)
-            ) {
-                Text("Back")
-            }
-            EditableCanvas(
-                sprite = obj.sprite,
-                edit = { edit ->
-                    val newObj = obj.copy(sprite = obj.sprite.update(edit))
-                    objectBeingEdited = newObj
-                    world = world.updateObject(newObj)
-                },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    } ?: BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val availableWidth = with(density) { maxWidth.roundToPx() }
 
@@ -214,29 +195,63 @@ fun WorldEditor(
                     )
                 }
 
-                if (showingCreateDialog) {
-                    CreateObjectDialog(
-                        onDismiss = { showingCreateDialog = false },
-                        onCreate = { width, height ->
-                            val id = world.nextId()
-                            val obj = Obj(id, width, height)
-                            world = world.addObject(obj)
-                            showingCreateDialog = false
-                            objectBeingEdited = obj
-                        }
-                    )
-                }
             }
             Spacer(modifier = Modifier.height(toolbarHeight))
         }
 
         WorldEditToolbar(
             settableOffer = mutableOffer,
-            editObject = { objectBeingEdited = it },
+            onCreate = {
+                objectBeingEdited = null
+                createDrawerOpen = !createDrawerOpen
+            },
+            isCreateDrawerOpen = createDrawerOpen,
+            editObject = {
+                objectBeingEdited = it
+                createDrawerOpen = true
+            },
             settableTrash = mutableTrash,
             library = library,
             settableWorld = mutableWorld,
         )
+
+        BottomDrawer(
+            isOpen = createDrawerOpen,
+            onDismissRequest = {
+                objectBeingEdited = null
+                createDrawerOpen = false
+            },
+            modifier = Modifier.zIndex(0.5f),
+        ) {
+            objectBeingEdited?.let { obj ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Button(
+                        onClick = {
+                            objectBeingEdited = null
+                            createDrawerOpen = false
+                        },
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Text("Done")
+                    }
+                    EditableCanvas(
+                        sprite = obj.sprite,
+                        edit = { edit ->
+                            val newObj = obj.copy(sprite = obj.sprite.update(edit))
+                            objectBeingEdited = newObj
+                            world = world.updateObject(newObj)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } ?: CreateObjectForm(
+                onCreate = { width, height ->
+                    val obj = Obj(world.nextId(), width, height)
+                    world = world.addObject(obj)
+                    objectBeingEdited = obj
+                }
+            )
+        }
 
     }
 }
@@ -285,8 +300,7 @@ private fun WorldSprite(
 }
 
 @Composable
-private fun CreateObjectDialog(
-    onDismiss: () -> Unit,
+private fun CreateObjectForm(
     onCreate: (Int, Int) -> Unit,
 ) {
     var widthText by remember { mutableStateOf("20") }
@@ -295,45 +309,36 @@ private fun CreateObjectDialog(
     val height = heightText.toIntOrNull()
     val canCreate = width != null && width > 0 && height != null && height > 0
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Create object") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = widthText,
-                    onValueChange = { value ->
-                        widthText = value.filter { it.isDigit() }
-                    },
-                    label = { Text("Width") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = heightText,
-                    onValueChange = { value ->
-                        heightText = value.filter { it.isDigit() }
-                    },
-                    label = { Text("Height") },
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (width != null && height != null && width > 0 && height > 0) {
-                        onCreate(width, height)
-                    }
-                },
-                enabled = canCreate
-            ) {
-                Text("Create")
-            }
-        },
-        dismissButton = {
-            Button(onClick = onDismiss) {
-                Text("Cancel")
-            }
+    Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+        Text("Create sprite")
+        OutlinedTextField(
+            value = widthText,
+            onValueChange = { value ->
+                widthText = value.filter { it.isDigit() }
+            },
+            label = { Text("Width") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = heightText,
+            onValueChange = { value ->
+                heightText = value.filter { it.isDigit() }
+            },
+            label = { Text("Height") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Button(
+            onClick = {
+                if (width != null && height != null && width > 0 && height > 0) {
+                    onCreate(width, height)
+                }
+            },
+            enabled = canCreate,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Create")
         }
-    )
+    }
 }

@@ -43,7 +43,7 @@ fun TrashTarget(
 
     ButtonHandle(
         foreground = foreground,
-        openSide = Side.Left,
+        openEdge = HandleEdge.Left,
         onClick = onClick,
         onBoundsChanged = onBoundsChanged,
         modifier = modifier,

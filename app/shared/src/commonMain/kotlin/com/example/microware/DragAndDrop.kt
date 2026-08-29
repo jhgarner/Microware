@@ -31,7 +31,6 @@ fun Modifier.dropSource(
                     val localToWindow = layout.value?.let { it::localToWindow } ?: { it }
                     followDrag { change ->
                         var offer by settableOffer
-                        println("Change in position is ${change.position}")
                         offer = offer?.copy(offset = localToWindow(change.position))
                             ?: Offer(localToWindow(change.position), change.position, obj, from)
                     }

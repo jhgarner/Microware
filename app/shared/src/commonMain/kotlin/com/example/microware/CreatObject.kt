@@ -39,6 +39,7 @@ fun CreateTarget(
 
     ButtonHandle(
         foreground = foreground,
+        openEdge = HandleEdge.Bottom,
         onClick = onClick,
         onBoundsChanged = onBoundsChanged,
         modifier = modifier,
