@@ -95,9 +95,9 @@ fun CreateTarget(
             )
 
             val t = morphProgress
-            val hStart = lerp(plusHStart, p2, t)
+            val hStart = lerp(plusHStart, tip, t)
             val hEnd = lerp(plusHEnd, p3, t)
-            val vStart = lerp(plusVStart, p1, t)
+            val vStart = lerp(plusVStart, tip, t)
             val vEnd = lerp(plusVEnd, p4, t)
 
             drawLine(
@@ -119,14 +119,14 @@ fun CreateTarget(
                 val tipColor = foreground.copy(alpha = tipAlpha)
                 drawLine(
                     color = tipColor,
-                    start = tip,
+                    start = p2,
                     end = p3,
                     strokeWidth = strokeWidth,
                     cap = StrokeCap.Round
                 )
                 drawLine(
                     color = tipColor,
-                    start = tip,
+                    start = p1,
                     end = p4,
                     strokeWidth = strokeWidth,
                     cap = StrokeCap.Round
@@ -149,4 +149,3 @@ fun CreateTarget(
         }
     }
 }
-

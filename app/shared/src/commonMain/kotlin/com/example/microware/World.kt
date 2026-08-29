@@ -133,13 +133,11 @@ fun WorldEditor(
                             val localOffset =
                                 (it.offset - worldOriginInParent - it.localOffset) / worldScale
                             val obj = world.clamped(it.obj.copy(offset = localOffset))
-                            println("Was given $it")
                             world = if (it.from is World) {
                                 world.updateObject(obj)
                             } else {
                                 world.addObject(obj)
                             }
-                            println("And world became ${world.objects}")
                         },
                     )
             ) {
@@ -180,7 +178,6 @@ fun WorldEditor(
                     )
                 }
                 for (obj in world.objects) {
-                    println("Obj is known as $obj")
                     WorldSprite(
                         obj = obj,
                         origin = IntOffset(worldLeft, worldTop),
