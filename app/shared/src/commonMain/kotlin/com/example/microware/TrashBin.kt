@@ -1,8 +1,6 @@
 package com.example.microware
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -15,19 +13,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -41,7 +38,7 @@ val TrashGap = 8.dp
 fun TrashTarget(
     isActive: Boolean,
     onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(
         topStart = 0.dp,
@@ -55,9 +52,8 @@ fun TrashTarget(
         Palette.Maroon
     }.color
 
-    var targetModifier = modifier
-        .size(HandleSize)
-        .shadow(OverlayShadowElevation, shape)
+    var targetModifier =
+        (Modifier.size(HandleSize) then modifier).shadow(OverlayShadowElevation, shape)
     if (onClick != null) {
         targetModifier = targetModifier.clickable(onClick = onClick)
     }
@@ -114,138 +110,6 @@ fun TrashTarget(
     }
 }
 
-@Composable
-fun CreateTarget(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isEditMode: Boolean = false,
-    isActive: Boolean = false,
-    onBoundsChanged: (Rect) -> Unit = {}
-) {
-    val shape = RoundedCornerShape(8.dp)
-    val morphProgress by animateFloatAsState(
-        targetValue = if (isEditMode) 1f else 0f,
-        animationSpec = tween(durationMillis = 220),
-        label = "createEditMorph"
-    )
-    val targetColor = when {
-        isEditMode && isActive -> Palette.Cyan.color
-        else -> Palette.Navy.color
-    }
-    val foreground by animateColorAsState(
-        targetValue = targetColor,
-        animationSpec = tween(durationMillis = 180),
-        label = "createEditColor"
-    )
-
-    Box(
-        modifier = modifier
-            .size(HandleSize)
-            .shadow(OverlayShadowElevation, shape)
-            .clickable(onClick = onClick)
-            .background(Palette.OffWhite.color, shape)
-            .onGloballyPositioned { coordinates ->
-                onBoundsChanged(coordinates.boundsInRoot())
-            }
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 2.dp.toPx()
-            val inset = strokeWidth / 2f
-            drawRoundRect(
-                color = foreground,
-                topLeft = Offset(inset, inset),
-                size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx()),
-                style = Stroke(strokeWidth)
-            )
-        }
-        Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
-            val strokeWidth = 2.dp.toPx()
-            val w = size.width
-            val h = size.height
-            val center = Offset(w / 2f, h / 2f)
-            val halfLength = size.minDimension * 0.34f
-
-            val plusHStart = Offset(center.x - halfLength, center.y)
-            val plusHEnd = Offset(center.x + halfLength, center.y)
-            val plusVStart = Offset(center.x, center.y - halfLength)
-            val plusVEnd = Offset(center.x, center.y + halfLength)
-
-            val tip = Offset(w * 0.22f, h * 0.84f)
-            val eraser = Offset(w * 0.78f, h * 0.16f)
-            val dirRaw = eraser - tip
-            val dirLen = dirRaw.getDistance()
-            val dir = if (dirLen > 0f) dirRaw / dirLen else Offset(0.7f, -0.7f)
-            val perp = Offset(-dir.y, dir.x)
-            val halfW = size.minDimension * 0.10f
-            val tipLen = size.minDimension * 0.22f
-            val tipBase = tip + dir * tipLen
-            val p1 = eraser + perp * halfW
-            val p2 = eraser - perp * halfW
-            val p3 = tipBase - perp * halfW
-            val p4 = tipBase + perp * halfW
-
-            fun lerp(a: Offset, b: Offset, t: Float) = Offset(
-                a.x + (b.x - a.x) * t,
-                a.y + (b.y - a.y) * t
-            )
-
-            val t = morphProgress
-            val hStart = lerp(plusHStart, p2, t)
-            val hEnd = lerp(plusHEnd, p3, t)
-            val vStart = lerp(plusVStart, p1, t)
-            val vEnd = lerp(plusVEnd, p4, t)
-
-            drawLine(
-                color = foreground,
-                start = hStart,
-                end = hEnd,
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = vStart,
-                end = vEnd,
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            if (t > 0.01f) {
-                val tipAlpha = t
-                val tipColor = foreground.copy(alpha = tipAlpha)
-                drawLine(
-                    color = tipColor,
-                    start = tip,
-                    end = p3,
-                    strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = tipColor,
-                    start = tip,
-                    end = p4,
-                    strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = tipColor,
-                    start = p1,
-                    end = p2,
-                    strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = tipColor,
-                    start = p3,
-                    end = p4,
-                    strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-            }
-        }
-    }
-}
-
 data class Trash(val garbage: PersistentList<Obj>, val state: TrashState) {
     constructor() : this(persistentListOf<Obj>(), TrashState.Closed)
 
@@ -266,25 +130,26 @@ data class Trash(val garbage: PersistentList<Obj>, val state: TrashState) {
     fun close(): Trash = copy(state = TrashState.Closed)
 
     fun hover(): Trash = copy(state = TrashState.Hovered)
-
-    fun openDrawer(): Trash = copy(state = TrashState.DrawerOpen)
 }
 
 sealed interface TrashState {
     object Open : TrashState
     object Closed : TrashState
     object Hovered : TrashState
-    object DrawerOpen : TrashState
 }
 
 @Composable
 fun TrashControls(
-    trash: Trash,
+    trash: MutableState<Trash>,
+    isExpanded: Boolean,
     availableWidth: Float,
     onTrashClick: () -> Unit,
-    onTrashBoundsChanged: (Rect) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    offered: Offer?,
+    onGiven: (Offer) -> Unit,
 ) {
+    var trash by trash
+    val isDragging = offered != null
     val density = LocalDensity.current
     val handleWidth = with(density) { HandleSize.toPx() }
     val drawerOpenSlide = availableWidth - handleWidth
@@ -293,51 +158,29 @@ fun TrashControls(
     val trashSlideX = remember {
         Animatable(hiddenTrashSlide)
     }
-    val lastTrashState = rememberLast(trash.state)
-    LaunchedEffect(trash.state, trash.isEmpty(), drawerOpenSlide) {
-        when (trash.state) {
-            is TrashState.Open, is TrashState.Hovered -> {
-                if (lastTrashState is TrashState.Closed) {
-                    val start = if (trash.isEmpty()) hiddenTrashSlide else visibleTrashSlide
-                    trashSlideX.snapTo(start)
-                    trashSlideX.animateTo(
-                        targetValue = 0f,
-                        animationSpec = tween(durationMillis = 180)
-                    )
-                }
-            }
-
-            is TrashState.DrawerOpen -> {
-                if (lastTrashState is TrashState.Closed) {
-                    val start = if (trash.isEmpty()) hiddenTrashSlide else visibleTrashSlide
-                    trashSlideX.snapTo(start)
-                }
-                trashSlideX.animateTo(
-                    targetValue = drawerOpenSlide,
-                    animationSpec = tween(durationMillis = 180)
-                )
-            }
-
-            is TrashState.Closed -> if (trash.isEmpty()) {
-                trashSlideX.animateTo(
-                    targetValue = hiddenTrashSlide,
-                    animationSpec = tween(durationMillis = 180)
-                )
-            } else {
-                trashSlideX.animateTo(
-                    targetValue = visibleTrashSlide,
-                    animationSpec = tween(durationMillis = 180)
-                )
-            }
-        }
+    LaunchedEffect(trash.isEmpty(), drawerOpenSlide, isDragging, isExpanded) {
+        trashSlideX.animateTo(
+            targetValue = when {
+                isExpanded -> drawerOpenSlide
+                isDragging -> 0f
+                trash.isEmpty() -> hiddenTrashSlide
+                else -> visibleTrashSlide
+            },
+            animationSpec = tween(durationMillis = 180)
+        )
     }
     TrashTarget(
         isActive = trash.state is TrashState.Hovered,
         onClick = onTrashClick,
-        modifier = modifier
+        modifier = Modifier
             .offset { IntOffset(trashSlideX.value.roundToInt(), 0) }
-            .onGloballyPositioned { coordinates ->
-                onTrashBoundsChanged(coordinates.boundsInRoot())
-            }
+                then modifier
+            .dropTarget(
+                offered = offered,
+                onStart = { trash = trash.open() },
+                onEnter = { trash = trash.hover() },
+                onExit = { trash = trash.open() },
+                onGiven = { trash = trash.discard(it.obj); onGiven(it) },
+                onEnd = { trash = trash.close() })
     )
 }

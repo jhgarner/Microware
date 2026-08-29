@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -53,7 +56,7 @@ private data class StoredObj(
     val offsetY: Float,
     val width: Int,
     val height: Int,
-    val pixels: List<Int>
+    val pixels: List<Int>,
 )
 
 private val libraryJson = Json { ignoreUnknownKeys = true }
@@ -97,24 +100,25 @@ private fun StoredObj.toObj(): Obj {
 
 @Composable
 fun LibraryControls(
-    isActive: Boolean,
-    isDragging: Boolean,
-    isOpen: Boolean,
+    offered: Offer?,
+    onGiven: (Obj) -> Unit,
+    isExpanded: Boolean,
     availableWidth: Float,
     onClick: () -> Unit,
-    onBoundsChanged: (Rect) -> Unit,
-    modifier: Modifier = Modifier
+    onBounds: (Rect) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val isDragging = offered != null
     val density = LocalDensity.current
     val openSlide = -(
             availableWidth - with(density) { HandleSize.toPx() }
             )
     val hiddenLibrarySlide = 16f
     val librarySlideX = remember { Animatable(hiddenLibrarySlide) }
-    LaunchedEffect(isDragging, isOpen, openSlide) {
+    LaunchedEffect(isDragging, isExpanded, openSlide) {
         librarySlideX.animateTo(
             targetValue = when {
-                isOpen -> openSlide
+                isExpanded -> openSlide
                 isDragging -> 0f
                 else -> hiddenLibrarySlide
             },
@@ -122,29 +126,30 @@ fun LibraryControls(
         )
     }
     LibraryTarget(
-        isActive = isActive,
+        offered = offered,
+        onGiven = onGiven,
         onClick = onClick,
         modifier = modifier
             .offset { IntOffset(librarySlideX.value.roundToInt(), 0) }
-            .onGloballyPositioned { coordinates ->
-                onBoundsChanged(coordinates.boundsInRoot())
-            }
+            .onGloballyPositioned { onBounds(it.boundsInRoot()) }
     )
 }
 
 @Composable
 private fun LibraryTarget(
-    isActive: Boolean,
+    offered: Offer?,
+    onGiven: (Obj) -> Unit,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
+    var state: TrashState by remember { mutableStateOf(TrashState.Closed) }
     val shape = RoundedCornerShape(
         topStart = 8.dp,
         topEnd = 0.dp,
         bottomEnd = 0.dp,
         bottomStart = 8.dp
     )
-    val foreground = if (isActive) {
+    val foreground = if (state == TrashState.Hovered) {
         Palette.Green
     } else {
         Palette.Forest
@@ -156,6 +161,13 @@ private fun LibraryTarget(
             .shadow(OverlayShadowElevation, shape)
             .clickable(onClick = onClick)
             .background(Palette.OffWhite.color, shape)
+            .dropTarget(
+                offered,
+                onStart = { state = TrashState.Open },
+                onEnter = { state = TrashState.Hovered },
+                onExit = { state = TrashState.Open },
+                onGiven = { onGiven(it.obj) },
+                onEnd = { state = TrashState.Closed })
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 2.dp.toPx()

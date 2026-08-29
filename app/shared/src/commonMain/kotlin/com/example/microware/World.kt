@@ -3,11 +3,9 @@ package com.example.microware
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,24 +18,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlin.math.floor
@@ -50,18 +45,18 @@ const val WorldHeight = 256
 data class World(val background: Sprite, val objects: List<Obj>) {
     constructor() : this(Sprite.empty(WorldWidth, WorldHeight), emptyList())
 
-    fun moveObject(id: Int, delta: Offset): World {
+    fun updateObject(newObj: Obj): World {
         return copy(
             objects = objects.map { obj ->
-                if (obj.id != id) {
+                if (obj.id != newObj.id) {
                     obj
                 } else {
-                    val maxX = (background.width - obj.sprite.width).coerceAtLeast(0).toFloat()
-                    val maxY = (background.height - obj.sprite.height).coerceAtLeast(0).toFloat()
-                    obj.copy(
+                    val maxX = (background.width - newObj.sprite.width).coerceAtLeast(0).toFloat()
+                    val maxY = (background.height - newObj.sprite.height).coerceAtLeast(0).toFloat()
+                    newObj.copy(
                         offset = Offset(
-                            (obj.offset.x + delta.x).coerceIn(0f, maxX),
-                            (obj.offset.y + delta.y).coerceIn(0f, maxY)
+                            (newObj.offset.x).coerceIn(0f, maxX),
+                            (newObj.offset.y).coerceIn(0f, maxY)
                         )
                     )
                 }
@@ -69,501 +64,194 @@ data class World(val background: Sprite, val objects: List<Obj>) {
         )
     }
 
-    fun dragObject(id: Int, delta: Offset): World {
-        return copy(
-            objects = objects.map { obj ->
-                if (obj.id == id) obj.copy(offset = obj.offset + delta) else obj
-            }
-        )
-    }
+    fun addObject(obj: Obj): World = copy(objects = objects + obj.copy(id = nextId()))
+    fun nextId(): Int = (objects.maxOfOrNull { it.id } ?: 0) + 1
 
-    fun placeObject(id: Int, offset: Offset): World {
-        return copy(
-            objects = objects.map { obj ->
-                if (obj.id == id) obj.copy(offset = offset) else obj
-            }
-        )
-    }
-
-    fun addObject(obj: Obj): World = copy(objects = objects + obj)
-
-    fun clampObject(id: Int): World {
-        return copy(
-            objects = objects.map { obj ->
-                if (obj.id != id) {
-                    obj
-                } else {
-                    val maxX = (background.width - obj.sprite.width).coerceAtLeast(0).toFloat()
-                    val maxY = (background.height - obj.sprite.height).coerceAtLeast(0).toFloat()
-                    obj.copy(
-                        offset = Offset(
-                            obj.offset.x.coerceIn(0f, maxX),
-                            obj.offset.y.coerceIn(0f, maxY)
-                        )
-                    )
-                }
-            }
+    fun clamped(obj: Obj): Obj {
+        val maxX = (background.width - obj.sprite.width).coerceAtLeast(0).toFloat()
+        val maxY = (background.height - obj.sprite.height).coerceAtLeast(0).toFloat()
+        return obj.copy(
+            offset = Offset(
+                obj.offset.x.coerceIn(0f, maxX),
+                obj.offset.y.coerceIn(0f, maxY)
+            )
         )
     }
 
     fun deleteObject(id: Int): World = copy(objects = objects.filterNot { it.id == id })
-
-    fun updateObject(id: Int, edit: Sprite.Edits): World {
-        return copy(
-            objects = objects.map { obj ->
-                if (obj.id == id) obj.copy(sprite = obj.sprite.update(edit)) else obj
-            }
-        )
-    }
 }
 
 @Composable
 fun WorldEditor(
-    world: World,
-    updateObject: (Int, Sprite.Edits) -> Unit,
-    finishObjectDrag: (Int, Offset, Boolean) -> Unit,
-    createObject: (Int, Int) -> Int,
-    spawnObject: (Obj) -> Unit,
-    library: Library,
-    onObjectDroppedOnLibrary: (Obj) -> Unit
+    mutableWorld: MutableState<World>,
+    library: MutableState<Library>,
 ) {
+    var world by mutableWorld
     var selectedObjectId by remember { mutableStateOf<Int?>(null) }
-    var editingObjectId by remember { mutableStateOf<Int?>(null) }
-    var menuSize by remember { mutableStateOf(IntSize.Zero) }
-    var draggingObjectId by remember { mutableStateOf<Int?>(null) }
-    var draggingTrashObject by remember { mutableStateOf<Obj?>(null) }
-    var draggingLibraryObject by remember { mutableStateOf<Obj?>(null) }
-    var dragGhostOffset by remember { mutableStateOf<Offset?>(null) }
-    var dragPointerRootPosition by remember { mutableStateOf<Offset?>(null) }
+    val mutableOffer = remember { mutableStateOf<Offer?>(null) }
+    var offer by mutableOffer
     var showingCreateDialog by remember { mutableStateOf(false) }
-    var editorRootPosition by remember { mutableStateOf(Offset.Zero) }
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
-    var trashBounds by remember { mutableStateOf<Rect?>(null) }
-    var libraryBounds by remember { mutableStateOf<Rect?>(null) }
-    var createBounds by remember { mutableStateOf<Rect?>(null) }
-    var libraryDrawerOpen by remember { mutableStateOf(false) }
-    val objectBeingEdited = world.objects.firstOrNull { it.id == editingObjectId }
-    var trash by remember { mutableStateOf(Trash()) }
-    if (draggingTrashObject != null) {
-        trash = trash.close()
-    } else if (dragPointerRootPosition != null) {
-        trash = if (trashBounds?.contains(dragPointerRootPosition!!) == true) {
-            trash.hover()
-        } else {
-            trash.open()
-        }
-    } else if (trash.state !is TrashState.DrawerOpen) {
-        trash = trash.close()
-    }
+    var objectBeingEdited by remember { mutableStateOf<Obj?>(null) }
+    val mutableTrash = remember { mutableStateOf(Trash()) }
 
-    if (objectBeingEdited != null) {
+    objectBeingEdited?.let { obj ->
         Column(modifier = Modifier.fillMaxSize()) {
             Button(
-                onClick = { editingObjectId = null },
+                onClick = { objectBeingEdited = null },
                 modifier = Modifier.padding(8.dp)
             ) {
                 Text("Back")
             }
             EditableCanvas(
-                sprite = objectBeingEdited.sprite,
-                edit = { edit -> updateObject(objectBeingEdited.id, edit) },
+                sprite = obj.sprite,
+                edit = { edit ->
+                    val newObj = obj.copy(sprite = obj.sprite.update(edit))
+                    objectBeingEdited = newObj
+                    world = world.updateObject(newObj)
+                },
                 modifier = Modifier.weight(1f)
             )
         }
-    } else {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .onGloballyPositioned { coordinates ->
-                    editorRootPosition = coordinates.localToRoot(Offset.Zero)
-                }
-        ) {
-            val density = LocalDensity.current
-            val availableWidth = with(density) { maxWidth.roundToPx() }
+    } ?: BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val availableWidth = with(density) { maxWidth.roundToPx() }
 
-            // Reserve toolbar height so world doesn't underlay the toolbar overlay
-            val toolbarHeight = HandleSize + TrashGap
-            Column(modifier = Modifier.fillMaxSize()) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .zIndex(
-                            if (draggingObjectId != null ||
-                                draggingTrashObject != null ||
-                                draggingLibraryObject != null
-                            ) 1f else 0f
-                        )
-                ) {
-                    val availableHeight = with(density) { maxHeight.roundToPx() }
-                    val fitScale = min(
-                        availableWidth.toFloat() / world.background.width,
-                        availableHeight.toFloat() / world.background.height
-                    )
-                    val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
-                    val worldWidth = (world.background.width * scale).roundToInt()
-                    val worldHeight = (world.background.height * scale).roundToInt()
-                    val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
-                    val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
+        val toolbarHeight = HandleSize + TrashGap
 
-                    if (scale > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .requiredSize(
-                                    with(density) { worldWidth.toDp() },
-                                    with(density) { worldHeight.toDp() }
-                                )
-                                .offset { IntOffset(worldLeft, worldTop) }
-                                .onGloballyPositioned { coordinates ->
-                                    worldOriginInRoot = coordinates.localToRoot(Offset.Zero)
-                                    worldScale = scale
-                                }
-                                .clipToBounds()
-                        ) {
-                            WorldSprite(Offset.Zero, scale, world.background)
-                        }
-                        for (obj in world.objects) {
-                            val objectOverTrash = draggingObjectId == obj.id &&
-                                    dragPointerRootPosition?.let {
-                                        trashBounds?.contains(it) == true
-                                    } == true
-                            val objectOverEdit = draggingObjectId == obj.id &&
-                                    dragPointerRootPosition?.let {
-                                        createBounds?.contains(it) == true
-                                    } == true
-                            WorldSprite(
-                                offset = obj.offset,
-                                origin = IntOffset(worldLeft, worldTop),
-                                scale = scale,
-                                sprite = obj.sprite,
-                                opacity = if (objectOverTrash || objectOverEdit) 0.5f else 1f,
-                                objectId = obj.id,
-                                onTap = { selectedObjectId = it },
-                                onDragStart = { id ->
-                                    world.objects.firstOrNull { it.id == id }?.let { obj ->
-                                        draggingObjectId = id
-                                        dragGhostOffset = obj.offset
-                                        dragPointerRootPosition = null
-                                        selectedObjectId = null
-                                    }
-                                },
-                                onDragMove = { id, delta, pointerPosition ->
-                                    val currentObject = world.objects.firstOrNull { it.id == id }
-                                    if (currentObject != null) {
-                                        dragGhostOffset = (
-                                                dragGhostOffset ?: currentObject.offset
-                                                ) + delta
-                                        dragPointerRootPosition = editorRootPosition + Offset(
-                                            worldLeft + currentObject.offset.x * scale + pointerPosition.x,
-                                            worldTop + currentObject.offset.y * scale + pointerPosition.y
-                                        )
-                                    }
-                                },
-                                onDragEnd = { id, pointerPosition ->
-                                    val currentObject = world.objects.firstOrNull { it.id == id }
-                                    val ghostOffset = dragGhostOffset ?: currentObject?.offset
-                                    val pointerRootPosition = currentObject?.let {
-                                        editorRootPosition + Offset(
-                                            worldLeft + it.offset.x * scale + pointerPosition.x,
-                                            worldTop + it.offset.y * scale + pointerPosition.y
-                                        )
-                                    }
-
-                                    val overTrash = pointerRootPosition?.let {
-                                        trashBounds?.contains(it) == true
-                                    } == true
-                                    val overLibrary = pointerRootPosition?.let {
-                                        libraryBounds?.contains(it) == true
-                                    } == true
-                                    val overEdit = pointerRootPosition?.let {
-                                        createBounds?.contains(it) == true
-                                    } == true
-                                    if (currentObject != null) {
-                                        if (overTrash) {
-                                            trash = trash.discard(currentObject)
-                                        } else if (overLibrary) {
-                                            onObjectDroppedOnLibrary(
-                                                currentObject.copy(
-                                                    offset = ghostOffset ?: currentObject.offset
-                                                )
-                                            )
-                                        } else if (overEdit) {
-                                            editingObjectId = id
-                                        }
-                                    }
-                                    finishObjectDrag(
-                                        id,
-                                        when {
-                                            currentObject == null -> Offset.Zero
-                                            overLibrary || overEdit -> currentObject.offset
-                                            else -> ghostOffset ?: currentObject.offset
-                                        },
-                                        overTrash
-                                    )
-                                    draggingObjectId = null
-                                    dragGhostOffset = null
-                                    dragPointerRootPosition = null
-                                    selectedObjectId = null
-                                }
-                            )
-                            if (draggingObjectId == obj.id && dragGhostOffset != null) {
-                                WorldSprite(
-                                    offset = dragGhostOffset!!,
-                                    origin = IntOffset(worldLeft, worldTop),
-                                    scale = scale,
-                                    sprite = obj.sprite,
-                                    opacity = 0.5f
-                                )
-                            }
-                        }
-                        val trashObject = draggingTrashObject
-                        if (trashObject != null && dragGhostOffset != null) {
-                            WorldSprite(
-                                offset = dragGhostOffset!!,
-                                origin = IntOffset(worldLeft, worldTop),
-                                scale = scale,
-                                sprite = trashObject.sprite,
-                                opacity = 0.5f
-                            )
-                        }
-                        val libraryObject = draggingLibraryObject
-                        if (libraryObject != null && dragGhostOffset != null) {
-                            WorldSprite(
-                                offset = dragGhostOffset!!,
-                                origin = IntOffset(worldLeft, worldTop),
-                                scale = scale,
-                                sprite = libraryObject.sprite,
-                                opacity = 0.5f
-                            )
-                        }
-                    }
-
-                    val selectedObject = world.objects.firstOrNull { it.id == selectedObjectId }
-                    if (selectedObject != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(selectedObject.id) {
-                                    racing {
-                                        sequence {
-                                            expectTap()
-                                            selectedObjectId = null
-                                        }
-                                    }
-                                }
-                        )
-                        val objectLeft = worldLeft + (selectedObject.offset.x * scale).roundToInt()
-                        val objectTop = worldTop + (selectedObject.offset.y * scale).roundToInt()
-                        val objectWidth = (selectedObject.sprite.width * scale).roundToInt()
-                        val menuGap = with(density) { 4.dp.roundToPx() }
-                        val menuLeft = (
-                                objectLeft + (objectWidth - menuSize.width) / 2
-                                ).coerceIn(0, (availableWidth - menuSize.width).coerceAtLeast(0))
-                        val menuTop = (objectTop - menuSize.height - menuGap).coerceAtLeast(0)
-                        ObjMenu(
-                            obj = selectedObject,
-                            onEdit = {
-                                editingObjectId = selectedObject.id
-                                selectedObjectId = null
-                            },
-                            modifier = Modifier
-                                .offset { IntOffset(menuLeft, menuTop) }
-                                .alpha(if (menuSize == IntSize.Zero) 0f else 1f)
-                                .onSizeChanged { menuSize = it }
-                        )
-                    }
-
-                    if (showingCreateDialog) {
-                        CreateObjectDialog(
-                            onDismiss = { showingCreateDialog = false },
-                            onCreate = { width, height ->
-                                val id = createObject(width, height)
-                                showingCreateDialog = false
-                                editingObjectId = id
-                            }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(toolbarHeight))
-            }
-
-            Drawer(
-                placement = Placement(
-                    Side.Right,
-                    (trashBounds?.left ?: -500f) - editorRootPosition.x
-                ),
-                items = trash.garbage,
-                onItemDragStart = { obj, pointerRootPosition ->
-                    draggingTrashObject = obj
-                    dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
-                            Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                    dragPointerRootPosition = null
-                    trash = trash.close()
-                    selectedObjectId = null
-                },
-                onItemDragMove = { pointerRootPosition ->
-                    draggingTrashObject?.let { obj ->
-                        dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
-                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                    }
-                },
-                onItemDragEnd = { pointerRootPosition ->
-                    draggingTrashObject?.let { obj ->
-                        val offset = (pointerRootPosition - worldOriginInRoot) / worldScale -
-                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                        spawnObject(obj.copy(offset = offset))
-                    }
-                    draggingTrashObject = null
-                    dragGhostOffset = null
-                    dragPointerRootPosition = null
-                    selectedObjectId = null
-                },
-                emptyText = "Trash is empty",
-                onDismissRequest = { trash = trash.close() },
-                modifier = Modifier.zIndex(
-                    if (trash.state is TrashState.DrawerOpen) 1f else 0f
-                )
-            )
-
-            Drawer(
-                placement = Placement(
-                    Side.Left,
-                    (libraryBounds?.right?.minus(editorRootPosition.x)
-                        ?: availableWidth.toFloat())
-                ),
-                items = library.objects,
-                onItemDragStart = { obj, pointerRootPosition ->
-                    draggingLibraryObject = obj
-                    dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
-                            Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                    libraryDrawerOpen = false
-                    selectedObjectId = null
-                },
-                onItemDragMove = { pointerRootPosition ->
-                    draggingLibraryObject?.let { obj ->
-                        dragGhostOffset = (pointerRootPosition - worldOriginInRoot) / worldScale -
-                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                    }
-                },
-                onItemDragEnd = { pointerRootPosition ->
-                    draggingLibraryObject?.let { obj ->
-                        val offset = (pointerRootPosition - worldOriginInRoot) / worldScale -
-                                Offset(obj.sprite.width / 2f, obj.sprite.height / 2f)
-                        spawnObject(obj.copy(offset = offset))
-                    }
-                    draggingLibraryObject = null
-                    dragGhostOffset = null
-                    dragPointerRootPosition = null
-                    selectedObjectId = null
-                },
-                emptyText = "Library is empty",
-                onDismissRequest = { libraryDrawerOpen = false },
-                modifier = Modifier.zIndex(
-                    if (libraryDrawerOpen) 1f else 0f
-                )
-            )
-
+        var worldOriginInParent by remember { mutableStateOf(Offset.Zero) }
+        Column(modifier = Modifier.fillMaxSize()) {
             BoxWithConstraints(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(top = TrashGap)
-                    .zIndex(1f)
-            ) {
-                val trashDrawerOpen = trash.state == TrashState.DrawerOpen
-                val controlsWidth = with(density) { maxWidth.toPx() }
-
-                val fleeingTarget = if (libraryDrawerOpen) {
-                    -controlsWidth
-                } else if (trashDrawerOpen) {
-                    controlsWidth
-                } else {
-                    0f
-                }
-                val trashFleeingOffset by animateFloatAsState(
-                    targetValue = if (libraryDrawerOpen) fleeingTarget else 0f,
-                    animationSpec = tween(durationMillis = 180),
-                    label = "Fleeing buttons"
-                )
-                val createFleeingOffset by animateFloatAsState(
-                    targetValue = if (libraryDrawerOpen || trashDrawerOpen) fleeingTarget else 0f,
-                    animationSpec = tween(durationMillis = 180),
-                    label = "Fleeing buttons"
-                )
-                val libraryFleeingOffset by animateFloatAsState(
-                    targetValue = if (trashDrawerOpen) fleeingTarget else 0f,
-                    animationSpec = tween(durationMillis = 180),
-                    label = "Fleeing buttons"
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TrashControls(
-                        trash = trash,
-                        availableWidth = controlsWidth,
-                        onTrashClick = {
-                            trash = if (trash.state is TrashState.DrawerOpen) {
-                                trash.close()
+                    .weight(1f)
+                    .zIndex(if (offer != null) 1f else 0f)
+                    .dropTarget(
+                        offered = offer,
+                        onGiven = {
+                            val localOffset =
+                                (it.offset - worldOriginInParent - it.localOffset) / worldScale
+                            val obj = world.clamped(it.obj.copy(offset = localOffset))
+                            println("Was given $it")
+                            world = if (it.from is World) {
+                                world.updateObject(obj)
                             } else {
-                                libraryDrawerOpen = false
-                                trash.openDrawer()
+                                world.addObject(obj)
                             }
+                            println("And world became ${world.objects}")
                         },
-                        onTrashBoundsChanged = { trashBounds = it },
-                        modifier = Modifier.zIndex(if (trash.state is TrashState.DrawerOpen) 1f else 0f)
-                            .offset { IntOffset(trashFleeingOffset.roundToInt(), 0) }
                     )
-                    CreateTarget(
-                        onClick = { showingCreateDialog = true },
-                        isEditMode = draggingObjectId != null,
-                        isActive = dragPointerRootPosition?.let {
-                            createBounds?.contains(it) == true
-                        } == true,
-                        onBoundsChanged = { createBounds = it },
-                        modifier = Modifier.zIndex(0.75f)
-                            .offset { IntOffset(createFleeingOffset.roundToInt(), 0) }
+            ) {
+                val availableHeight = with(density) { maxHeight.roundToPx() }
+                val fitScale = min(
+                    availableWidth.toFloat() / world.background.width,
+                    availableHeight.toFloat() / world.background.height
+                )
+                val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
+                val worldWidth = (world.background.width * scale).roundToInt()
+                val worldHeight = (world.background.height * scale).roundToInt()
+                val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
+                val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
+
+                Box(
+                    modifier = Modifier
+                        .requiredSize(
+                            with(density) { worldWidth.toDp() },
+                            with(density) { worldHeight.toDp() }
+                        )
+                        .offset { IntOffset(worldLeft, worldTop) }
+                        .onGloballyPositioned { coordinates ->
+                            worldOriginInParent = coordinates.positionInWindow() + Offset(
+                                0f, 0f
+//                                worldLeft.toFloat(),
+//                                worldTop.toFloat()
+                            )
+                            worldOriginInRoot = coordinates.localToRoot(Offset.Zero)
+                            worldScale = scale
+                        }
+                        .clipToBounds()
+                ) {
+                    WorldSprite(
+                        obj = Obj(id = 0, sprite = world.background, offset = Offset.Zero),
+                        origin = IntOffset.Zero,
+                        scale = scale,
+                        from = Unit,
                     )
-                    LibraryControls(
-                        isActive = dragPointerRootPosition?.let {
-                            libraryBounds?.contains(it) == true
-                        } == true,
-                        isDragging = draggingObjectId != null,
-                        isOpen = libraryDrawerOpen,
-                        availableWidth = controlsWidth,
-                        onClick = {
-                            val opening = !libraryDrawerOpen
-                            if (opening) {
-                                trash = trash.close()
+                }
+                for (obj in world.objects) {
+                    println("Obj is known as $obj")
+                    WorldSprite(
+                        obj = obj,
+                        origin = IntOffset(worldLeft, worldTop),
+                        scale = scale,
+                        opacity = if (false) 0.5f else 1f,
+                        from = world,
+                        settableOffer = mutableOffer,
+                    )
+                }
+
+                offer?.apply {
+                    WorldSprite(
+                        obj = obj.copy(offset = (offset - worldOriginInParent - localOffset) / scale),
+                        origin = IntOffset(worldLeft, worldTop),
+                        scale = scale,
+                        from = Unit,
+                        opacity = 0.5f
+                    )
+                }
+
+                val selectedObject = world.objects.firstOrNull { it.id == selectedObjectId }
+                if (selectedObject != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(selectedObject.id) {
+                                racing {
+                                    sequence {
+                                        expectTap()
+                                        selectedObjectId = null
+                                    }
+                                }
                             }
-                            libraryDrawerOpen = opening
-                        },
-                        onBoundsChanged = { libraryBounds = it },
-                        modifier = Modifier.zIndex(if (libraryDrawerOpen) 1f else 0f)
-                            .offset {
-                                IntOffset(libraryFleeingOffset.roundToInt(), 0)
-                            }
+                    )
+                }
+
+                if (showingCreateDialog) {
+                    CreateObjectDialog(
+                        onDismiss = { showingCreateDialog = false },
+                        onCreate = { width, height ->
+                            val id = world.nextId()
+                            val obj = Obj(id, width, height)
+                            world = world.addObject(obj)
+                            showingCreateDialog = false
+                            objectBeingEdited = obj
+                        }
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(toolbarHeight))
         }
+
+        WorldEditToolbar(
+            settableOffer = mutableOffer,
+            editObject = { objectBeingEdited = it },
+            settableTrash = mutableTrash,
+            library = library,
+            settableWorld = mutableWorld,
+        )
+
     }
 }
 
 @Composable
 private fun WorldSprite(
-    offset: Offset,
+    obj: Obj,
     scale: Float,
-    sprite: Sprite,
     origin: IntOffset = IntOffset.Zero,
     opacity: Float = 1f,
-    objectId: Int? = null,
-    onTap: ((Int) -> Unit)? = null,
-    onDragStart: ((Int) -> Unit)? = null,
-    onDragMove: ((Int, Offset, Offset) -> Unit)? = null,
-    onDragEnd: ((Int, Offset) -> Unit)? = null
+    from: Any,
+    settableOffer: MutableState<Offer?>? = mutableStateOf(null),
 ) {
     val density = LocalDensity.current
     val animatedOpacity by animateFloatAsState(
@@ -571,62 +259,28 @@ private fun WorldSprite(
         animationSpec = tween(durationMillis = 120),
         label = "sprite opacity"
     )
-    val image = remember(sprite, scale) {
+    val image = remember(obj.sprite, scale) {
         scaled(
-            sprite.bitmap,
-            (sprite.width * scale).roundToInt().coerceAtLeast(1),
-            (sprite.height * scale).roundToInt().coerceAtLeast(1)
+            obj.sprite.bitmap,
+            (obj.sprite.width * scale).roundToInt().coerceAtLeast(1),
+            (obj.sprite.height * scale).roundToInt().coerceAtLeast(1)
         )
     }
-    val currentOnTap = rememberUpdatedState(onTap)
-    val currentOnDragStart = rememberUpdatedState(onDragStart)
-    val currentOnDragMove = rememberUpdatedState(onDragMove)
-    val currentOnDragEnd = rememberUpdatedState(onDragEnd)
-    var modifier = Modifier
+    val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val modifier = Modifier
         .requiredSize(
             with(density) { image.width.toDp() },
             with(density) { image.height.toDp() }
         )
         .offset {
             IntOffset(
-                origin.x + (offset.x * scale).roundToInt(),
-                origin.y + (offset.y * scale).roundToInt()
+                origin.x + (obj.offset.x * scale).roundToInt(),
+                origin.y + (obj.offset.y * scale).roundToInt()
             )
         }
+        .onGloballyPositioned { layout.value = it }
         .alpha(animatedOpacity)
-
-    if (objectId != null) {
-        modifier = modifier.pointerInput(objectId, scale) {
-            racing {
-                sequence {
-                    expectTap()
-                    currentOnTap.value?.invoke(objectId)
-                }
-                sequence {
-                    var accumulated = Offset.Zero
-                    var sent = Offset.Zero
-                    var started = false
-                    val pointer = followDrag { change ->
-                        if (!started) {
-                            currentOnDragStart.value?.invoke(objectId)
-                            started = true
-                        }
-                        accumulated += change.positionChange() / scale
-                        val snapped = Offset(
-                            accumulated.x.roundToInt().toFloat(),
-                            accumulated.y.roundToInt().toFloat()
-                        )
-                        val delta = snapped - sent
-                        currentOnDragMove.value?.invoke(objectId, delta, change.position)
-                        if (delta != Offset.Zero) {
-                            sent = snapped
-                        }
-                    }
-                    currentOnDragEnd.value?.invoke(objectId, pointer.position)
-                }
-            }
-        }
-    }
+        .then(settableOffer?.let { Modifier.dropSource(it, from, obj) } ?: Modifier)
 
     Canvas(modifier) {
         drawImage(image)
@@ -634,18 +288,9 @@ private fun WorldSprite(
 }
 
 @Composable
-private fun ObjMenu(obj: Obj, onEdit: () -> Unit, modifier: Modifier = Modifier) {
-    Box(modifier = modifier) {
-        Button(onClick = onEdit) {
-            Text("Edit ${obj.id}")
-        }
-    }
-}
-
-@Composable
 private fun CreateObjectDialog(
     onDismiss: () -> Unit,
-    onCreate: (Int, Int) -> Unit
+    onCreate: (Int, Int) -> Unit,
 ) {
     var widthText by remember { mutableStateOf("20") }
     var heightText by remember { mutableStateOf("20") }

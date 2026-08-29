@@ -26,6 +26,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -196,6 +197,7 @@ private fun SpriteCanvas(
 ) {
     var pan by pan
     var zoom by zoom
+    val edit = rememberUpdatedState(edit)
     Canvas(
         modifier = Modifier
             .fillMaxSize()
@@ -220,7 +222,7 @@ private fun SpriteCanvas(
 
                             if (sprite.inBounds(row, col) && !visited.contains(row to col)) {
                                 visited.add(row to col)
-                                edit(tool.toEdit(row, col))
+                                edit.value(tool.toEdit(row, col))
                             }
                         }
                     }
