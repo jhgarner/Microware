@@ -3,14 +3,9 @@ package com.example.microware
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -18,11 +13,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
@@ -38,47 +32,22 @@ val TrashGap = 8.dp
 fun TrashTarget(
     isActive: Boolean,
     onClick: (() -> Unit)? = null,
+    onBoundsChanged: ((Rect) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(
-        topStart = 0.dp,
-        topEnd = 8.dp,
-        bottomEnd = 8.dp,
-        bottomStart = 0.dp
-    )
     val foreground = if (isActive) {
         Palette.Red
     } else {
         Palette.Maroon
     }.color
 
-    var targetModifier =
-        (Modifier.size(HandleSize) then modifier).shadow(OverlayShadowElevation, shape)
-    if (onClick != null) {
-        targetModifier = targetModifier.clickable(onClick = onClick)
-    }
-
-    Box(modifier = targetModifier.background(Palette.OffWhite.color, shape)) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 2.dp.toPx()
-            val inset = strokeWidth / 2f
-            val right = size.width - inset
-            val bottom = size.height - inset
-            val radius = 8.dp.toPx().coerceAtMost(size.height / 2f)
-            val borderPath = Path().apply {
-                moveTo(0f, inset)
-                lineTo(right - radius, inset)
-                quadraticTo(right, inset, right, inset + radius)
-                lineTo(right, bottom - radius)
-                quadraticTo(right, bottom, right - radius, bottom)
-                lineTo(0f, bottom)
-            }
-            drawPath(
-                path = borderPath,
-                color = foreground,
-                style = Stroke(strokeWidth)
-            )
-        }
+    ButtonHandle(
+        foreground = foreground,
+        openSide = Side.Left,
+        onClick = onClick,
+        onBoundsChanged = onBoundsChanged,
+        modifier = modifier,
+    ) { foreground ->
         Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
             val strokeWidth = 2.dp.toPx()
             val canLeft = size.width * 0.28f
@@ -147,6 +116,7 @@ fun TrashControls(
     modifier: Modifier = Modifier,
     offered: Offer?,
     onGiven: (Offer) -> Unit,
+    onBoundsChanged: ((Rect) -> Unit)? = null,
 ) {
     var trash by trash
     val isDragging = offered != null
@@ -172,6 +142,7 @@ fun TrashControls(
     TrashTarget(
         isActive = trash.state is TrashState.Hovered,
         onClick = onTrashClick,
+        onBoundsChanged = onBoundsChanged,
         modifier = Modifier
             .offset { IntOffset(trashSlideX.value.roundToInt(), 0) }
                 then modifier

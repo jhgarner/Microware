@@ -4,22 +4,14 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -28,8 +20,8 @@ fun CreateTarget(
     modifier: Modifier = Modifier,
     isEditMode: Boolean = false,
     isActive: Boolean = false,
+    onBoundsChanged: ((Rect) -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(8.dp)
     val morphProgress by animateFloatAsState(
         targetValue = if (isEditMode) 1f else 0f,
         animationSpec = tween(durationMillis = 220),
@@ -45,24 +37,12 @@ fun CreateTarget(
         label = "createEditColor"
     )
 
-    Box(
-        modifier = modifier
-            .size(HandleSize)
-            .shadow(OverlayShadowElevation, shape)
-            .clickable(onClick = onClick)
-            .background(Palette.OffWhite.color, shape)
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 2.dp.toPx()
-            val inset = strokeWidth / 2f
-            drawRoundRect(
-                color = foreground,
-                topLeft = Offset(inset, inset),
-                size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx()),
-                style = Stroke(strokeWidth)
-            )
-        }
+    ButtonHandle(
+        foreground = foreground,
+        onClick = onClick,
+        onBoundsChanged = onBoundsChanged,
+        modifier = modifier,
+    ) { foreground ->
         Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
             val strokeWidth = 2.dp.toPx()
             val w = size.width

@@ -3,14 +3,9 @@ package com.example.microware
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,14 +13,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -129,9 +119,9 @@ fun LibraryControls(
         offered = offered,
         onGiven = onGiven,
         onClick = onClick,
+        onBoundsChanged = onBounds,
         modifier = modifier
             .offset { IntOffset(librarySlideX.value.roundToInt(), 0) }
-            .onGloballyPositioned { onBounds(it.boundsInRoot()) }
     )
 }
 
@@ -140,27 +130,22 @@ private fun LibraryTarget(
     offered: Offer?,
     onGiven: (Obj) -> Unit,
     onClick: () -> Unit,
+    onBoundsChanged: ((Rect) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var state: TrashState by remember { mutableStateOf(TrashState.Closed) }
-    val shape = RoundedCornerShape(
-        topStart = 8.dp,
-        topEnd = 0.dp,
-        bottomEnd = 0.dp,
-        bottomStart = 8.dp
-    )
     val foreground = if (state == TrashState.Hovered) {
         Palette.Green
     } else {
         Palette.Forest
     }.color
 
-    Box(
+    ButtonHandle(
+        foreground = foreground,
+        openSide = Side.Right,
+        onClick = onClick,
+        onBoundsChanged = onBoundsChanged,
         modifier = modifier
-            .size(HandleSize)
-            .shadow(OverlayShadowElevation, shape)
-            .clickable(onClick = onClick)
-            .background(Palette.OffWhite.color, shape)
             .dropTarget(
                 offered,
                 onStart = { state = TrashState.Open },
@@ -168,27 +153,7 @@ private fun LibraryTarget(
                 onExit = { state = TrashState.Open },
                 onGiven = { onGiven(it.obj) },
                 onEnd = { state = TrashState.Closed })
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 2.dp.toPx()
-            val inset = strokeWidth / 2f
-            val right = size.width - inset
-            val bottom = size.height - inset
-            val radius = 8.dp.toPx().coerceAtMost(size.height / 2f)
-            val borderPath = Path().apply {
-                moveTo(right, inset)
-                lineTo(inset + radius, inset)
-                quadraticTo(inset, inset, inset, inset + radius)
-                lineTo(inset, bottom - radius)
-                quadraticTo(inset, bottom, inset + radius, bottom)
-                lineTo(right, bottom)
-            }
-            drawPath(
-                path = borderPath,
-                color = foreground,
-                style = Stroke(strokeWidth)
-            )
-        }
+    ) { foreground ->
         Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
             val strokeWidth = 2.dp.toPx()
             val left = size.width * 0.18f

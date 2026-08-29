@@ -2,12 +2,7 @@ package com.example.microware
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.safeContent
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -24,9 +19,9 @@ fun App() {
         Column(
             modifier = Modifier
                 .background(Palette.OffWhite.color)
-                .windowInsetsPadding(
-                    WindowInsets.safeContent.only(WindowInsetsSides.Vertical)
-                )
+//                .windowInsetsPadding(
+//                    WindowInsets.safeContent.only(WindowInsetsSides.Vertical)
+//                )
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

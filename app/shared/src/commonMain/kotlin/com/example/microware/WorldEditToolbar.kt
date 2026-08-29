@@ -13,8 +13,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInParent
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
@@ -83,9 +81,9 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         availableWidth = controlsWidth,
         onTrashClick = { trashDrawerOpen = !trashDrawerOpen },
         isExpanded = trashDrawerOpen,
+        onBoundsChanged = { trashBounds = it },
         modifier = Modifier.zIndex(if (trashDrawerOpen) 1f else 0f)
             .align(Alignment.BottomStart)
-            .onGloballyPositioned { trashBounds = it.boundsInParent() }
             .offset { IntOffset(trashFleeingOffset.roundToInt(), 0) }
     )
 
