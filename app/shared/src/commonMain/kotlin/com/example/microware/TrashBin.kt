@@ -1,18 +1,14 @@
 package com.example.microware
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -43,65 +39,33 @@ sealed interface TrashState {
 }
 
 @Composable
-fun BoxWithConstraintsScope.TrashControls(
-    trash: MutableState<Trash>,
-    isExpanded: Boolean,
-    onTrashClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    offered: Offer?,
-    onGiven: (Offer) -> Unit,
-    onBoundsChanged: ((Rect) -> Unit),
-) {
-    var trash by trash
-    val foreground = if (trash.state is TrashState.Hovered) {
-        Palette.Red
-    } else {
-        Palette.Maroon
-    }.color
-    ButtonHandle(
-        foreground = foreground,
-        openEdge = HandleEdge.Left,
-        onClick = onTrashClick,
-        isExpanded = isExpanded,
-        isDragging = offered != null,
-        hiddenSlide = if (trash.garbage.isNotEmpty()) 16 else 500,
-        onBoundsChanged = onBoundsChanged,
-        modifier = modifier
-            .dropTarget(
-                offered = offered,
-                onStart = { trash = trash.open() },
-                onEnter = { trash = trash.hover() },
-                onExit = { trash = trash.open() },
-                onGiven = { trash = trash.discard(it.obj); onGiven(it) },
-                onEnd = { trash = trash.close() }),
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
-            val strokeWidth = 2.dp.toPx()
-            val canLeft = size.width * 0.28f
-            val canTop = size.height * 0.25f
-            val canWidth = size.width * 0.44f
-            val canHeight = size.height * 0.58f
-            drawRoundRect(
-                color = foreground,
-                topLeft = Offset(canLeft, canTop),
-                size = Size(canWidth, canHeight),
-                cornerRadius = CornerRadius(strokeWidth, strokeWidth),
-                style = Stroke(strokeWidth)
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(size.width * 0.2f, size.height * 0.18f),
-                end = Offset(size.width * 0.8f, size.height * 0.18f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(size.width * 0.43f, size.height * 0.08f),
-                end = Offset(size.width * 0.57f, size.height * 0.08f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-        }
+fun TrashControls(foreground: Color) {
+    Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
+        val strokeWidth = 2.dp.toPx()
+        val canLeft = size.width * 0.28f
+        val canTop = size.height * 0.25f
+        val canWidth = size.width * 0.44f
+        val canHeight = size.height * 0.58f
+        drawRoundRect(
+            color = foreground,
+            topLeft = Offset(canLeft, canTop),
+            size = Size(canWidth, canHeight),
+            cornerRadius = CornerRadius(strokeWidth, strokeWidth),
+            style = Stroke(strokeWidth)
+        )
+        drawLine(
+            color = foreground,
+            start = Offset(size.width * 0.2f, size.height * 0.18f),
+            end = Offset(size.width * 0.8f, size.height * 0.18f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = foreground,
+            start = Offset(size.width * 0.43f, size.height * 0.08f),
+            end = Offset(size.width * 0.57f, size.height * 0.08f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
     }
 }

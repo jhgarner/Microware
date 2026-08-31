@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
@@ -33,11 +32,9 @@ import kotlinx.coroutines.launch
 val HandleSize = 56.dp
 val OverlayShadowElevation = 8.dp
 
-data class Placement(val side: HandleEdge, val offset: Float)
-
 @Composable
 fun Drawer(
-    placement: Placement,
+    placement: HandleEdge,
     isExpanded: Boolean,
     onDismissRequest: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -63,31 +60,30 @@ fun Drawer(
         )
     }
     BoxWithConstraints(modifier = modifier.fillMaxSize().zIndex(1f)) {
-        val density = LocalDensity.current
-        val handleInset = when (placement.side) {
+        val handleInset = when (placement) {
             HandleEdge.Left -> insets.rightDp()
             HandleEdge.Right -> insets.leftDp()
             HandleEdge.Bottom -> insets.topDp()
         }
         val handleSize = HandleSize + handleInset
-        val handleSizePx = with(density) { handleSize.toPx() }
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        val maxHeightPx = with(density) { maxHeight.toPx() }
-        val drawerSize = when (placement.side) {
+        val handleSizePx = handleSize.toPx()
+        val maxWidthPx = maxWidth.toPx()
+        val maxHeightPx = maxHeight.toPx()
+        val drawerSize = when (placement) {
             HandleEdge.Left, HandleEdge.Right -> DpSize(maxWidth - handleSize, maxHeight)
             HandleEdge.Bottom -> DpSize(maxWidth, maxHeight - handleSize)
         }
-        val closedOffset = when (placement.side) {
+        val closedOffset = when (placement) {
             HandleEdge.Left -> Offset(-maxWidthPx - handleSizePx, 0f)
             HandleEdge.Right -> Offset(maxWidthPx, 0f)
             HandleEdge.Bottom -> Offset(0f, maxHeightPx)
         }
-        val expandedOffset = when (placement.side) {
+        val expandedOffset = when (placement) {
             HandleEdge.Left -> Offset(0f, 0f)
             HandleEdge.Right -> Offset(handleSizePx, 0f)
             HandleEdge.Bottom -> Offset(0f, handleSizePx)
         }
-        val contentPadding = when (placement.side) {
+        val contentPadding = when (placement) {
             HandleEdge.Left -> PaddingValues(
                 start = insets.leftDp(),
                 top = insets.topDp(),

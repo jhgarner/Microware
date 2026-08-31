@@ -38,7 +38,7 @@ import kotlin.math.roundToInt
 fun ObjectTable(
     items: List<Obj>,
     settableOffer: MutableState<Offer?>,
-    from: Any,
+    from: Any = Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 64.dp),

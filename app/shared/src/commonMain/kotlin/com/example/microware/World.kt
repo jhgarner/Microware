@@ -89,10 +89,10 @@ fun WorldEditor(
     var selectedObjectId by remember { mutableStateOf<Int?>(null) }
     val mutableOffer = remember { mutableStateOf<Offer?>(null) }
     var offer by mutableOffer
-    var createDrawerOpen = remember { mutableStateOf(false) }
+    val createDrawerOpen = remember { mutableStateOf(false) }
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
-    var objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
+    val objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
     val mutableTrash = remember { mutableStateOf(Trash()) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -197,22 +197,15 @@ fun WorldEditor(
 
         WorldEditToolbar(
             settableOffer = mutableOffer,
-            onCreate = {
-                objectBeingEdited.value = null
-                createDrawerOpen.value = !createDrawerOpen.value
-            },
             editObject = {
                 objectBeingEdited.value = it
                 createDrawerOpen.value = true
             },
             settableTrash = mutableTrash,
-            library = library,
+            settableLibrary = library,
             settableWorld = mutableWorld,
-            createDrawerOpen = createDrawerOpen,
             settableObjectEdited = objectBeingEdited,
         )
-
-
     }
 }
 

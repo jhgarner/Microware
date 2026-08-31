@@ -1,17 +1,12 @@
 package com.example.microware
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.toPersistentList
@@ -83,79 +78,48 @@ private fun StoredObj.toObj(): Obj {
 }
 
 @Composable
-fun BoxWithConstraintsScope.LibraryTarget(
-    offered: Offer?,
-    onGiven: (Obj) -> Unit,
-    onClick: () -> Unit,
-    isExpanded: Boolean,
-    onBoundsChanged: ((Rect) -> Unit),
-    modifier: Modifier = Modifier,
-) {
-    var state: TrashState by remember { mutableStateOf(TrashState.Closed) }
-    val foreground = if (state == TrashState.Hovered) {
-        Palette.Green
-    } else {
-        Palette.Forest
-    }.color
-
-    ButtonHandle(
-        foreground = foreground,
-        openEdge = HandleEdge.Right,
-        onClick = onClick,
-        onBoundsChanged = onBoundsChanged,
-        isExpanded = isExpanded,
-        isDragging = offered != null,
-        modifier = modifier
-            .dropTarget(
-                offered,
-                onStart = { state = TrashState.Open },
-                onEnter = { state = TrashState.Hovered },
-                onExit = { state = TrashState.Open },
-                onGiven = { onGiven(it.obj) },
-                onEnd = { state = TrashState.Closed })
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
-            val strokeWidth = 2.dp.toPx()
-            val left = size.width * 0.18f
-            val right = size.width * 0.82f
-            val top = size.height * 0.2f
-            val middle = size.height * 0.5f
-            val bottom = size.height * 0.8f
-            drawLine(
-                color = foreground,
-                start = Offset(left, top),
-                end = Offset(right, top),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(left, middle),
-                end = Offset(right, middle),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(left, bottom),
-                end = Offset(right, bottom),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(left, top),
-                end = Offset(left, bottom),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = foreground,
-                start = Offset(right, top),
-                end = Offset(right, bottom),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-        }
+fun LibraryTarget(foreground: Color) {
+    Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
+        val strokeWidth = 2.dp.toPx()
+        val left = size.width * 0.18f
+        val right = size.width * 0.82f
+        val top = size.height * 0.2f
+        val middle = size.height * 0.5f
+        val bottom = size.height * 0.8f
+        drawLine(
+            color = foreground,
+            start = Offset(left, top),
+            end = Offset(right, top),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = foreground,
+            start = Offset(left, middle),
+            end = Offset(right, middle),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = foreground,
+            start = Offset(left, bottom),
+            end = Offset(right, bottom),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = foreground,
+            start = Offset(left, top),
+            end = Offset(left, bottom),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = foreground,
+            start = Offset(right, top),
+            end = Offset(right, bottom),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
     }
 }
