@@ -27,6 +27,12 @@ fun <T> rememberLast(t: T): T? {
 @Composable
 inline fun Dp.toPx(): Float = with(density) { toPx() }
 
+@Composable
+inline fun Dp.roundToPx(): Int = with(density) { roundToPx() }
+
+@Composable
+inline fun Int.toDp(): Dp = with(density) { toDp() }
+
 data class Settable<T>(var value: T, val setter: (T) -> Unit) {
     operator fun <Owner> getValue(thisRef: Owner, property: KProperty<*>): T {
         return value

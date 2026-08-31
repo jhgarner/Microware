@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -86,7 +85,6 @@ fun WorldEditor(
     library: MutableState<Library>,
 ) {
     var world by mutableWorld
-    var selectedObjectId by remember { mutableStateOf<Int?>(null) }
     val mutableOffer = remember { mutableStateOf<Offer?>(null) }
     var offer by mutableOffer
     val createDrawerOpen = remember { mutableStateOf(false) }
@@ -97,15 +95,13 @@ fun WorldEditor(
     val mutableWillBeDeleted = remember { mutableStateOf(false) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val density = LocalDensity.current
-        val availableWidth = with(density) { maxWidth.roundToPx() }
-
         val toolbarHeight = HandleSize + TrashGap
 
         var worldOriginInParent by remember { mutableStateOf(Offset.Zero) }
         Column(modifier = Modifier.fillMaxSize()) {
             BoxWithConstraints(
                 modifier = Modifier
+                    .padding(start = insets.leftDp(), end = insets.rightDp(), top = insets.topDp())
                     .fillMaxWidth()
                     .weight(1f)
                     .zIndex(if (offer != null) 1f else 0f)
@@ -123,7 +119,8 @@ fun WorldEditor(
                         },
                     )
             ) {
-                val availableHeight = with(density) { maxHeight.roundToPx() }
+                val availableWidth = maxWidth.roundToPx()
+                val availableHeight = maxHeight.roundToPx()
                 val fitScale = min(
                     availableWidth.toFloat() / world.background.width,
                     availableHeight.toFloat() / world.background.height
@@ -136,10 +133,7 @@ fun WorldEditor(
 
                 Box(
                     modifier = Modifier
-                        .requiredSize(
-                            with(density) { worldWidth.toDp() },
-                            with(density) { worldHeight.toDp() }
-                        )
+                        .requiredSize(worldWidth.toDp(), worldHeight.toDp())
                         .offset { IntOffset(worldLeft, worldTop) }
                         .onGloballyPositioned { coordinates ->
                             worldOriginInParent = coordinates.positionInWindow()
@@ -175,25 +169,8 @@ fun WorldEditor(
                         opacity = 0.5f
                     )
                 }
-
-                val selectedObject = world.objects.firstOrNull { it.id == selectedObjectId }
-                if (selectedObject != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(selectedObject.id) {
-                                racing {
-                                    sequence {
-                                        expectTap()
-                                        selectedObjectId = null
-                                    }
-                                }
-                            }
-                    )
-                }
-
             }
-            Spacer(modifier = Modifier.height(toolbarHeight + LocalInsets.current.bottomDp()))
+            Spacer(modifier = Modifier.height(toolbarHeight + insets.bottomDp()))
         }
 
         WorldEditToolbar(
