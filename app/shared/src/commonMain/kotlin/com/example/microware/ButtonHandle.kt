@@ -1,56 +1,152 @@
 package com.example.microware
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
-enum class HandleEdge { Left, Right, Bottom }
+enum class HandleEdge(val innerAlignment: Alignment) {
+    Left(innerAlignment = Alignment.CenterEnd),
+    Right(innerAlignment = Alignment.BottomStart),
+    Bottom(innerAlignment = Alignment.TopCenter),
+}
 
 @Composable
-fun ButtonHandle(
+private fun BoxScope.restingModsForEdge(edge: HandleEdge): Modifier = when (edge) {
+    HandleEdge.Left -> Modifier
+        .padding(bottom = insets.bottomDp())
+        .size(DpSize(HandleSize + insets.leftDp(), HandleSize))
+        .align(Alignment.BottomStart)
+
+    HandleEdge.Right -> Modifier
+        .padding(bottom = insets.bottomDp())
+        .size(DpSize(HandleSize + insets.rightDp(), HandleSize))
+        .align(Alignment.BottomEnd)
+
+    HandleEdge.Bottom -> Modifier
+        .size(DpSize(HandleSize, HandleSize + insets.bottomDp()))
+        .align(Alignment.BottomCenter)
+}
+
+@Composable
+fun BoxWithConstraintsScope.ButtonHandle(
     foreground: Color,
-    openEdge: HandleEdge? = null,
+    openEdge: HandleEdge,
+    isDragging: Boolean,
+    isExpanded: Boolean,
+    hiddenSlide: Int = 16,
     onClick: (() -> Unit)? = null,
-    onBoundsChanged: ((Rect) -> Unit)? = null,
+    onBoundsChanged: ((Rect) -> Unit),
     modifier: Modifier = Modifier,
-    content: @Composable (Color) -> Unit,
+    content: @Composable () -> Unit,
 ) {
     val shape = handleShape(openEdge)
+    val insets = LocalInsets.current
+    val openSlide = with(density) {
+        when (openEdge) {
+            HandleEdge.Left ->
+                IntOffset(
+                    (maxWidth.toPx() - HandleSize.toPx() - insets.right() - insets.left()).toInt(),
+                    0
+                )
+
+            HandleEdge.Right ->
+                IntOffset(
+                    (-maxWidth.toPx() + HandleSize.toPx() + insets.left() + insets.right()).toInt(),
+                    0
+                )
+
+            HandleEdge.Bottom ->
+                IntOffset(
+                    0,
+                    (-maxHeight.toPx() + HandleSize.toPx() + insets.top() + insets.bottom()).toInt()
+                )
+        }
+    }
+    val hidingOffset = when (openEdge) {
+        HandleEdge.Left ->
+            IntOffset(-hiddenSlide, 0)
+
+        HandleEdge.Right ->
+            IntOffset(hiddenSlide, 0)
+
+        HandleEdge.Bottom -> IntOffset(0, hiddenSlide)
+    }
+    val slideX = remember { Animatable(hidingOffset.x.toFloat()) }
+    val slideY = remember { Animatable(hidingOffset.y.toFloat()) }
+    LaunchedEffect(isDragging, isExpanded, hidingOffset, openSlide) {
+        coroutineScope {
+            launch {
+                slideX.animateTo(
+                    targetValue = when {
+                        isExpanded -> openSlide.x.toFloat()
+                        isDragging -> 0f
+                        else -> hidingOffset.x.toFloat()
+                    },
+                    animationSpec = tween(durationMillis = 180)
+                )
+            }
+            launch {
+                slideY.animateTo(
+                    targetValue = when {
+                        isExpanded -> openSlide.y.toFloat()
+                        isDragging -> 0f
+                        else -> hidingOffset.y.toFloat()
+                    },
+                    animationSpec = tween(durationMillis = 180)
+                )
+            }
+        }
+    }
     var targetModifier = Modifier
-        .size(HandleSize)
+        .zIndex(0.99f)
+        .then(restingModsForEdge(openEdge))
+        .offset { IntOffset(slideX.value.roundToInt(), slideY.value.roundToInt()) }
         .then(modifier)
         .shadow(OverlayShadowElevation, shape)
         .background(Palette.OffWhite.color, shape)
+        .onGloballyPositioned { onBoundsChanged(it.boundsInParent()) }
 
     if (onClick != null) {
         targetModifier = targetModifier.clickable(onClick = onClick)
     }
-    if (onBoundsChanged != null) {
-        targetModifier = targetModifier.onGloballyPositioned {
-            onBoundsChanged(it.boundsInParent())
-        }
-    }
 
     Box(modifier = targetModifier) {
         HandleBorder(openEdge = openEdge, color = foreground)
-        content(foreground)
+        Box(modifier = Modifier.size(HandleSize).align(openEdge.innerAlignment)) {
+            content()
+        }
     }
 }
 

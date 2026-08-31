@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -15,12 +16,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun CreateTarget(
+fun BoxWithConstraintsScope.CreateTarget(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isEditMode: Boolean = false,
-    isActive: Boolean = false,
-    onBoundsChanged: ((Rect) -> Unit)? = null,
+    isExpanded: Boolean,
+    isEditMode: Boolean,
+    isActive: Boolean,
+    onBoundsChanged: ((Rect) -> Unit),
 ) {
     val morphProgress by animateFloatAsState(
         targetValue = if (isEditMode) 1f else 0f,
@@ -41,9 +43,11 @@ fun CreateTarget(
         foreground = foreground,
         openEdge = HandleEdge.Bottom,
         onClick = onClick,
+        isExpanded = isExpanded,
+        isDragging = isEditMode,
         onBoundsChanged = onBoundsChanged,
         modifier = modifier,
-    ) { foreground ->
+    ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
             val strokeWidth = 2.dp.toPx()
             val w = size.width

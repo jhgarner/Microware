@@ -3,27 +3,32 @@ package com.example.microware
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
 @Composable
 fun BoxWithConstraintsScope.WorldEditToolbar(
     settableOffer: MutableState<Offer?>,
     settableWorld: MutableState<World>,
+    settableObjectEdited: MutableState<Obj?>,
+    createDrawerOpen: MutableState<Boolean>,
     onCreate: () -> Unit,
-    isCreateDrawerOpen: Boolean,
     editObject: (Obj) -> Unit,
     settableTrash: MutableState<Trash>,
     library: MutableState<Library>,
@@ -34,6 +39,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     var trash by settableTrash
     var world by settableWorld
     var offered by settableOffer
+    var objectBeingEdited by settableObjectEdited
+    var createDrawerOpen by createDrawerOpen
     trashDrawerOpen = trashDrawerOpen && offered == null
     libraryDrawerOpen = libraryDrawerOpen && offered == null
 
@@ -56,15 +63,6 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         animationSpec = tween(durationMillis = 180),
         label = "Fleeing buttons"
     )
-    val createDrawerOffset by animateFloatAsState(
-        targetValue = if (isCreateDrawerOpen) {
-            -(with(density) { maxHeight.toPx() } - with(density) { HandleSize.toPx() })
-        } else {
-            0f
-        },
-        animationSpec = tween(durationMillis = 180),
-        label = "Create drawer handle offset"
-    )
     val libraryFleeingOffset by animateFloatAsState(
         targetValue = if (trashDrawerOpen) fleeingTarget else 0f,
         animationSpec = tween(durationMillis = 180),
@@ -73,8 +71,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
 
     var trashBounds by remember { mutableStateOf(Rect.Zero) }
     Drawer(
-        modifier = Modifier.zIndex(if (trashDrawerOpen) 1f else 0f),
-        placement = Placement(Side.Right, trashBounds.left),
+        placement = Placement(HandleEdge.Left, trashBounds.left),
+        isExpanded = trashDrawerOpen,
         onDismissRequest = { trash = trash.close() },
     ) {
         ObjectTable(
@@ -88,29 +86,59 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         trash = settableTrash,
         onGiven = { world = world.deleteObject(it.obj.id) },
         offered = offered,
-        availableWidth = controlsWidth,
         onTrashClick = { trashDrawerOpen = !trashDrawerOpen },
         isExpanded = trashDrawerOpen,
         onBoundsChanged = { trashBounds = it },
-        modifier = Modifier.zIndex(if (trashDrawerOpen) 1f else 0f)
-            .align(Alignment.BottomStart)
-            .offset { IntOffset(trashFleeingOffset.roundToInt(), 0) }
+        modifier = Modifier.offset { IntOffset(trashFleeingOffset.roundToInt(), 0) }
     )
 
+    Drawer(
+        placement = Placement(HandleEdge.Bottom, 0f),
+        isExpanded = createDrawerOpen,
+        onDismissRequest = {
+            objectBeingEdited = null
+            createDrawerOpen = false
+        },
+    ) {
+        objectBeingEdited?.let { obj ->
+            Column(modifier = Modifier.fillMaxSize()) {
+                Button(
+                    onClick = {
+                        objectBeingEdited = null
+                        createDrawerOpen = false
+                    },
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Text("Done")
+                }
+                EditableCanvas(
+                    sprite = obj.sprite,
+                    edit = { edit ->
+                        val newObj = obj.copy(sprite = obj.sprite.update(edit))
+                        objectBeingEdited = newObj
+                        world = world.updateObject(newObj)
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } ?: CreateObjectForm(
+            onCreate = { width, height ->
+                val obj = Obj(world.nextId(), width, height)
+                world = world.addObject(obj)
+                objectBeingEdited = obj
+            }
+        )
+    }
 
     var createState: TrashState by remember { mutableStateOf(TrashState.Closed) }
     CreateTarget(
         onClick = onCreate,
         isEditMode = offered != null,
         isActive = createState == TrashState.Hovered,
-        modifier = Modifier.zIndex(0.75f)
-            .align(Alignment.BottomCenter)
-            .offset {
-                IntOffset(
-                    createFleeingOffset.roundToInt(),
-                    createDrawerOffset.roundToInt()
-                )
-            }
+        isExpanded = createDrawerOpen,
+        onBoundsChanged = {},
+        modifier = Modifier
+            .offset { IntOffset(createFleeingOffset.roundToInt(), 0) }
             .dropTarget(
                 offered,
                 onStart = { createState = TrashState.Open },
@@ -122,10 +150,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
 
     var libraryBounds by remember { mutableStateOf(Rect.Zero) }
     Drawer(
-        modifier = Modifier.zIndex(
-            if (libraryDrawerOpen) 1f else 0f
-        ),
-        placement = Placement(Side.Left, libraryBounds.right),
+        placement = Placement(HandleEdge.Right, libraryBounds.right),
+        isExpanded = libraryDrawerOpen,
         onDismissRequest = { libraryDrawerOpen = false },
     ) {
         ObjectTable(
@@ -135,11 +161,10 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         )
     }
 
-    LibraryControls(
+    LibraryTarget(
         offered = offered,
         onGiven = { library.value = library.value.add(it); saveLibrary(library.value) },
         isExpanded = libraryDrawerOpen,
-        availableWidth = controlsWidth,
         onClick = {
             val opening = !libraryDrawerOpen
             if (opening) {
@@ -147,9 +172,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
             }
             libraryDrawerOpen = opening
         },
-        onBounds = { libraryBounds = it },
-        modifier = Modifier.zIndex(if (libraryDrawerOpen) 1f else 0f)
-            .align(Alignment.BottomEnd)
+        onBoundsChanged = { libraryBounds = it },
+        modifier = Modifier
             .offset {
                 IntOffset(libraryFleeingOffset.roundToInt(), 0)
             }

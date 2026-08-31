@@ -89,10 +89,10 @@ fun WorldEditor(
     var selectedObjectId by remember { mutableStateOf<Int?>(null) }
     val mutableOffer = remember { mutableStateOf<Offer?>(null) }
     var offer by mutableOffer
-    var createDrawerOpen by remember { mutableStateOf(false) }
+    var createDrawerOpen = remember { mutableStateOf(false) }
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
-    var objectBeingEdited by remember { mutableStateOf<Obj?>(null) }
+    var objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
     val mutableTrash = remember { mutableStateOf(Trash()) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -141,11 +141,7 @@ fun WorldEditor(
                         )
                         .offset { IntOffset(worldLeft, worldTop) }
                         .onGloballyPositioned { coordinates ->
-                            worldOriginInParent = coordinates.positionInWindow() + Offset(
-                                0f, 0f
-//                                worldLeft.toFloat(),
-//                                worldTop.toFloat()
-                            )
+                            worldOriginInParent = coordinates.positionInWindow()
                             worldOriginInRoot = coordinates.localToRoot(Offset.Zero)
                             worldScale = scale
                         }
@@ -196,62 +192,26 @@ fun WorldEditor(
                 }
 
             }
-            Spacer(modifier = Modifier.height(toolbarHeight))
+            Spacer(modifier = Modifier.height(toolbarHeight + LocalInsets.current.bottomDp()))
         }
 
         WorldEditToolbar(
             settableOffer = mutableOffer,
             onCreate = {
-                objectBeingEdited = null
-                createDrawerOpen = !createDrawerOpen
+                objectBeingEdited.value = null
+                createDrawerOpen.value = !createDrawerOpen.value
             },
-            isCreateDrawerOpen = createDrawerOpen,
             editObject = {
-                objectBeingEdited = it
-                createDrawerOpen = true
+                objectBeingEdited.value = it
+                createDrawerOpen.value = true
             },
             settableTrash = mutableTrash,
             library = library,
             settableWorld = mutableWorld,
+            createDrawerOpen = createDrawerOpen,
+            settableObjectEdited = objectBeingEdited,
         )
 
-        BottomDrawer(
-            isOpen = createDrawerOpen,
-            onDismissRequest = {
-                objectBeingEdited = null
-                createDrawerOpen = false
-            },
-            modifier = Modifier.zIndex(0.5f),
-        ) {
-            objectBeingEdited?.let { obj ->
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Button(
-                        onClick = {
-                            objectBeingEdited = null
-                            createDrawerOpen = false
-                        },
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Text("Done")
-                    }
-                    EditableCanvas(
-                        sprite = obj.sprite,
-                        edit = { edit ->
-                            val newObj = obj.copy(sprite = obj.sprite.update(edit))
-                            objectBeingEdited = newObj
-                            world = world.updateObject(newObj)
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            } ?: CreateObjectForm(
-                onCreate = { width, height ->
-                    val obj = Obj(world.nextId(), width, height)
-                    world = world.addObject(obj)
-                    objectBeingEdited = obj
-                }
-            )
-        }
 
     }
 }
@@ -300,7 +260,7 @@ private fun WorldSprite(
 }
 
 @Composable
-private fun CreateObjectForm(
+fun CreateObjectForm(
     onCreate: (Int, Int) -> Unit,
 ) {
     var widthText by remember { mutableStateOf("20") }
