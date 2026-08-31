@@ -16,6 +16,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     settableOffer: MutableState<Offer?>,
     settableWorld: MutableState<World>,
     settableObjectEdited: MutableState<Obj?>,
+    willBeDeleted: MutableState<Boolean>,
     editObject: (Obj) -> Unit,
     settableTrash: MutableState<Trash>,
     settableLibrary: MutableState<Library>,
@@ -31,6 +32,11 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     }
 
     DrawerWithHandle(
+        buttonModifier = Modifier.dropTarget(
+            offered = settableOffer.value,
+            onEnter = { willBeDeleted.value = true },
+            onEnd = { willBeDeleted.value = false },
+            onExit = { willBeDeleted.value = false }),
         side = HandleEdge.Left,
         expandedSide = expandedSide,
         foreground = Palette.Maroon,

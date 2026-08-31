@@ -46,7 +46,7 @@ fun Modifier.dropTarget(
     onStart: () -> Unit = {},
     onEnter: () -> Unit = {},
     onExit: () -> Unit = {},
-    onGiven: (Offer) -> Unit,
+    onGiven: (Offer) -> Unit = {},
     onEnd: () -> Unit = {},
 ): Modifier {
     var layout by remember { mutableStateOf<LayoutCoordinates?>(null) }

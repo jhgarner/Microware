@@ -94,6 +94,7 @@ fun WorldEditor(
     var worldScale by remember { mutableStateOf(1f) }
     val objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
     val mutableTrash = remember { mutableStateOf(Trash()) }
+    val mutableWillBeDeleted = remember { mutableStateOf(false) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -159,7 +160,7 @@ fun WorldEditor(
                         obj = obj,
                         origin = IntOffset(worldLeft, worldTop),
                         scale = scale,
-                        opacity = if (false) 0.5f else 1f,
+                        opacity = if (mutableWillBeDeleted.value) 0.5f else 1f,
                         from = world,
                         settableOffer = mutableOffer,
                     )
@@ -205,6 +206,7 @@ fun WorldEditor(
             settableLibrary = library,
             settableWorld = mutableWorld,
             settableObjectEdited = objectBeingEdited,
+            willBeDeleted = mutableWillBeDeleted,
         )
     }
 }

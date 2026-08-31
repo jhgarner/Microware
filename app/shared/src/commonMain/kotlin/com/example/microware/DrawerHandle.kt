@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.round
 
 @Composable
 fun BoxWithConstraintsScope.DrawerWithHandle(
+    buttonModifier: Modifier = Modifier,
     side: HandleEdge,
     expandedSide: MutableState<HandleEdge?>,
     foreground: Palette,
@@ -59,7 +60,7 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
         isExpanded = isExpanded,
         isDragging = settableOffer.value != null,
         hiddenSlide = hiddenSlide,
-        modifier = Modifier
+        modifier = buttonModifier
             .offset { fleeingAnimation.value.round() }
             .dropTarget(
                 offered = settableOffer.value,

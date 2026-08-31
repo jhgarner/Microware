@@ -1,5 +1,6 @@
 package com.example.microware
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -24,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
@@ -138,7 +140,45 @@ fun BoxWithConstraintsScope.ButtonHandle(
     Box(modifier = targetModifier) {
         HandleBorder(openEdge = openEdge, color = foreground)
         Box(modifier = Modifier.size(HandleSize).align(openEdge.innerAlignment)) {
-            content()
+            Crossfade(
+                targetState = isExpanded,
+                animationSpec = tween(durationMillis = 180),
+                label = "handle icon"
+            ) { expanded ->
+                if (expanded) {
+                    CloseChevron(edge = openEdge, color = foreground)
+                } else {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloseChevron(edge: HandleEdge, color: Color) {
+    Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        val strokeWidth = 2.dp.toPx()
+        val top = Offset(size.width * 0.5f, size.height * 0.15f)
+        val right = Offset(size.width * 0.85f, size.height * 0.5f)
+        val bottom = Offset(size.width * 0.5f, size.height * 0.85f)
+        val left = Offset(size.width * 0.15f, size.height * 0.5f)
+
+        when (edge) {
+            HandleEdge.Left -> {
+                drawLine(color, top, left, strokeWidth, StrokeCap.Round)
+                drawLine(color, left, bottom, strokeWidth, StrokeCap.Round)
+            }
+
+            HandleEdge.Right -> {
+                drawLine(color, top, right, strokeWidth, StrokeCap.Round)
+                drawLine(color, right, bottom, strokeWidth, StrokeCap.Round)
+            }
+
+            HandleEdge.Bottom -> {
+                drawLine(color, left, bottom, strokeWidth, StrokeCap.Round)
+                drawLine(color, bottom, right, strokeWidth, StrokeCap.Round)
+            }
         }
     }
 }
