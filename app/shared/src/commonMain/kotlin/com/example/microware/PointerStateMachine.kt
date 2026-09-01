@@ -74,11 +74,15 @@ sealed class PointerScope {
                 return latest
             }
             traveled += latest.positionChange().getDistance()
+            val wasDragging = dragging
             if (traveled > DragDistance) {
                 dragging = true
             }
             if (dragging) {
                 claim()
+                if (!wasDragging) {
+                    chaser(initial)
+                }
                 chaser(latest)
             }
         }
@@ -203,9 +207,6 @@ suspend fun PointerInputScope.racing(block: suspend context(PointerRacer) () -> 
                         } catch (_: UnexpectedEvent) {
                             continue
                         }
-                        if (machine.complete) {
-                            continue
-                        }
                         if (machine.claimed) {
                             machines.forEach {
                                 if (it != machine) {
@@ -215,8 +216,13 @@ suspend fun PointerInputScope.racing(block: suspend context(PointerRacer) () -> 
                                 }
                             }
                             nextMachines.clear()
-                            nextMachines.add(machine)
+                            if (!machine.complete) {
+                                nextMachines.add(machine)
+                            }
                             break
+                        }
+                        if (machine.complete) {
+                            continue
                         }
                         nextMachines.add(machine)
                     }

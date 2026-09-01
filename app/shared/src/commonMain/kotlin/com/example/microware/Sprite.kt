@@ -42,17 +42,23 @@ data class Sprite(val rows: PersistentList<PersistentList<Palette>>) {
 
     fun update(edit: Edits): Sprite {
         return when (edit) {
-            is Edits.Write -> Sprite(
-                rows.replacingAt(
-                    edit.row,
-                    rows[edit.row].replacingAt(edit.col, edit.color)
-                )
-            )
+            is Edits.Write -> write(edit)
+            is Edits.WriteMany -> edit.edits.fold(this) { sprite, write ->
+                sprite.update(write)
+            }
         }
     }
 
+    private fun write(edit: Edits.Write): Sprite = Sprite(
+        rows.replacingAt(
+            edit.row,
+            rows[edit.row].replacingAt(edit.col, edit.color)
+        )
+    )
+
     sealed interface Edits {
         data class Write(val row: Int, val col: Int, val color: Palette) : Edits
+        data class WriteMany(val edits: List<Write>) : Edits
     }
 
     companion object {

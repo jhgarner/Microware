@@ -41,14 +41,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
 
 sealed interface Tool {
-    fun toEdit(row: Int, col: Int): Sprite.Edits
+    fun toEdit(row: Int, col: Int): Sprite.Edits.Write
 
     data class Pen(val color: Palette) : Tool {
-        override fun toEdit(row: Int, col: Int): Sprite.Edits = Sprite.Edits.Write(row, col, color)
+        override fun toEdit(row: Int, col: Int): Sprite.Edits.Write =
+            Sprite.Edits.Write(row, col, color)
     }
 }
 
@@ -83,6 +85,37 @@ private fun ColorPickerButton(color: Palette, isSelected: Boolean, onClick: () -
 }
 
 private const val BackgroundTileSize = 128f
+
+private data class Cell(val row: Int, val col: Int)
+
+private fun cellsBetween(start: Cell, end: Cell): List<Cell> {
+    val cells = mutableListOf<Cell>()
+    var row = start.row
+    var col = start.col
+    val rowStep = if (row < end.row) 1 else -1
+    val colStep = if (col < end.col) 1 else -1
+    val rowDistance = -abs(end.row - row)
+    val colDistance = abs(end.col - col)
+    var error = colDistance + rowDistance
+
+    while (true) {
+        cells += Cell(row, col)
+        if (row == end.row && col == end.col) {
+            break
+        }
+
+        val doubledError = 2 * error
+        if (doubledError >= rowDistance) {
+            error += rowDistance
+            col += colStep
+        }
+        if (doubledError <= colDistance) {
+            error += colDistance
+            row += rowStep
+        }
+    }
+    return cells
+}
 
 @Composable
 fun CanvasTools(tool: Tool, pickTool: (Tool) -> Unit) {
@@ -192,38 +225,60 @@ private fun SpriteCanvas(
     tool: Tool,
     sprite: Sprite,
     edit: (Sprite.Edits) -> Unit,
-    pan: MutableState<Offset>,
-    zoom: MutableState<Float>
+    panState: MutableState<Offset>,
+    zoomState: MutableState<Float>
 ) {
-    var pan by pan
-    var zoom by zoom
+    var pan by panState
+    var zoom by zoomState
     val edit = rememberUpdatedState(edit)
+    val currentSprite = rememberUpdatedState(sprite)
     Canvas(
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
             .pointerInput(tool) {
+                fun cellAt(position: Offset): Cell {
+                    val activeSprite = currentSprite.value
+                    val spriteSize = fittedSpriteSize(
+                        Size(size.width.toFloat(), size.height.toFloat()),
+                        activeSprite
+                    )
+                    val offsetInitial = Offset(
+                        (size.width - spriteSize.width) / 2f,
+                        (size.height - spriteSize.height) / 2f
+                    )
+                    val cellSize = spriteSize.width / activeSprite.width * zoomState.value
+                    return Cell(
+                        row = floor((position.y - panState.value.y - offsetInitial.y) / cellSize).toInt(),
+                        col = floor((position.x - panState.value.x - offsetInitial.x) / cellSize).toInt()
+                    )
+                }
+
                 racing {
                     sequence {
-                        val visited = mutableSetOf<Pair<Int, Int>>()
-                        val spriteSize = fittedSpriteSize(
-                            Size(size.width.toFloat(), size.height.toFloat()),
-                            sprite
-                        )
-                        val offsetInitial = Offset(
-                            (size.width - spriteSize.width) / 2f,
-                            (size.height - spriteSize.height) / 2f
-                        )
-                        val cellSize = spriteSize.width / sprite.width * zoom
-                        followDrag {
-                            val offset = it.position - pan - offsetInitial
-                            val col = (offset.x / cellSize).toInt()
-                            val row = (offset.y / cellSize).toInt()
-
-                            if (sprite.inBounds(row, col) && !visited.contains(row to col)) {
-                                visited.add(row to col)
-                                edit.value(tool.toEdit(row, col))
+                        val cell = cellAt(expectTap().position)
+                        if (currentSprite.value.inBounds(cell.row, cell.col)) {
+                            edit.value(tool.toEdit(cell.row, cell.col))
+                        }
+                    }
+                    sequence {
+                        val visited = mutableSetOf<Cell>()
+                        var previousCell: Cell? = null
+                        followDrag { change ->
+                            val currentCell = cellAt(change.position)
+                            previousCell?.let { previous ->
+                                val edits = cellsBetween(previous, currentCell).mapNotNull { cell ->
+                                    if (currentSprite.value.inBounds(cell.row, cell.col) && visited.add(cell)) {
+                                        tool.toEdit(cell.row, cell.col)
+                                    } else {
+                                        null
+                                    }
+                                }
+                                if (edits.isNotEmpty()) {
+                                    edit.value(Sprite.Edits.WriteMany(edits))
+                                }
                             }
+                            previousCell = currentCell
                         }
                     }
                     sequence {
@@ -242,9 +297,9 @@ private fun SpriteCanvas(
                             val lastSiz = lastSize ?: size
                             val zoomFactor = size / lastSiz
                             // Anchor zoom at focal point: keep content under fingers stationary
-                            pan += (offset - lastOff) +
-                                (pan + spriteOrigin - lastOff) * (zoomFactor - 1)
-                            zoom *= zoomFactor
+                            panState.value += (offset - lastOff) +
+                                (panState.value + spriteOrigin - lastOff) * (zoomFactor - 1)
+                            zoomState.value *= zoomFactor
                             lastOffset = offset
                             lastSize = size
                         }

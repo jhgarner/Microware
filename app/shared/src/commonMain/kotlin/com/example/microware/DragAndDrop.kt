@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -23,6 +24,7 @@ fun Modifier.dropSource(
     raceBefore: suspend context(PointerRacer) () -> Unit = { },
 ): Modifier {
     val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val currentObj = rememberUpdatedState(obj)
     return onGloballyPositioned { layout.value = it }
         .pointerInput(obj.id) {
             racing {
@@ -32,7 +34,12 @@ fun Modifier.dropSource(
                     followDrag { change ->
                         var offer by settableOffer
                         offer = offer?.copy(offset = localToWindow(change.position))
-                            ?: Offer(localToWindow(change.position), change.position, obj, from)
+                            ?: Offer(
+                                localToWindow(change.position),
+                                change.position,
+                                currentObj.value,
+                                from
+                            )
                     }
                     settableOffer.value = null
                 }

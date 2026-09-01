@@ -56,7 +56,12 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
     ButtonHandle(
         foreground = foregroundColor.color,
         openEdge = side,
-        onClick = { expandedSide = if (expandedSide == side) null else side },
+        onClick = {
+            expandedSide = if (expandedSide == side) {
+                extraOnDismiss()
+                null
+            } else side
+        },
         isExpanded = isExpanded,
         isDragging = settableOffer.value != null,
         hiddenSlide = hiddenSlide,

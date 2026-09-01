@@ -17,7 +17,6 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     settableWorld: MutableState<World>,
     settableObjectEdited: MutableState<Obj?>,
     willBeDeleted: MutableState<Boolean>,
-    editObject: (Obj) -> Unit,
     settableTrash: MutableState<Trash>,
     settableLibrary: MutableState<Library>,
 ) {
@@ -54,7 +53,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         foreground = Palette.Navy,
         highlightForeground = Palette.Cyan,
         settableOffer = settableOffer,
-        onGiven = { editObject(it.obj) },
+        onGiven = { objectBeingEdited = it.obj; expandedSide.value = HandleEdge.Bottom },
         extraOnDismiss = { objectBeingEdited = null },
         buttonContent = { CreateTarget(foreground = it, isEditMode = settableOffer.value != null) }
     ) {

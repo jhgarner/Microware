@@ -87,7 +87,6 @@ fun WorldEditor(
     var world by mutableWorld
     val mutableOffer = remember { mutableStateOf<Offer?>(null) }
     var offer by mutableOffer
-    val createDrawerOpen = remember { mutableStateOf(false) }
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
     val objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
@@ -175,10 +174,6 @@ fun WorldEditor(
 
         WorldEditToolbar(
             settableOffer = mutableOffer,
-            editObject = {
-                objectBeingEdited.value = it
-                createDrawerOpen.value = true
-            },
             settableTrash = mutableTrash,
             settableLibrary = library,
             settableWorld = mutableWorld,
