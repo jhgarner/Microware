@@ -10,6 +10,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -18,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -29,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
@@ -73,6 +77,8 @@ fun EditableCanvas(
     resize: (SpriteBounds) -> Unit,
     modifier: Modifier = Modifier,
     editorKey: Any = Unit,
+    logicTag: LogicTag? = null,
+    onLogicTagChange: (LogicTag?) -> Unit = {},
 ) {
     var selectedTool by remember(editorKey) { mutableStateOf(SpriteEditorTool.Pen) }
     var penColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
@@ -82,7 +88,14 @@ fun EditableCanvas(
     val viewportSizeState = remember(editorKey) { mutableStateOf(IntSize.Zero) }
 
     Column(modifier = modifier.fillMaxSize()) {
-        SpriteToolPicker(selectedTool) { selectedTool = it }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            SpriteToolPicker(selectedTool) { selectedTool = it }
+            LogicTagPicker(
+                selectedTag = logicTag,
+                onSelectTag = onLogicTagChange,
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            )
+        }
         when (selectedTool) {
             SpriteEditorTool.Pen -> PenOptions(penColor) { penColor = it }
             SpriteEditorTool.Resize -> ResizeOptions(

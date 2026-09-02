@@ -40,7 +40,20 @@ import kotlin.math.roundToInt
 const val WorldWidth = MaxSpriteWidth
 const val WorldHeight = MaxSpriteHeight
 
-data class World(val background: Sprite, val objects: List<Obj>) {
+data class World(
+    val background: Sprite,
+    val objects: List<Obj>,
+    val logicTags: Map<LogicTag, Int> = emptyMap(),
+) {
+    init {
+        require(logicTags.values.toSet().size == logicTags.size) {
+            "An object cannot have more than one logic tag"
+        }
+        require(logicTags.values.all { objectId -> objects.any { it.id == objectId } }) {
+            "Logic tags must refer to objects in the world"
+        }
+    }
+
     constructor() : this(Sprite.empty(WorldWidth, WorldHeight), emptyList())
 
     fun updateObject(newObj: Obj): World {
@@ -65,6 +78,24 @@ data class World(val background: Sprite, val objects: List<Obj>) {
     fun addObject(obj: Obj): World = copy(objects = objects + obj.copy(id = nextId()))
     fun nextId(): Int = (objects.maxOfOrNull { it.id } ?: 0) + 1
 
+    fun logicTagFor(objectId: Int): LogicTag? {
+        return logicTags.entries.firstOrNull { it.value == objectId }?.key
+    }
+
+    fun assignLogicTag(objectId: Int, logicTag: LogicTag?): World {
+        if (objects.none { it.id == objectId }) return this
+
+        val newLogicTags = logicTags
+            .filterValues { it != objectId }
+            .toMutableMap()
+        if (logicTag == null) {
+            return copy(logicTags = newLogicTags)
+        }
+
+        newLogicTags[logicTag] = objectId
+        return copy(logicTags = newLogicTags)
+    }
+
     fun clamped(obj: Obj): Obj {
         val maxX = (background.width - obj.sprite.width).coerceAtLeast(0).toFloat()
         val maxY = (background.height - obj.sprite.height).coerceAtLeast(0).toFloat()
@@ -76,7 +107,10 @@ data class World(val background: Sprite, val objects: List<Obj>) {
         )
     }
 
-    fun deleteObject(id: Int): World = copy(objects = objects.filterNot { it.id == id })
+    fun deleteObject(id: Int): World = copy(
+        objects = objects.filterNot { it.id == id },
+        logicTags = logicTags.filterValues { it != id },
+    )
 }
 
 @Composable

@@ -83,6 +83,10 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                         objectBeingEdited = world.clamped(newObj)
                         world = world.updateObject(newObj)
                     },
+                    logicTag = world.logicTagFor(obj.id),
+                    onLogicTagChange = { logicTag ->
+                        world = world.assignLogicTag(obj.id, logicTag)
+                    },
                     modifier = Modifier.weight(1f),
                     editorKey = obj.id,
                 )
