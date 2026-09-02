@@ -6,21 +6,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -33,56 +22,16 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
-
-sealed interface Tool {
-    fun toEdit(row: Int, col: Int): Sprite.Edits.Write
-
-    data class Pen(val color: Palette) : Tool {
-        override fun toEdit(row: Int, col: Int): Sprite.Edits.Write =
-            Sprite.Edits.Write(row, col, color)
-    }
-}
-
-private const val TransparentTileSizeDp = 16
-
-@Composable
-private fun ColorPickerButton(color: Palette, isSelected: Boolean, onClick: () -> Unit) {
-    val clearBrush = if (color == Palette.Clear) {
-        val tileSize = with(LocalDensity.current) { TransparentTileSizeDp.dp.roundToPx() }
-        remember(tileSize) { tiled(scaled(transparent, tileSize, tileSize)) }
-    } else {
-        null
-    }
-
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .padding(4.dp)
-            .size(40.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (color == Palette.Clear) Color.Transparent else color.color,
-            contentColor = color.color
-        ),
-        shape = RectangleShape,
-        border = if (isSelected) BorderStroke(2.dp, Color.Black) else null,
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        if (clearBrush != null) {
-            Box(modifier = Modifier.fillMaxSize().background(clearBrush))
-        }
-    }
-}
 
 private const val BackgroundTileSize = 128f
 
@@ -118,50 +67,146 @@ private fun cellsBetween(start: Cell, end: Cell): List<Cell> {
 }
 
 @Composable
-fun CanvasTools(tool: Tool, pickTool: (Tool) -> Unit) {
-    val scrollState = rememberScrollState()
-    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
-        for (color in Palette.entries) {
-            ColorPickerButton(color, (tool as? Tool.Pen)?.color == color) {
-                pickTool(Tool.Pen(color))
-            }
+fun EditableCanvas(
+    sprite: Sprite,
+    edit: (Sprite.Edits) -> Unit,
+    resize: (SpriteBounds) -> Unit,
+    modifier: Modifier = Modifier,
+    editorKey: Any = Unit,
+) {
+    var selectedTool by remember(editorKey) { mutableStateOf(SpriteEditorTool.Pen) }
+    var penColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
+    val boundsState = remember(editorKey) { mutableStateOf(SpriteBounds.original(sprite)) }
+    val panState = remember(editorKey) { mutableStateOf(Offset.Zero) }
+    val zoomState = remember(editorKey) { mutableStateOf(1f) }
+    val viewportSizeState = remember(editorKey) { mutableStateOf(IntSize.Zero) }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        SpriteToolPicker(selectedTool) { selectedTool = it }
+        when (selectedTool) {
+            SpriteEditorTool.Pen -> PenOptions(penColor) { penColor = it }
+            SpriteEditorTool.Resize -> ResizeOptions(
+                canReset = boundsState.value != SpriteBounds.original(sprite),
+                onReset = { boundsState.value = SpriteBounds.original(sprite) },
+                onConfirm = {
+                    val committedBounds = boundsState.value
+                    rebaseViewportForResize(
+                        sprite = sprite,
+                        bounds = committedBounds,
+                        viewportSize = viewportSizeState.value,
+                        panState = panState,
+                        zoomState = zoomState,
+                    )
+                    resize(committedBounds)
+                    boundsState.value = SpriteBounds(
+                        left = 0,
+                        top = 0,
+                        right = committedBounds.width,
+                        bottom = committedBounds.height,
+                    )
+                },
+            )
+        }
+        Content(
+            selectedTool = selectedTool,
+            penColor = penColor,
+            sprite = sprite,
+            boundsState = boundsState,
+            panState = panState,
+            zoomState = zoomState,
+            viewportSizeState = viewportSizeState,
+            edit = edit,
+        )
+    }
+}
+
+@Composable
+private fun Content(
+    selectedTool: SpriteEditorTool,
+    penColor: Palette,
+    sprite: Sprite,
+    boundsState: MutableState<SpriteBounds>,
+    panState: MutableState<Offset>,
+    zoomState: MutableState<Float>,
+    viewportSizeState: MutableState<IntSize>,
+    edit: (Sprite.Edits) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { viewportSizeState.value = it },
+    ) {
+        BackgroundCanvas(
+            pan = panState.value,
+            zoom = zoomState.value,
+            sprite = sprite,
+            cropToSprite = selectedTool == SpriteEditorTool.Pen,
+        )
+        when (selectedTool) {
+            SpriteEditorTool.Pen -> SpriteCanvas(penColor, sprite, edit, panState, zoomState)
+            SpriteEditorTool.Resize -> SpriteResizeCanvas(
+                sprite,
+                boundsState,
+                panState,
+                zoomState,
+            )
         }
     }
 }
 
-@Composable
-fun EditableCanvas(
+private fun rebaseViewportForResize(
     sprite: Sprite,
-    edit: (Sprite.Edits) -> Unit,
-    modifier: Modifier = Modifier
+    bounds: SpriteBounds,
+    viewportSize: IntSize,
+    panState: MutableState<Offset>,
+    zoomState: MutableState<Float>,
 ) {
-    val toolState: MutableState<Tool> = remember { mutableStateOf(Tool.Pen(Palette.Navy)) }
-    Column(modifier = modifier.fillMaxSize()) {
-        CanvasTools(toolState.value) { toolState.value = it }
-        Content(toolState.value, sprite, edit)
-    }
-}
+    if (viewportSize == IntSize.Zero) return
 
-@Composable
-private fun Content(tool: Tool, sprite: Sprite, edit: (Sprite.Edits) -> Unit) {
-    val pan = remember { mutableStateOf(Offset(0f, 0f)) }
-    val zoom = remember { mutableStateOf(1f) }
-    Box(modifier = Modifier.fillMaxSize()) {
-        BackgroundCanvas(pan.value, zoom.value, sprite)
-        SpriteCanvas(tool, sprite, edit, pan, zoom)
-    }
-}
-
-private fun fittedSpriteSize(containerSize: Size, sprite: Sprite): Size {
-    val pixelSize = min(
-        containerSize.width / sprite.width,
-        containerSize.height / sprite.height
+    val viewport = Size(viewportSize.width.toFloat(), viewportSize.height.toFloat())
+    val oldFittedSize = fittedSpriteSize(viewport, sprite)
+    val oldOrigin = Offset(
+        (viewport.width - oldFittedSize.width) / 2f,
+        (viewport.height - oldFittedSize.height) / 2f,
+    ) + panState.value
+    val cellSize = oldFittedSize.width / sprite.width * zoomState.value
+    val committedOrigin = oldOrigin + Offset(
+        bounds.left * cellSize,
+        bounds.top * cellSize,
     )
-    return Size(sprite.width * pixelSize, sprite.height * pixelSize)
+
+    val newFittedSize = fittedSize(
+        containerSize = viewport,
+        width = bounds.width,
+        height = bounds.height,
+    )
+    val newBaseCellSize = newFittedSize.width / bounds.width
+    zoomState.value = cellSize / newBaseCellSize
+    panState.value = committedOrigin - Offset(
+        (viewport.width - newFittedSize.width) / 2f,
+        (viewport.height - newFittedSize.height) / 2f,
+    )
+}
+
+internal fun fittedSpriteSize(containerSize: Size, sprite: Sprite): Size {
+    return fittedSize(containerSize, sprite.width, sprite.height)
+}
+
+private fun fittedSize(containerSize: Size, width: Int, height: Int): Size {
+    val pixelSize = min(
+        containerSize.width / width,
+        containerSize.height / height,
+    )
+    return Size(width * pixelSize, height * pixelSize)
 }
 
 @Composable
-private fun BackgroundCanvas(pan: Offset, zoom: Float, sprite: Sprite) {
+private fun BackgroundCanvas(
+    pan: Offset,
+    zoom: Float,
+    sprite: Sprite,
+    cropToSprite: Boolean,
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "tileScroll")
     val offset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -178,6 +223,23 @@ private fun BackgroundCanvas(pan: Offset, zoom: Float, sprite: Sprite) {
             .fillMaxSize()
             .clipToBounds()
     ) {
+        val backgroundBrush = tiled(
+            scaled(transparent, BackgroundTileSize.toInt(), BackgroundTileSize.toInt())
+        )
+        if (!cropToSprite) {
+            translate(-offset, offset) {
+                drawRect(
+                    brush = backgroundBrush,
+                    topLeft = Offset(-BackgroundTileSize, -BackgroundTileSize),
+                    size = Size(
+                        size.width + BackgroundTileSize * 2f,
+                        size.height + BackgroundTileSize * 2f,
+                    ),
+                )
+            }
+            return@Canvas
+        }
+
         val spriteSize = fittedSpriteSize(size, sprite)
         val canvasOrigin = Offset(
             (size.width - spriteSize.width) / 2f,
@@ -195,13 +257,7 @@ private fun BackgroundCanvas(pan: Offset, zoom: Float, sprite: Sprite) {
                 scale(zoom, pivot = Offset.Zero) {
                     translate(-offset, offset) {
                         drawRect(
-                            brush = tiled(
-                                scaled(
-                                    transparent,
-                                    BackgroundTileSize.toInt(),
-                                    BackgroundTileSize.toInt()
-                                )
-                            ),
+                            brush = backgroundBrush,
                             // The rect moves by at most one tile, so one tile of
                             // local-space overscan keeps it covered by the clip.
                             topLeft = Offset(
@@ -222,7 +278,7 @@ private fun BackgroundCanvas(pan: Offset, zoom: Float, sprite: Sprite) {
 
 @Composable
 private fun SpriteCanvas(
-    tool: Tool,
+    penColor: Palette,
     sprite: Sprite,
     edit: (Sprite.Edits) -> Unit,
     panState: MutableState<Offset>,
@@ -236,7 +292,7 @@ private fun SpriteCanvas(
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
-            .pointerInput(tool) {
+            .pointerInput(penColor) {
                 fun cellAt(position: Offset): Cell {
                     val activeSprite = currentSprite.value
                     val spriteSize = fittedSpriteSize(
@@ -258,7 +314,7 @@ private fun SpriteCanvas(
                     sequence {
                         val cell = cellAt(expectTap().position)
                         if (currentSprite.value.inBounds(cell.row, cell.col)) {
-                            edit.value(tool.toEdit(cell.row, cell.col))
+                            edit.value(Sprite.Edits.Write(cell.row, cell.col, penColor))
                         }
                     }
                     sequence {
@@ -269,7 +325,7 @@ private fun SpriteCanvas(
                             previousCell?.let { previous ->
                                 val edits = cellsBetween(previous, currentCell).mapNotNull { cell ->
                                     if (currentSprite.value.inBounds(cell.row, cell.col) && visited.add(cell)) {
-                                        tool.toEdit(cell.row, cell.col)
+                                        Sprite.Edits.Write(cell.row, cell.col, penColor)
                                     } else {
                                         null
                                     }
@@ -340,5 +396,5 @@ private fun SpriteCanvas(
 @Composable
 private fun TestCanvas() {
     val sprite by remember { mutableStateOf(Sprite.empty(20, 20)) }
-    EditableCanvas(sprite, sprite::update)
+    EditableCanvas(sprite, sprite::update, {})
 }

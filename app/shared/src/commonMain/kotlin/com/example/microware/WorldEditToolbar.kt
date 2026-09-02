@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun BoxWithConstraintsScope.WorldEditToolbar(
@@ -66,10 +67,24 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                         objectBeingEdited = newObj
                         world = world.updateObject(newObj)
                     },
-                    modifier = Modifier.weight(1f)
+                    resize = { bounds ->
+                        val newObj = obj.copy(
+                            offset = obj.offset + Offset(
+                                bounds.left.toFloat(),
+                                bounds.top.toFloat(),
+                            ),
+                            sprite = obj.sprite.resized(bounds),
+                        )
+                        objectBeingEdited = world.clamped(newObj)
+                        world = world.updateObject(newObj)
+                    },
+                    modifier = Modifier.weight(1f),
+                    editorKey = obj.id,
                 )
             }
         } ?: CreateObjectForm(
+            maxWidth = world.background.width,
+            maxHeight = world.background.height,
             onCreate = { width, height ->
                 val obj = Obj(world.nextId(), width, height)
                 world = world.addObject(obj)

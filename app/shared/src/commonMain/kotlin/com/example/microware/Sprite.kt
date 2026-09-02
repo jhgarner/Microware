@@ -56,6 +56,25 @@ data class Sprite(val rows: PersistentList<PersistentList<Palette>>) {
         )
     )
 
+    fun resized(bounds: SpriteBounds): Sprite {
+        require(bounds.width <= MaxSpriteWidth)
+        require(bounds.height <= MaxSpriteHeight)
+
+        return Sprite(
+            List(bounds.height) { newRow ->
+                val sourceRow = bounds.top + newRow
+                List(bounds.width) { newCol ->
+                    val sourceCol = bounds.left + newCol
+                    if (inBounds(sourceRow, sourceCol)) {
+                        get(sourceRow, sourceCol)
+                    } else {
+                        Palette.Clear
+                    }
+                }.toPersistentList()
+            }.toPersistentList()
+        )
+    }
+
     sealed interface Edits {
         data class Write(val row: Int, val col: Int, val color: Palette) : Edits
         data class WriteMany(val edits: List<Write>) : Edits
@@ -69,6 +88,33 @@ data class Sprite(val rows: PersistentList<PersistentList<Palette>>) {
         fun solid(w: Int, h: Int, color: Palette): Sprite {
             return Sprite(List(h) { List(w) { color }.toPersistentList() }.toPersistentList())
         }
+    }
+}
+
+const val MaxSpriteWidth = 128
+const val MaxSpriteHeight = 256
+
+data class SpriteBounds(
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int,
+) {
+    init {
+        require(right > left)
+        require(bottom > top)
+    }
+
+    val width: Int get() = right - left
+    val height: Int get() = bottom - top
+
+    companion object {
+        fun original(sprite: Sprite) = SpriteBounds(
+            left = 0,
+            top = 0,
+            right = sprite.width,
+            bottom = sprite.height,
+        )
     }
 }
 

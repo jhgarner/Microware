@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -37,8 +36,8 @@ import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-const val WorldWidth = 128
-const val WorldHeight = 256
+const val WorldWidth = MaxSpriteWidth
+const val WorldHeight = MaxSpriteHeight
 
 data class World(val background: Sprite, val objects: List<Obj>) {
     constructor() : this(Sprite.empty(WorldWidth, WorldHeight), emptyList())
@@ -228,41 +227,29 @@ private fun WorldSprite(
 
 @Composable
 fun CreateObjectForm(
+    maxWidth: Int,
+    maxHeight: Int,
     onCreate: (Int, Int) -> Unit,
 ) {
-    var widthText by remember { mutableStateOf("20") }
-    var heightText by remember { mutableStateOf("20") }
-    val width = widthText.toIntOrNull()
-    val height = heightText.toIntOrNull()
-    val canCreate = width != null && width > 0 && height != null && height > 0
+    var width by remember(maxWidth) { mutableStateOf(20.coerceIn(1, maxWidth)) }
+    var height by remember(maxHeight) { mutableStateOf(20.coerceIn(1, maxHeight)) }
 
     Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
         Text("Create sprite")
-        OutlinedTextField(
-            value = widthText,
-            onValueChange = { value ->
-                widthText = value.filter { it.isDigit() }
-            },
-            label = { Text("Width") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Width,
+            value = width,
+            maxValue = maxWidth,
+            onValueChange = { width = it },
         )
-        OutlinedTextField(
-            value = heightText,
-            onValueChange = { value ->
-                heightText = value.filter { it.isDigit() }
-            },
-            label = { Text("Height") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Height,
+            value = height,
+            maxValue = maxHeight,
+            onValueChange = { height = it },
         )
         Button(
-            onClick = {
-                if (width != null && height != null && width > 0 && height > 0) {
-                    onCreate(width, height)
-                }
-            },
-            enabled = canCreate,
+            onClick = { onCreate(width, height) },
             modifier = Modifier.padding(top = 8.dp)
         ) {
             Text("Create")
