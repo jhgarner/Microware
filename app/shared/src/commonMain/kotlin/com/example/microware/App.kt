@@ -29,23 +29,26 @@ fun App() {
         ) {
 //            var sprite by remember { mutableStateOf(Sprite.empty(20, 20)) }
 //            EditableCanvas(sprite) { sprite = sprite.update(it) }
-            val world = remember {
+            val game = remember {
                 mutableStateOf(
-                    World(
-                        Sprite.solid(WorldWidth, WorldHeight, Palette.Rust), listOf(
-                            Obj(
-                                id = 1,
-                                offset = Offset(20f, 20f),
-                                sprite = Sprite.solid(20, 20, Palette.Cyan)
+                    Game(
+                        world = World(
+                            Sprite.solid(WorldWidth, WorldHeight, Palette.Rust), listOf(
+                                Obj(
+                                    id = 1,
+                                    offset = Offset(20f, 20f),
+                                    sprite = Sprite.solid(20, 20, Palette.Cyan)
+                                )
                             )
-                        )
+                        ),
+                        logics = emptyList(),
                     )
                 )
             }
             CompositionLocalProvider(LocalInsets provides Insets.new()) {
                 val library = remember { mutableStateOf(loadLibrary()) }
-                WorldEditor(
-                    mutableWorld = world,
+                GameEditor(
+                    mutableGame = game,
                     library = library,
                 )
             }

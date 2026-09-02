@@ -7,8 +7,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,8 +40,13 @@ fun LogicTagPicker(
     selectedTag: LogicTag?,
     onSelectTag: (LogicTag?) -> Unit,
     modifier: Modifier = Modifier,
+    usedTags: Set<LogicTag> = LogicTag.all.toSet(),
+    allowClear: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var unusedExpanded by remember { mutableStateOf(false) }
+    val preferredTags = LogicTag.all.filter { it in usedTags }
+    val unusedTags = LogicTag.all.filterNot { it in usedTags }
 
     Box(modifier = modifier) {
         Button(
@@ -66,38 +74,82 @@ fun LogicTagPicker(
             onDismissRequest = { expanded = false },
             modifier = Modifier.width(280.dp),
         ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(6),
-                modifier = Modifier.size(width = 280.dp, height = 320.dp).padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                item(key = "clear") {
-                    LogicTagOption(
-                        selected = selectedTag == null,
-                        onClick = {
-                            onSelectTag(null)
+            Column(Modifier.width(280.dp).padding(8.dp)) {
+                val preferredOptionCount = preferredTags.size + if (allowClear) 1 else 0
+                if (preferredOptionCount > 0) {
+                    LogicTagGrid(
+                        tags = preferredTags,
+                        selectedTag = selectedTag,
+                        allowClear = allowClear,
+                        modifier = Modifier.fillMaxWidth().height(gridHeight(preferredOptionCount)),
+                        onSelectTag = {
+                            onSelectTag(it)
                             expanded = false
                         },
                     )
                 }
-                items(
-                    items = LogicTag.all,
-                    key = { it.tag },
-                ) { tag ->
-                    LogicTagOption(
-                        tag = tag,
-                        selected = selectedTag == tag,
-                        onClick = {
-                            onSelectTag(tag)
-                            expanded = false
-                        },
-                    )
+                if (unusedTags.isNotEmpty() && usedTags.size < LogicTag.all.size) {
+                    IconButton(
+                        description = if (unusedExpanded) "Hide unused logic tags" else "Show unused logic tags",
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { unusedExpanded = !unusedExpanded },
+                    ) {
+                        val y = if (unusedExpanded) size.height * .65f else size.height * .35f
+                        val tipY = if (unusedExpanded) size.height * .25f else size.height * .75f
+                        drawLine(Color.Black, Offset(size.width * .2f, y), Offset(size.width * .5f, tipY), 2.dp.toPx())
+                        drawLine(Color.Black, Offset(size.width * .8f, y), Offset(size.width * .5f, tipY), 2.dp.toPx())
+                    }
+                    if (unusedExpanded) {
+                        LogicTagGrid(
+                            tags = unusedTags,
+                            selectedTag = selectedTag,
+                            allowClear = false,
+                            modifier = Modifier.fillMaxWidth().height(gridHeight(unusedTags.size)),
+                            onSelectTag = {
+                                onSelectTag(it)
+                                expanded = false
+                            },
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun LogicTagGrid(
+    tags: List<LogicTag>,
+    selectedTag: LogicTag?,
+    allowClear: Boolean,
+    modifier: Modifier,
+    onSelectTag: (LogicTag?) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(6),
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (allowClear) {
+            item(key = "clear") {
+                LogicTagOption(
+                    selected = selectedTag == null,
+                    onClick = { onSelectTag(null) },
+                )
+            }
+        }
+        items(items = tags, key = { it.tag }) { tag ->
+            LogicTagOption(
+                tag = tag,
+                selected = selectedTag == tag,
+                onClick = { onSelectTag(tag) },
+            )
+        }
+    }
+}
+
+private fun gridHeight(optionCount: Int) = ((optionCount + 5) / 6 * 44).coerceAtMost(220).dp
 
 @Composable
 private fun LogicTagOption(
