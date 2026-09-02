@@ -137,7 +137,9 @@ fun Drawer(
                 .padding(12.dp)
         ) {
             Box(modifier = Modifier.padding(contentPadding)) {
-                content()
+                if (isExpanded) {
+                    content()
+                }
             }
         }
     }

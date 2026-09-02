@@ -58,6 +58,11 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         extraOnDismiss = { objectBeingEdited = null },
         buttonContent = { CreateTarget(foreground = it, isEditMode = settableOffer.value != null) }
     ) {
+        if (objectBeingEdited == null) {
+            val obj = Obj(world.nextId(), 20, 20)
+            world = world.addObject(obj)
+            objectBeingEdited = obj
+        }
         objectBeingEdited?.let { obj ->
             Column(modifier = Modifier.fillMaxSize()) {
                 EditableCanvas(
@@ -82,15 +87,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                     editorKey = obj.id,
                 )
             }
-        } ?: CreateObjectForm(
-            maxWidth = world.background.width,
-            maxHeight = world.background.height,
-            onCreate = { width, height ->
-                val obj = Obj(world.nextId(), width, height)
-                world = world.addObject(obj)
-                objectBeingEdited = obj
-            }
-        )
+        }
     }
 
     DrawerWithHandle(

@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -152,7 +153,7 @@ fun WorldEditor(
                         obj = obj,
                         origin = IntOffset(worldLeft, worldTop),
                         scale = scale,
-                        opacity = if (mutableWillBeDeleted.value) 0.5f else 1f,
+                        opacity = if (offer?.obj?.id == obj.id && mutableWillBeDeleted.value) 0.5f else 1f,
                         from = world,
                         settableOffer = mutableOffer,
                     )
@@ -189,7 +190,7 @@ private fun WorldSprite(
     origin: IntOffset = IntOffset.Zero,
     opacity: Float = 1f,
     from: Any,
-    settableOffer: MutableState<Offer?>? = mutableStateOf(null),
+    settableOffer: MutableState<Offer?>? = null,
 ) {
     val density = LocalDensity.current
     val animatedOpacity by animateFloatAsState(
@@ -203,6 +204,9 @@ private fun WorldSprite(
             (obj.sprite.width * scale).roundToInt().coerceAtLeast(1),
             (obj.sprite.height * scale).roundToInt().coerceAtLeast(1)
         )
+    }
+    val isFullyTransparent = obj.sprite.rows.all { row ->
+        row.all { it == Palette.Clear }
     }
     val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val modifier = Modifier
@@ -222,6 +226,12 @@ private fun WorldSprite(
 
     Canvas(modifier) {
         drawImage(image)
+        if (isFullyTransparent) {
+            drawRect(
+                color = Palette.Black.color,
+                style = Stroke(width = 1.dp.toPx())
+            )
+        }
     }
 }
 
