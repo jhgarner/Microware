@@ -44,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 private enum class ActionChoice { Move, MoveTo, Win, Lose }
 private enum class TriggerLayout { Large, Small }
@@ -351,8 +354,8 @@ private fun TriggerButton(
     ) { time ->
         when {
             description.startsWith("Collision") -> drawCollisionIcon(time)
-            description.startsWith("Game") -> drawStartIcon()
-            description.startsWith("Tap") -> drawTapIcon()
+            description.startsWith("Game") -> drawStartIcon(time)
+            description.startsWith("Tap") -> drawTapIcon(time)
             else -> drawCollisionIcon(time)
         }
     }
@@ -580,33 +583,80 @@ private fun DrawScope.drawAction(action: Action) = when (action) {
     Action.Lose -> drawLoseIcon()
 }
 
-private fun DrawScope.drawStartIcon() {
+private fun DrawScope.drawStartIcon(t: Float = 0f) {
+    for (i in 0..<8) {
+        val delay = lerp(0.2f, 0.4f, i / 8f)
+        val endX = cos(2f * PI.toFloat() / 8f * i - PI.toFloat() / 2f)
+        val endY = sin(2f * PI.toFloat() / 8f * i - PI.toFloat() / 2f)
+        val shineStart = animate(t - delay, 0.5f) {
+            anim(.5f, .3f)
+            anim(1.1f, .2f)
+        }
+        val shineEnd = animate(t - delay, 0.5f) {
+            anim(1.1f, .3f)
+            anim(1.1f, .2f)
+        }
+        lineCenter(
+            Palette.Orange,
+            Offset(shineStart * endX, shineStart * endY),
+            Offset(shineEnd * endX, shineEnd * endY),
+            10f
+        )
+    }
+    val compress = animate(t) {
+        anim(0.09f, .1f)
+        anim(-.15f, .2f)
+        anim(-.15f, .5f)
+        anim(0.09f, .2f)
+        anim(0f, .1f)
+    }
     val path = androidx.compose.ui.graphics.Path().apply {
-        moveTo(size.width * .25f, size.height * .15f)
-        lineTo(size.width * .85f, size.height * .5f)
-        lineTo(size.width * .25f, size.height * .85f)
+        moveTo(size.width * (.15f - compress), size.height * (.15f - compress))
+        lineTo(size.width * (.85f + compress), size.height * .5f)
+        lineTo(size.width * (.15f - compress), size.height * (.85f + compress))
         close()
     }
     drawPath(path, Palette.Green.color)
     drawPath(path, Color.Black, style = Stroke(2.dp.toPx()))
 }
 
-private fun DrawScope.drawTapIcon() {
+private fun DrawScope.drawTapIcon(t: Float = 0f) {
     val touchPoint = Offset(size.width * .5f, size.height * .2f)
+    val radScale = animate(t, 1.0f) {
+        anim(1.0f, .3f)
+        anim(1.4f, .2f)
+        anim(1.0f, .2f)
+    }
     drawCircle(
         Palette.Cyan.color,
-        size.minDimension * .18f,
+        size.minDimension * .18f * radScale,
         touchPoint,
         style = Stroke(2.dp.toPx())
     )
+    val fingerMove = animate(t) {
+        anim(0f, .2f)
+        anim(.1f, .1f)
+        anim(.1f, .3f)
+        anim(0f, .2f)
+    }
     val finger = androidx.compose.ui.graphics.Path().apply {
         moveTo(size.width * .5f, size.height * .82f)
         lineTo(size.width * .34f, size.height * .62f)
         lineTo(size.width * .34f, size.height * .5f)
         quadraticTo(size.width * .34f, size.height * .43f, size.width * .42f, size.height * .5f)
-        lineTo(size.width * .42f, size.height * .22f)
-        quadraticTo(size.width * .42f, size.height * .12f, size.width * .5f, size.height * .12f)
-        quadraticTo(size.width * .58f, size.height * .12f, size.width * .58f, size.height * .22f)
+        lineTo(size.width * .42f, size.height * (.22f + fingerMove))
+        quadraticTo(
+            size.width * .42f,
+            size.height * (.12f + fingerMove),
+            size.width * .5f,
+            size.height * (.12f + fingerMove)
+        )
+        quadraticTo(
+            size.width * .58f,
+            size.height * (.12f + fingerMove),
+            size.width * .58f,
+            size.height * (.22f + fingerMove)
+        )
         lineTo(size.width * .58f, size.height * .48f)
         quadraticTo(size.width * .82f, size.height * .43f, size.width * .82f, size.height * .62f)
         lineTo(size.width * .72f, size.height * .82f)
@@ -877,11 +927,8 @@ private fun DrawScope.drawTeleportIcon() {
     drawPath(bolt, Color.Black, style = Stroke(1.dp.toPx()))
 }
 
-private fun anim(start: Float, stop: Float, ease: Easing, fraction: Float): Float =
-    lerp(start, stop, ease.transform(fraction))
-
-private data class Frame(val start: Float, val stop: Float, val ease: Easing, val duration: Float)
-private data class AnimBuilder(val initial: Float, val actions: MutableList<Frame>) {
+data class Frame(val start: Float, val stop: Float, val ease: Easing, val duration: Float)
+data class AnimBuilder(val initial: Float, val actions: MutableList<Frame>) {
     fun get(t: Float): Float {
         if (t <= 0f || t >= 1f) {
             return initial
@@ -906,8 +953,20 @@ private data class AnimBuilder(val initial: Float, val actions: MutableList<Fram
     }
 }
 
-private fun animate(t: Float, initial: Float, builder: AnimBuilder.() -> Unit): Float {
+fun animate(t: Float, initial: Float = 0f, builder: AnimBuilder.() -> Unit): Float {
     val state = AnimBuilder(initial, mutableListOf())
     state.builder()
     return state.get(t)
+}
+
+fun DrawScope.lineCenter(color: Palette, start: Offset, end: Offset, width: Float) {
+    val halfSize = Offset(size.width, size.height) * .5f;
+    println("Size is $size and end is $end and start is $start and $halfSize")
+    println("Result is ${Offset(end.x * size.width, end.y * size.height) * .5f + halfSize}")
+    drawLine(
+        color.color,
+        Offset(start.x * size.width, start.y * size.height) * .5f + halfSize,
+        Offset(end.x * size.width, end.y * size.height) * .5f + halfSize,
+        width
+    )
 }

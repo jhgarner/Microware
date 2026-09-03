@@ -160,7 +160,7 @@ internal fun IconButton(
                 contentDescription = description
             },
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) Palette.Cyan.color else Palette.OffWhite.color,
+            containerColor = if (selected) Palette.LightGray.color else Palette.OffWhite.color,
             contentColor = Color.Black,
             disabledContainerColor = Palette.LightGray.color,
         ),
