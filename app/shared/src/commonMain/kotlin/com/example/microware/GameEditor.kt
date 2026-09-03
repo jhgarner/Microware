@@ -115,7 +115,7 @@ private fun EditorPage(onBack: () -> Unit, content: @Composable () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Palette.Navy.color)
+                .background(Palette.OffWhite.color)
                 .padding(start = insets.leftDp(), top = insets.topDp(), end = insets.rightDp()),
         ) {
             IconButton(description = "Back to game editor menu", onClick = onBack) { _ ->
@@ -162,7 +162,7 @@ internal fun IconButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = if (selected) Palette.LightGray.color else Palette.OffWhite.color,
             contentColor = Color.Black,
-            disabledContainerColor = Palette.LightGray.color,
+            disabledContainerColor = Palette.DarkGray.color,
         ),
         border = BorderStroke(2.dp, Color.Black),
         shape = RectangleShape,

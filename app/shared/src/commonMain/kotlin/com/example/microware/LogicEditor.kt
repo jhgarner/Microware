@@ -50,6 +50,11 @@ import kotlin.math.sin
 
 private enum class ActionChoice { Move, MoveTo, Win, Lose }
 private enum class TriggerLayout { Large, Small }
+private data class DirectionStar(
+    val crossAxisPosition: Float,
+    val travelOffset: Float,
+    val radius: Float,
+)
 
 @Composable
 fun LogicEditor(
@@ -460,7 +465,7 @@ private fun EditableActionCard(
                     val nextDirection =
                         directions[(directions.indexOf(action.target) + 1) % directions.size]
                     onChange(Action.Move(action.mover, nextDirection, action.speed))
-                }) { _ -> drawDirectionIcon(action.target) }
+                }) { time -> drawDirectionIcon(action.target, time) }
                 SpeedControl(action.speed) {
                     onChange(
                         Action.Move(
@@ -560,9 +565,9 @@ private fun SpeedControl(speed: Int, compact: Boolean = false, onChange: (Int) -
 
 @Composable
 private fun ActionButton(choice: ActionChoice, onClick: () -> Unit) {
-    IconButton("Add ${choice.name} action", onClick = onClick) { _ ->
+    IconButton("Add ${choice.name} action", onClick = onClick) { time ->
         when (choice) {
-            ActionChoice.Move -> drawDirectionIcon(Direction.E)
+            ActionChoice.Move -> drawDirectionIcon(Direction.E, time)
             ActionChoice.MoveTo -> drawMoveToIcon()
             ActionChoice.Win -> drawWinIcon()
             ActionChoice.Lose -> drawLoseIcon()
@@ -689,8 +694,81 @@ private fun DrawScope.drawCollisionIcon(t: Float) {
     )
 }
 
-private fun DrawScope.drawDirectionIcon(direction: Direction) {
-    val (start, end, arrowHead) = when (direction) {
+private fun DrawScope.drawDirectionIcon(direction: Direction, t: Float = 0f) {
+    val travelAxis = when (direction) {
+        Direction.N -> Offset(0f, -1f)
+        Direction.S -> Offset(0f, 1f)
+        Direction.E -> Offset(1f, 0f)
+        Direction.W -> Offset(-1f, 0f)
+    }
+    val stars = listOf(
+        DirectionStar(-.08f, -.5f, .016f),
+        DirectionStar(.08f, -.65f, .018f),
+        DirectionStar(.92f, -.35f, .024f),
+        DirectionStar(1.08f, -.2f, .02f),
+        DirectionStar(.3f, -.05f, .015f),
+        DirectionStar(.7f, .25f, .02f),
+        DirectionStar(-.04f, .4f, .013f),
+        DirectionStar(.16f, .55f, .016f),
+        DirectionStar(.84f, .82f, .022f),
+        DirectionStar(1.04f, .95f, .018f),
+    )
+    val starAlpha = animate(t) {
+        anim(1f, .15f)
+        anim(1f, .65f)
+        anim(0f, .2f)
+    }
+    val starTravel = animate(t, 1.25f) {
+        anim(-.25f, 1f)
+    }
+    val starElongation = animate(t) {
+        anim(0f, .15f)
+        anim(.12f, .15f)
+        anim(.12f, .5f)
+        anim(0f, .2f)
+    }
+    stars.forEach { star ->
+        if (starAlpha > 0f) {
+            val travelPosition = starTravel + star.travelOffset
+            val starCenter = when (direction) {
+                Direction.N -> Offset(
+                    size.width * star.crossAxisPosition,
+                    size.height * (1f - travelPosition),
+                )
+
+                Direction.S -> Offset(
+                    size.width * star.crossAxisPosition,
+                    size.height * travelPosition,
+                )
+
+                Direction.E -> Offset(
+                    size.width * travelPosition,
+                    size.height * star.crossAxisPosition,
+                )
+
+                Direction.W -> Offset(
+                    size.width * (1f - travelPosition),
+                    size.height * star.crossAxisPosition,
+                )
+            }
+            val starColor = Color.Black.copy(alpha = starAlpha)
+            val starRadius = size.minDimension * star.radius
+            if (starElongation == 0f) {
+                drawCircle(starColor, starRadius, starCenter)
+            } else {
+                val halfLength = size.minDimension * starElongation / 2f
+                drawLine(
+                    color = starColor,
+                    start = starCenter - travelAxis * halfLength,
+                    end = starCenter + travelAxis * halfLength,
+                    strokeWidth = starRadius * 2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+    }
+
+    val (baseStart, baseEnd, baseArrowHead) = when (direction) {
         Direction.N -> Triple(
             Offset(size.width * .5f, size.height * .88f),
             Offset(size.width * .5f, size.height * .12f),
@@ -727,6 +805,16 @@ private fun DrawScope.drawDirectionIcon(direction: Direction) {
             ),
         )
     }
+    val arrowElongation = animate(t) {
+        anim(.06f, .18f)
+        anim(.1f, .22f)
+        anim(.1f, .4f)
+        anim(0f, .2f)
+    }
+    val arrowExtension = travelAxis * (size.minDimension * arrowElongation)
+    val start = baseStart - arrowExtension
+    val end = baseEnd + arrowExtension
+    val arrowHead = baseArrowHead.map { it + arrowExtension }
     val strokeWidth = 3.dp.toPx()
     drawLine(Color.Black, start, end, strokeWidth, StrokeCap.Round)
     arrowHead.forEach { point ->
@@ -961,8 +1049,6 @@ fun animate(t: Float, initial: Float = 0f, builder: AnimBuilder.() -> Unit): Flo
 
 fun DrawScope.lineCenter(color: Palette, start: Offset, end: Offset, width: Float) {
     val halfSize = Offset(size.width, size.height) * .5f;
-    println("Size is $size and end is $end and start is $start and $halfSize")
-    println("Result is ${Offset(end.x * size.width, end.y * size.height) * .5f + halfSize}")
     drawLine(
         color.color,
         Offset(start.x * size.width, start.y * size.height) * .5f + halfSize,
