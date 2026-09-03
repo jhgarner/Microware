@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +48,33 @@ private const val logicTagBackgroundScrollDurationMillis = 44000
 private const val logicTagBackgroundTagSizeFraction = .3f
 private const val logicTagBackgroundTagGapFraction = .12f
 private const val logicTagBackgroundVerticalGapFraction = .05f
+
+private val logicTagBorderColors = Palette.entries
+    .filter { it != Palette.Clear }
+    .map { it.color }
+
+private val logicTagBorder = BorderStroke(
+    width = 2.dp,
+    brush = Brush.sweepGradient(*discreteColorStops(logicTagBorderColors)),
+)
+
+private fun discreteColorStops(colors: List<Color>): Array<Pair<Float, Color>> {
+    val sectionSize = 1f / colors.size
+    val transitionSize = .001f
+
+    return colors.flatMapIndexed { index, color ->
+        val sectionStart = index * sectionSize
+        val sectionEnd = if (index == colors.lastIndex) {
+            1f
+        } else {
+            (index + 1) * sectionSize - transitionSize
+        }
+        listOf(
+            sectionStart to color,
+            sectionEnd to color,
+        )
+    }.toTypedArray()
+}
 
 @Composable
 fun LogicTagPicker(
@@ -72,7 +100,7 @@ fun LogicTagPicker(
                 contentColor = Color.Black,
             ),
             shape = RectangleShape,
-            border = BorderStroke(2.dp, Color.Black),
+            border = logicTagBorder,
             contentPadding = PaddingValues(0.dp),
         ) {
             if (selectedTag == null) {
