@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private enum class GameEditorPage { World, Logic }
@@ -126,15 +127,19 @@ internal fun IconButton(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     enabled: Boolean = true,
+    buttonSize: Dp? = 48.dp,
     onClick: () -> Unit,
     icon: DrawScope.() -> Unit,
 ) {
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.size(48.dp).padding(4.dp).semantics {
-            contentDescription = description
-        },
+        modifier = modifier
+            .then(buttonSize?.let { Modifier.size(it) } ?: Modifier)
+            .padding(4.dp)
+            .semantics {
+                contentDescription = description
+            },
         colors = ButtonDefaults.buttonColors(
             containerColor = if (selected) Palette.Cyan.color else Palette.OffWhite.color,
             contentColor = Color.Black,

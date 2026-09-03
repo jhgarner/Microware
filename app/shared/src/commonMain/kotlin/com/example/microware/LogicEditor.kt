@@ -1,5 +1,9 @@
 package com.example.microware
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -7,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,9 +37,13 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 private enum class ActionChoice { Move, MoveTo, Win, Lose }
+private enum class TriggerLayout { Large, Small }
 
 @Composable
 fun LogicEditor(
@@ -109,8 +119,12 @@ private fun LogicBuilder(
     val defaultTag = usedTags.firstOrNull() ?: LogicTag.all.first()
     var trigger by remember(initialLogic) { mutableStateOf(initialLogic?.trigger) }
     var actions by remember(initialLogic) { mutableStateOf(initialLogic?.actions.orEmpty()) }
+    var triggerLayout by remember(initialLogic) {
+        mutableStateOf(if (initialLogic == null) TriggerLayout.Large else TriggerLayout.Small)
+    }
+    var detailsVisible by remember(initialLogic) { mutableStateOf(initialLogic != null) }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(
@@ -119,70 +133,200 @@ private fun LogicBuilder(
                 bottom = insets.bottomDp() + 8.dp,
             ),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            TriggerButton("Game start trigger", trigger is Trigger.Start) {
-                trigger = Trigger.Start
-            }
-            TriggerButton("Tap trigger", trigger is Trigger.Tap) {
-                trigger = Trigger.Tap(defaultTag)
-            }
-            TriggerButton("Collision trigger", trigger is Trigger.Collision) {
-                trigger = Trigger.Collision(defaultTag, defaultTag)
-            }
+        val largeTriggerSpacing = 8.dp
+        val compactButtonSize = 48.dp
+        val compactRowHeight = compactButtonSize
+        val largeButtonSize = minOf(
+            (maxWidth - largeTriggerSpacing * 2) / 3,
+            maxHeight,
+        )
+        val initialTriggerAreaHeight = if (detailsVisible) compactRowHeight else largeButtonSize
+        val triggerAreaHeight = remember(maxWidth, maxHeight, initialLogic) {
+            Animatable(initialTriggerAreaHeight.value)
+        }
+        val triggerButtonWidth = remember(maxWidth, maxHeight, initialLogic) {
+            Animatable((if (detailsVisible) compactButtonSize else largeButtonSize).value)
+        }
+        val triggerButtonHeight = remember(maxWidth, maxHeight, initialLogic) {
+            Animatable((if (detailsVisible) compactButtonSize else largeButtonSize).value)
+        }
+        val triggerButtonSpacing = remember(maxWidth, maxHeight, initialLogic) {
+            Animatable(if (detailsVisible) 0f else largeTriggerSpacing.value)
         }
 
-        trigger?.let { selectedTrigger ->
-            TriggerParameters(selectedTrigger, usedTags) { trigger = it }
-            Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
-        }
+        LaunchedEffect(trigger, maxWidth, maxHeight) {
+            if (trigger == null || detailsVisible) return@LaunchedEffect
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            itemsIndexed(actions) { index, action ->
-                EditableActionCard(
-                    action = action,
-                    usedTags = usedTags,
-                    onChange = { changed ->
-                        actions = actions.mapIndexed { candidateIndex, current ->
-                            if (candidateIndex == index) changed else current
-                        }
-                    },
-                    onDelete = {
-                        actions = actions.filterIndexed { candidateIndex, _ -> candidateIndex != index }
-                    },
-                )
-            }
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    ActionButton(ActionChoice.Move) {
-                        actions = actions + Action.Move(defaultTag, Direction.E, 1)
-                    }
-                    ActionButton(ActionChoice.MoveTo) {
-                        actions = actions + Action.MoveTo(defaultTag, defaultTag, 1)
-                    }
-                    ActionButton(ActionChoice.Win) { actions = actions + Action.Win }
-                    ActionButton(ActionChoice.Lose) { actions = actions + Action.Lose }
+            coroutineScope {
+                launch {
+                    triggerAreaHeight.animateTo(
+                        targetValue = compactRowHeight.value,
+                        animationSpec = tween(durationMillis = 300),
+                    )
+                }
+                launch {
+                    triggerButtonWidth.animateTo(
+                        targetValue = compactButtonSize.value,
+                        animationSpec = tween(durationMillis = 300),
+                    )
+                }
+                launch {
+                    triggerButtonHeight.animateTo(
+                        targetValue = compactButtonSize.value,
+                        animationSpec = tween(durationMillis = 300),
+                    )
+                }
+                launch {
+                    triggerButtonSpacing.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(durationMillis = 300),
+                    )
                 }
             }
+
+            triggerLayout = TriggerLayout.Small
+            detailsVisible = true
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            IconButton("Cancel logic", onClick = onCancel) { drawCloseIcon() }
-            IconButton(
-                description = "Save logic",
-                enabled = trigger != null && actions.isNotEmpty(),
-                onClick = { trigger?.let { onSave(Logic(it, actions)) } },
-            ) { drawCheckIcon() }
+        Column(Modifier.fillMaxSize()) {
+            TriggerButtons(
+                trigger = trigger,
+                modifier = Modifier.fillMaxWidth().height(triggerAreaHeight.value.dp),
+                layout = triggerLayout,
+                buttonWidth = triggerButtonWidth.value.dp,
+                buttonHeight = triggerButtonHeight.value.dp,
+                buttonSpacing = triggerButtonSpacing.value.dp,
+                onStartSelected = { trigger = Trigger.Start },
+                onTapSelected = { trigger = Trigger.Tap(defaultTag) },
+                onCollisionSelected = { trigger = Trigger.Collision(defaultTag, defaultTag) },
+            )
+
+            AnimatedVisibility(
+                visible = detailsVisible,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                enter = fadeIn(animationSpec = tween(durationMillis = 180)),
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    trigger?.let { selectedTrigger ->
+                        TriggerParameters(selectedTrigger, usedTags) { trigger = it }
+                        Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        itemsIndexed(actions) { index, action ->
+                            EditableActionCard(
+                                action = action,
+                                usedTags = usedTags,
+                                onChange = { changed ->
+                                    actions = actions.mapIndexed { candidateIndex, current ->
+                                        if (candidateIndex == index) changed else current
+                                    }
+                                },
+                                onDelete = {
+                                    actions = actions.filterIndexed { candidateIndex, _ -> candidateIndex != index }
+                                },
+                            )
+                        }
+                        item {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                ActionButton(ActionChoice.Move) {
+                                    actions = actions + Action.Move(defaultTag, Direction.E, 1)
+                                }
+                                ActionButton(ActionChoice.MoveTo) {
+                                    actions = actions + Action.MoveTo(defaultTag, defaultTag, 1)
+                                }
+                                ActionButton(ActionChoice.Win) { actions = actions + Action.Win }
+                                ActionButton(ActionChoice.Lose) { actions = actions + Action.Lose }
+                            }
+                        }
+                    }
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        IconButton("Cancel logic", onClick = onCancel) { drawCloseIcon() }
+                        IconButton(
+                            description = "Save logic",
+                            enabled = trigger != null && actions.isNotEmpty(),
+                            onClick = { trigger?.let { onSave(Logic(it, actions)) } },
+                        ) { drawCheckIcon() }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun TriggerButton(description: String, selected: Boolean, onClick: () -> Unit) {
-    IconButton(description, selected = selected, onClick = onClick) {
+private fun TriggerButtons(
+    trigger: Trigger?,
+    modifier: Modifier,
+    layout: TriggerLayout,
+    buttonWidth: Dp,
+    buttonHeight: Dp,
+    buttonSpacing: Dp,
+    onStartSelected: () -> Unit,
+    onTapSelected: () -> Unit,
+    onCollisionSelected: () -> Unit,
+) {
+    if (layout == TriggerLayout.Large) {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(buttonSpacing, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TriggerButton(
+                description = "Game start trigger",
+                selected = trigger is Trigger.Start,
+                modifier = Modifier.size(buttonWidth, buttonHeight),
+                buttonSize = null,
+                onClick = onStartSelected,
+            )
+            TriggerButton(
+                description = "Tap trigger",
+                selected = trigger is Trigger.Tap,
+                modifier = Modifier.size(buttonWidth, buttonHeight),
+                buttonSize = null,
+                onClick = onTapSelected,
+            )
+            TriggerButton(
+                description = "Collision trigger",
+                selected = trigger is Trigger.Collision,
+                modifier = Modifier.size(buttonWidth, buttonHeight),
+                buttonSize = null,
+                onClick = onCollisionSelected,
+            )
+        }
+    } else {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(buttonSpacing, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TriggerButton("Game start trigger", trigger is Trigger.Start, onClick = onStartSelected)
+            TriggerButton("Tap trigger", trigger is Trigger.Tap, onClick = onTapSelected)
+            TriggerButton("Collision trigger", trigger is Trigger.Collision, onClick = onCollisionSelected)
+        }
+    }
+}
+
+@Composable
+private fun TriggerButton(
+    description: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    buttonSize: Dp? = 48.dp,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        description = description,
+        modifier = modifier,
+        selected = selected,
+        buttonSize = buttonSize,
+        onClick = onClick,
+    ) {
         when {
             description.startsWith("Game") -> drawStartIcon()
             description.startsWith("Tap") -> drawTapIcon()
