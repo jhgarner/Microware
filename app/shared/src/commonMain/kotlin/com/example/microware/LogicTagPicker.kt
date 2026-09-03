@@ -94,6 +94,7 @@ fun LogicTagPicker(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { unusedExpanded = !unusedExpanded },
                     ) {
+                        _ ->
                         val y = if (unusedExpanded) size.height * .65f else size.height * .35f
                         val tipY = if (unusedExpanded) size.height * .25f else size.height * .75f
                         drawLine(Color.Black, Offset(size.width * .2f, y), Offset(size.width * .5f, tipY), 2.dp.toPx())

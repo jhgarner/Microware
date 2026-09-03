@@ -1,5 +1,8 @@
 package com.example.microware
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +53,7 @@ fun GameEditor(
             val mutableWorld = remember(mutableGame) { mutableGame.worldState() }
             WorldEditor(mutableWorld = mutableWorld, library = library)
         }
+
         GameEditorPage.Logic -> EditorPage(onBack = { page = null }) {
             LogicEditor(
                 world = mutableGame.value.world,
@@ -113,7 +118,7 @@ private fun EditorPage(onBack: () -> Unit, content: @Composable () -> Unit) {
                 .background(Palette.Navy.color)
                 .padding(start = insets.leftDp(), top = insets.topDp(), end = insets.rightDp()),
         ) {
-            IconButton(description = "Back to game editor menu", onClick = onBack) {
+            IconButton(description = "Back to game editor menu", onClick = onBack) { _ ->
                 drawBackIcon()
             }
         }
@@ -129,10 +134,24 @@ internal fun IconButton(
     enabled: Boolean = true,
     buttonSize: Dp? = 48.dp,
     onClick: () -> Unit,
-    icon: DrawScope.() -> Unit,
+    icon: DrawScope.(Float) -> Unit,
 ) {
+    val iconAnimation = remember { Animatable(0f) }
+    var animationRequest by remember { mutableStateOf(0) }
+
+    LaunchedEffect(animationRequest) {
+        iconAnimation.snapTo(0f)
+        iconAnimation.animateTo(
+            1f,
+            animationSpec = tween(durationMillis = 800, easing = LinearEasing)
+        )
+    }
+
     Button(
-        onClick = onClick,
+        onClick = {
+            animationRequest++
+            onClick()
+        },
         enabled = enabled,
         modifier = modifier
             .then(buttonSize?.let { Modifier.size(it) } ?: Modifier)
@@ -149,7 +168,9 @@ internal fun IconButton(
         shape = RectangleShape,
         contentPadding = PaddingValues(8.dp),
     ) {
-        Canvas(Modifier.fillMaxSize(), onDraw = icon)
+        Canvas(Modifier.fillMaxSize()) {
+            icon(iconAnimation.value)
+        }
     }
 }
 
@@ -168,15 +189,37 @@ private fun MutableState<Game>.worldState(): MutableState<World> = object : Muta
 internal fun DrawScope.drawBackIcon() {
     val stroke = 3.dp.toPx()
     val tip = Offset(size.width * .15f, size.height * .5f)
-    drawLine(Color.Black, tip, Offset(size.width * .85f, size.height * .5f), stroke, StrokeCap.Round)
-    drawLine(Color.Black, tip, Offset(size.width * .45f, size.height * .2f), stroke, StrokeCap.Round)
-    drawLine(Color.Black, tip, Offset(size.width * .45f, size.height * .8f), stroke, StrokeCap.Round)
+    drawLine(
+        Color.Black,
+        tip,
+        Offset(size.width * .85f, size.height * .5f),
+        stroke,
+        StrokeCap.Round
+    )
+    drawLine(
+        Color.Black,
+        tip,
+        Offset(size.width * .45f, size.height * .2f),
+        stroke,
+        StrokeCap.Round
+    )
+    drawLine(
+        Color.Black,
+        tip,
+        Offset(size.width * .45f, size.height * .8f),
+        stroke,
+        StrokeCap.Round
+    )
 }
 
 internal fun DrawScope.drawWorldIcon() {
     val stroke = 2.dp.toPx()
     drawRect(Color.Black, style = Stroke(stroke))
-    drawCircle(Palette.Cyan.color, size.minDimension * .13f, Offset(size.width * .3f, size.height * .35f))
+    drawCircle(
+        Palette.Cyan.color,
+        size.minDimension * .13f,
+        Offset(size.width * .3f, size.height * .35f)
+    )
     drawRect(
         Palette.Green.color,
         Offset(size.width * .55f, size.height * .55f),
@@ -194,7 +237,11 @@ internal fun DrawScope.drawLogicIcon() {
     drawLine(Color.Black, points[0], points[1], stroke)
     drawLine(Color.Black, points[1], points[2], stroke)
     points.forEachIndexed { index, point ->
-        drawCircle(if (index == 0) Palette.Yellow.color else Palette.Red.color, size.minDimension * .12f, point)
+        drawCircle(
+            if (index == 0) Palette.Yellow.color else Palette.Red.color,
+            size.minDimension * .12f,
+            point
+        )
         drawCircle(Color.Black, size.minDimension * .12f, point, style = Stroke(stroke / 2))
     }
 }
