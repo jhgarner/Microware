@@ -23,7 +23,7 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
     foreground: Palette,
     highlightForeground: Palette,
     hiddenSlide: Int = 16,
-    settableOffer: MutableState<Offer?>,
+    offered: Offer?,
     onGiven: (Offer) -> Unit,
     extraOnDismiss: () -> Unit = {},
     buttonContent: @Composable (Color) -> Unit,
@@ -63,12 +63,12 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
             } else side
         },
         isExpanded = isExpanded,
-        isDragging = settableOffer.value != null,
+        isDragging = offered != null,
         hiddenSlide = hiddenSlide,
         modifier = buttonModifier
             .offset { fleeingAnimation.value.round() }
             .dropTarget(
-                offered = settableOffer.value,
+                offered = offered,
                 onEnter = { isHovered = true },
                 onExit = { isHovered = false },
                 onGiven = onGiven,

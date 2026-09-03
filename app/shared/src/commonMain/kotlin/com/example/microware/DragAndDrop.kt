@@ -1,7 +1,7 @@
 package com.example.microware
 
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -9,6 +9,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
@@ -16,36 +18,124 @@ import androidx.compose.ui.layout.onGloballyPositioned
 
 data class Offer(val offset: Offset, val localOffset: Offset, val obj: Obj, val from: Any)
 
+class DragController {
+    private val offerState = mutableStateOf<Offer?>(null)
+    private var rootCoordinates: LayoutCoordinates? = null
+
+    internal var activePointerId: PointerId? = null
+        private set
+
+    val offer: Offer?
+        get() = offerState.value
+
+    internal fun setRootCoordinates(coordinates: LayoutCoordinates) {
+        rootCoordinates = coordinates
+    }
+
+    internal fun startOrUpdate(
+        pointerId: PointerId,
+        offset: Offset,
+        localOffset: Offset,
+        obj: Obj,
+        from: Any,
+    ) {
+        when (activePointerId) {
+            null -> {
+                activePointerId = pointerId
+                offerState.value = Offer(offset, localOffset, obj, from)
+            }
+
+            pointerId -> {
+                offerState.value = offerState.value?.copy(offset = offset)
+            }
+        }
+    }
+
+    internal fun update(pointerId: PointerId, offset: Offset) {
+        if (activePointerId == pointerId) {
+            offerState.value = offerState.value?.copy(offset = offset)
+        }
+    }
+
+    internal fun finish(pointerId: PointerId) {
+        if (activePointerId == pointerId) {
+            activePointerId = null
+            offerState.value = null
+        }
+    }
+
+    internal fun cancel(pointerId: PointerId? = null) {
+        if (pointerId == null || activePointerId == pointerId) {
+            activePointerId = null
+            offerState.value = null
+        }
+    }
+
+    internal fun toWindow(position: Offset): Offset =
+        rootCoordinates?.localToWindow(position) ?: position
+}
+
 @Composable
-fun Modifier.dropSource(
-    settableOffer: MutableState<Offer?>,
+fun Modifier.dragSource(
+    dragController: DragController,
     from: Any,
     obj: Obj,
     raceBefore: suspend context(PointerRacer) () -> Unit = { },
 ): Modifier {
     val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val currentObj = rememberUpdatedState(obj)
+    val currentFrom = rememberUpdatedState(from)
     return onGloballyPositioned { layout.value = it }
         .pointerInput(obj.id) {
             racing {
                 raceBefore()
                 sequence {
                     val localToWindow = layout.value?.let { it::localToWindow } ?: { it }
-                    followDrag { change ->
-                        var offer by settableOffer
-                        offer = offer?.copy(offset = localToWindow(change.position))
-                            ?: Offer(
-                                localToWindow(change.position),
-                                change.position,
-                                currentObj.value,
-                                from
-                            )
+                    val end = followDrag { change ->
+                        dragController.startOrUpdate(
+                            pointerId = change.id,
+                            offset = localToWindow(change.position),
+                            localOffset = change.position,
+                            obj = currentObj.value,
+                            from = currentFrom.value,
+                        )
                     }
-                    settableOffer.value = null
+                    dragController.finish(end.id)
                 }
             }
         }
 }
+
+fun Modifier.dragObserver(dragController: DragController): Modifier =
+    pointerInput(dragController) {
+        try {
+            awaitEachGesture {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val pointerId = dragController.activePointerId
+                    if (pointerId != null) {
+                        val change = event.changes.firstOrNull { it.id == pointerId }
+                        if (change == null || !change.pressed) {
+                            dragController.cancel(pointerId)
+                            return@awaitEachGesture
+                        }
+
+                        change.consume()
+                        dragController.update(
+                            pointerId,
+                            dragController.toWindow(change.position),
+                        )
+                    }
+
+                    if (event.changes.all { !it.pressed }) {
+                        return@awaitEachGesture
+                    }
+                }
+            }
+        } finally {
+            dragController.cancel()
+        }
+    }
 
 @Composable
 fun Modifier.dropTarget(

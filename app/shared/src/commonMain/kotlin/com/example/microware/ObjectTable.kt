@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +36,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ObjectTable(
     items: List<Obj>,
-    settableOffer: MutableState<Offer?>,
+    dragController: DragController,
     from: Any = Unit,
 ) {
     LazyVerticalGrid(
@@ -50,7 +49,7 @@ fun ObjectTable(
             ItemPreview(
                 obj = obj,
                 zIndex = -index.toFloat(),
-                settableOffer = settableOffer,
+                dragController = dragController,
                 from = from
             )
         }
@@ -60,7 +59,7 @@ fun ObjectTable(
 @Composable
 private fun ItemPreview(
     obj: Obj,
-    settableOffer: MutableState<Offer?>,
+    dragController: DragController,
     from: Any,
     zIndex: Float,
 ) {
@@ -87,7 +86,7 @@ private fun ItemPreview(
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .padding(4.dp)
-            .dropSource(settableOffer, from, obj) {
+            .dragSource(dragController, from, obj) {
                 sequence {
                     expectTap()
                     wiggleCount += 1

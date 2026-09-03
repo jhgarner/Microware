@@ -3,6 +3,7 @@ package com.example.microware
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -14,7 +15,8 @@ import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun BoxWithConstraintsScope.WorldEditToolbar(
-    settableOffer: MutableState<Offer?>,
+    offered: Offer?,
+    dragController: DragController,
     settableWorld: MutableState<World>,
     settableObjectEdited: MutableState<Obj?>,
     willBeDeleted: MutableState<Boolean>,
@@ -27,13 +29,15 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     var objectBeingEdited by settableObjectEdited
 
     val expandedSide = remember { mutableStateOf<HandleEdge?>(null) }
-    if (settableOffer.value != null) {
-        expandedSide.value = null
+    LaunchedEffect(offered != null) {
+        if (offered != null) {
+            expandedSide.value = null
+        }
     }
 
     DrawerWithHandle(
         buttonModifier = Modifier.dropTarget(
-            offered = settableOffer.value,
+            offered = offered,
             onEnter = { willBeDeleted.value = true },
             onEnd = { willBeDeleted.value = false },
             onExit = { willBeDeleted.value = false }),
@@ -42,10 +46,10 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         foreground = Palette.Maroon,
         highlightForeground = Palette.Red,
         hiddenSlide = if (trash.garbage.isNotEmpty()) 16 else 500,
-        settableOffer = settableOffer,
+        offered = offered,
         onGiven = { trash = trash.discard(it.obj); world = world.deleteObject(it.obj.id) },
         buttonContent = { TrashControls(it) },
-        drawerContent = { ObjectTable(items = trash.garbage, settableOffer = settableOffer) },
+        drawerContent = { ObjectTable(items = trash.garbage, dragController = dragController) },
     )
 
     DrawerWithHandle(
@@ -53,10 +57,10 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         expandedSide = expandedSide,
         foreground = Palette.Navy,
         highlightForeground = Palette.Cyan,
-        settableOffer = settableOffer,
+        offered = offered,
         onGiven = { objectBeingEdited = it.obj; expandedSide.value = HandleEdge.Bottom },
         extraOnDismiss = { objectBeingEdited = null },
-        buttonContent = { CreateTarget(foreground = it, isEditMode = settableOffer.value != null) }
+        buttonContent = { CreateTarget(foreground = it, isEditMode = offered != null) }
     ) {
         if (objectBeingEdited == null) {
             val obj = Obj(world.nextId(), 20, 20)
@@ -99,9 +103,9 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         expandedSide = expandedSide,
         foreground = Palette.Forest,
         highlightForeground = Palette.Green,
-        settableOffer = settableOffer,
+        offered = offered,
         onGiven = { library = library.add(it.obj); saveLibrary(library) },
         buttonContent = { LibraryTarget(it) },
-        drawerContent = { ObjectTable(items = library.objects, settableOffer = settableOffer) },
+        drawerContent = { ObjectTable(items = library.objects, dragController = dragController) },
     )
 }

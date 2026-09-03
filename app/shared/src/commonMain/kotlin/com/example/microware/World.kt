@@ -119,15 +119,20 @@ fun WorldEditor(
     library: MutableState<Library>,
 ) {
     var world by mutableWorld
-    val mutableOffer = remember { mutableStateOf<Offer?>(null) }
-    var offer by mutableOffer
+    val dragController = remember { DragController() }
+    val offer = dragController.offer
     var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var worldScale by remember { mutableStateOf(1f) }
     val objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
     val mutableTrash = remember { mutableStateOf(Trash()) }
     val mutableWillBeDeleted = remember { mutableStateOf(false) }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { dragController.setRootCoordinates(it) }
+            .dragObserver(dragController)
+    ) {
         val toolbarHeight = HandleSize + TrashGap
 
         var worldOriginInParent by remember { mutableStateOf(Offset.Zero) }
@@ -189,7 +194,7 @@ fun WorldEditor(
                         scale = scale,
                         opacity = if (offer?.obj?.id == obj.id && mutableWillBeDeleted.value) 0.5f else 1f,
                         from = world,
-                        settableOffer = mutableOffer,
+                        dragController = dragController,
                     )
                 }
 
@@ -207,7 +212,8 @@ fun WorldEditor(
         }
 
         WorldEditToolbar(
-            settableOffer = mutableOffer,
+            offered = offer,
+            dragController = dragController,
             settableTrash = mutableTrash,
             settableLibrary = library,
             settableWorld = mutableWorld,
@@ -224,7 +230,7 @@ private fun WorldSprite(
     origin: IntOffset = IntOffset.Zero,
     opacity: Float = 1f,
     from: Any,
-    settableOffer: MutableState<Offer?>? = null,
+    dragController: DragController? = null,
 ) {
     val density = LocalDensity.current
     val animatedOpacity by animateFloatAsState(
@@ -256,7 +262,7 @@ private fun WorldSprite(
         }
         .onGloballyPositioned { layout.value = it }
         .alpha(animatedOpacity)
-        .then(settableOffer?.let { Modifier.dropSource(it, from, obj) } ?: Modifier)
+        .then(dragController?.let { Modifier.dragSource(it, from, obj) } ?: Modifier)
 
     Canvas(modifier) {
         drawImage(image)
