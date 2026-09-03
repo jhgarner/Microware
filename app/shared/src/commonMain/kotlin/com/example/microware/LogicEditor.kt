@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -132,6 +133,7 @@ private fun LogicBuilder(
 
         trigger?.let { selectedTrigger ->
             TriggerParameters(selectedTrigger, usedTags) { trigger = it }
+            Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
         }
 
         LazyColumn(
@@ -246,6 +248,7 @@ private fun LogicCard(logic: Logic, onEdit: () -> Unit, onDelete: () -> Unit) {
                 Canvas(Modifier.size(36.dp).padding(4.dp)) { drawAction(action) }
             }
         }
+        Canvas(Modifier.size(28.dp).padding(4.dp)) { drawEditIcon() }
         IconButton("Delete logic", onClick = onDelete) { drawTrashIcon() }
     }
 }
@@ -257,13 +260,24 @@ private fun EditableActionCard(
     onChange: (Action) -> Unit,
     onDelete: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth().border(1.dp, Color.Black).padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Canvas(Modifier.size(36.dp).padding(4.dp)) { drawAction(action) }
+            Box(Modifier.weight(1f))
+            IconButton("Delete action", onClick = onDelete) { drawTrashIcon() }
+        }
+
         when (action) {
-            is Action.Move -> {
+            is Action.Move -> Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 LogicTagPicker(
                     action.mover,
                     { it?.let { tag -> onChange(Action.Move(tag, action.target, action.speed)) } },
@@ -277,48 +291,53 @@ private fun EditableActionCard(
                 }) { drawDirectionIcon(action.target) }
                 SpeedControl(action.speed) { onChange(Action.Move(action.mover, action.target, it)) }
             }
-            is Action.MoveTo -> {
+            is Action.MoveTo -> Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 LogicTagPicker(
                     action.mover,
                     { it?.let { tag -> onChange(Action.MoveTo(tag, action.target, action.speed)) } },
                     usedTags = usedTags,
                     allowClear = false,
                 )
+                Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
                 LogicTagPicker(
                     action.target,
                     { it?.let { tag -> onChange(Action.MoveTo(action.mover, tag, action.speed)) } },
                     usedTags = usedTags,
                     allowClear = false,
                 )
-                IconButton("Toggle teleport", selected = action.speed == null, onClick = {
+                IconButton("Toggle instant teleport", modifier = Modifier.size(40.dp), selected = action.speed == null, onClick = {
                     onChange(Action.MoveTo(action.mover, action.target, if (action.speed == null) 1 else null))
                 }) { drawTeleportIcon() }
                 action.speed?.let { speed ->
-                    SpeedControl(speed) {
+                    SpeedControl(speed, compact = true) {
                         onChange(Action.MoveTo(action.mover, action.target, it))
                     }
                 }
             }
             Action.Win, Action.Lose -> Unit
         }
-        Box(Modifier.weight(1f))
-        IconButton("Delete action", onClick = onDelete) { drawTrashIcon() }
     }
 }
 
 @Composable
-private fun SpeedControl(speed: Int, onChange: (Int) -> Unit) {
+private fun SpeedControl(speed: Int, compact: Boolean = false, onChange: (Int) -> Unit) {
+    val controlSize = if (compact) 40.dp else 48.dp
+    val indicatorSize = if (compact) 20.dp else 24.dp
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton("Slower", enabled = speed > 1, onClick = { onChange(speed - 1) }) {
+        IconButton("Slower", modifier = Modifier.size(controlSize), enabled = speed > 1, onClick = { onChange(speed - 1) }) {
             drawMinusIcon()
         }
-        Canvas(Modifier.size(24.dp)) {
+        Canvas(Modifier.size(indicatorSize)) {
             repeat(speed.coerceAtMost(5)) { index ->
                 val y = size.height * (index + 1) / (speed.coerceAtMost(5) + 1)
                 drawLine(Color.Black, Offset(size.width * .25f, y), Offset(size.width * .75f, y), 2.dp.toPx())
             }
         }
-        IconButton("Faster", enabled = speed < 5, onClick = { onChange(speed + 1) }) {
+        IconButton("Faster", modifier = Modifier.size(controlSize), enabled = speed < 5, onClick = { onChange(speed + 1) }) {
             drawPlusIcon()
         }
     }
@@ -361,8 +380,23 @@ private fun DrawScope.drawStartIcon() {
 }
 
 private fun DrawScope.drawTapIcon() {
-    drawCircle(Palette.Cyan.color, size.minDimension * .28f, center, style = Stroke(3.dp.toPx()))
-    drawCircle(Color.Black, size.minDimension * .08f, center)
+    val touchPoint = Offset(size.width * .5f, size.height * .2f)
+    drawCircle(Palette.Cyan.color, size.minDimension * .18f, touchPoint, style = Stroke(2.dp.toPx()))
+    val finger = androidx.compose.ui.graphics.Path().apply {
+        moveTo(size.width * .5f, size.height * .82f)
+        lineTo(size.width * .34f, size.height * .62f)
+        lineTo(size.width * .34f, size.height * .5f)
+        quadraticTo(size.width * .34f, size.height * .43f, size.width * .42f, size.height * .5f)
+        lineTo(size.width * .42f, size.height * .22f)
+        quadraticTo(size.width * .42f, size.height * .12f, size.width * .5f, size.height * .12f)
+        quadraticTo(size.width * .58f, size.height * .12f, size.width * .58f, size.height * .22f)
+        lineTo(size.width * .58f, size.height * .48f)
+        quadraticTo(size.width * .82f, size.height * .43f, size.width * .82f, size.height * .62f)
+        lineTo(size.width * .72f, size.height * .82f)
+        close()
+    }
+    drawPath(finger, Palette.OffWhite.color)
+    drawPath(finger, Color.Black, style = Stroke(2.dp.toPx()))
 }
 
 private fun DrawScope.drawCollisionIcon() {
@@ -402,7 +436,10 @@ private fun DrawScope.drawDirectionIcon(direction: Direction) {
 
 private fun DrawScope.drawMoveToIcon() {
     drawCircle(Palette.Cyan.color, size.minDimension * .18f, Offset(size.width * .2f, size.height * .5f))
-    drawLine(Color.Black, Offset(size.width * .38f, size.height * .5f), Offset(size.width * .7f, size.height * .5f), 3.dp.toPx())
+    val arrowEnd = Offset(size.width * .68f, size.height * .5f)
+    drawLine(Color.Black, Offset(size.width * .38f, size.height * .5f), arrowEnd, 2.dp.toPx())
+    drawLine(Color.Black, Offset(size.width * .55f, size.height * .38f), arrowEnd, 2.dp.toPx())
+    drawLine(Color.Black, Offset(size.width * .55f, size.height * .62f), arrowEnd, 2.dp.toPx())
     drawRect(Palette.Red.color, Offset(size.width * .7f, size.height * .32f), Size(size.width * .28f, size.height * .36f))
 }
 
@@ -418,6 +455,34 @@ private fun DrawScope.drawLoseIcon() {
 }
 
 private fun DrawScope.drawArrowIcon() = drawDirectionIcon(Direction.E)
+
+private fun DrawScope.drawDownArrowIcon() {
+    val centerX = size.width / 2f
+    val end = Offset(centerX, size.height * .85f)
+    val strokeWidth = 2.dp.toPx()
+    drawLine(Color.Black, Offset(centerX, size.height * .1f), end, strokeWidth, StrokeCap.Round)
+    drawLine(Color.Black, Offset(centerX - size.height * .22f, size.height * .62f), end, strokeWidth, StrokeCap.Round)
+    drawLine(Color.Black, Offset(centerX + size.height * .22f, size.height * .62f), end, strokeWidth, StrokeCap.Round)
+}
+
+private fun DrawScope.drawEditIcon() {
+    val strokeWidth = 3.dp.toPx()
+    drawLine(
+        Color.Black,
+        Offset(size.width * .2f, size.height * .8f),
+        Offset(size.width * .75f, size.height * .25f),
+        strokeWidth,
+        StrokeCap.Round,
+    )
+    drawLine(
+        Color.Black,
+        Offset(size.width * .68f, size.height * .18f),
+        Offset(size.width * .82f, size.height * .32f),
+        strokeWidth,
+        StrokeCap.Round,
+    )
+    drawCircle(Color.Black, strokeWidth * .65f, Offset(size.width * .18f, size.height * .82f))
+}
 
 private fun DrawScope.drawPlusIcon() {
     drawLine(Color.Black, Offset(size.width * .5f, size.height * .15f), Offset(size.width * .5f, size.height * .85f), 3.dp.toPx())
@@ -441,10 +506,23 @@ private fun DrawScope.drawCheckIcon() {
 private fun DrawScope.drawTrashIcon() {
     drawRect(Color.Black, Offset(size.width * .25f, size.height * .3f), Size(size.width * .5f, size.height * .55f), style = Stroke(2.dp.toPx()))
     drawLine(Color.Black, Offset(size.width * .15f, size.height * .25f), Offset(size.width * .85f, size.height * .25f), 2.dp.toPx())
+    drawLine(Color.Black, Offset(size.width * .4f, size.height * .15f), Offset(size.width * .6f, size.height * .15f), 2.dp.toPx())
+    drawLine(Color.Black, Offset(size.width * .4f, size.height * .4f), Offset(size.width * .4f, size.height * .75f), 1.dp.toPx())
+    drawLine(Color.Black, Offset(size.width * .6f, size.height * .4f), Offset(size.width * .6f, size.height * .75f), 1.dp.toPx())
 }
 
 private fun DrawScope.drawTeleportIcon() {
-    drawLine(Color.Black, Offset(size.width * .18f, size.height * .25f), Offset(size.width * .18f, size.height * .75f), 3.dp.toPx())
-    drawLine(Color.Black, Offset(size.width * .82f, size.height * .25f), Offset(size.width * .82f, size.height * .75f), 3.dp.toPx())
-    drawLine(Color.Black, Offset(size.width * .35f, size.height * .5f), Offset(size.width * .65f, size.height * .5f), 3.dp.toPx())
+    drawLine(Palette.Cyan.color, Offset(size.width * .15f, size.height * .18f), Offset(size.width * .15f, size.height * .82f), 3.dp.toPx())
+    drawLine(Palette.Cyan.color, Offset(size.width * .85f, size.height * .18f), Offset(size.width * .85f, size.height * .82f), 3.dp.toPx())
+    val bolt = androidx.compose.ui.graphics.Path().apply {
+        moveTo(size.width * .55f, size.height * .12f)
+        lineTo(size.width * .28f, size.height * .55f)
+        lineTo(size.width * .48f, size.height * .55f)
+        lineTo(size.width * .4f, size.height * .88f)
+        lineTo(size.width * .72f, size.height * .42f)
+        lineTo(size.width * .52f, size.height * .42f)
+        close()
+    }
+    drawPath(bolt, Palette.Yellow.color)
+    drawPath(bolt, Color.Black, style = Stroke(1.dp.toPx()))
 }
