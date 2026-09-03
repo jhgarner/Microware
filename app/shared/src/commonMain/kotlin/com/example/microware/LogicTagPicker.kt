@@ -1,5 +1,11 @@
 package com.example.microware
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -34,6 +40,13 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import kotlin.math.ceil
+import kotlin.math.floor
+
+private const val logicTagBackgroundScrollDurationMillis = 44000
+private const val logicTagBackgroundTagSizeFraction = .3f
+private const val logicTagBackgroundTagGapFraction = .12f
+private const val logicTagBackgroundVerticalGapFraction = .05f
 
 @Composable
 fun LogicTagPicker(
@@ -62,9 +75,11 @@ fun LogicTagPicker(
             border = BorderStroke(2.dp, Color.Black),
             contentPadding = PaddingValues(0.dp),
         ) {
-            selectedTag?.let { tag ->
+            if (selectedTag == null) {
+                ScrollingLogicTagBackground(Modifier.fillMaxSize())
+            } else {
                 Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
-                    with(tag) { draw() }
+                    with(selectedTag) { draw() }
                 }
             }
         }
@@ -93,12 +108,21 @@ fun LogicTagPicker(
                         description = if (unusedExpanded) "Hide unused logic tags" else "Show unused logic tags",
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { unusedExpanded = !unusedExpanded },
-                    ) {
-                        _ ->
+                    ) { _ ->
                         val y = if (unusedExpanded) size.height * .65f else size.height * .35f
                         val tipY = if (unusedExpanded) size.height * .25f else size.height * .75f
-                        drawLine(Color.Black, Offset(size.width * .2f, y), Offset(size.width * .5f, tipY), 2.dp.toPx())
-                        drawLine(Color.Black, Offset(size.width * .8f, y), Offset(size.width * .5f, tipY), 2.dp.toPx())
+                        drawLine(
+                            Color.Black,
+                            Offset(size.width * .2f, y),
+                            Offset(size.width * .5f, tipY),
+                            2.dp.toPx()
+                        )
+                        drawLine(
+                            Color.Black,
+                            Offset(size.width * .8f, y),
+                            Offset(size.width * .5f, tipY),
+                            2.dp.toPx()
+                        )
                     }
                     if (unusedExpanded) {
                         LogicTagGrid(
@@ -117,6 +141,49 @@ fun LogicTagPicker(
         }
     }
 }
+
+@Composable
+private fun ScrollingLogicTagBackground(modifier: Modifier) {
+    val transition = rememberInfiniteTransition(label = "logic tag background")
+    val scrollFraction by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = logicTagBackgroundScrollDurationMillis,
+                easing = LinearEasing,
+            ),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "logic tag background scroll",
+    )
+
+    Canvas(modifier) {
+        val tagSize = size.minDimension * logicTagBackgroundTagSizeFraction
+        val horizontalStep = tagSize * (1f + logicTagBackgroundTagGapFraction)
+        val verticalStep = tagSize * (1f + logicTagBackgroundVerticalGapFraction)
+        val horizontalCycle = horizontalStep * LogicTag.all.size
+        val horizontalOffset = -scrollFraction * horizontalCycle
+        val verticalOffset = -scrollFraction * verticalStep * 12f
+        val firstColumn = floor((horizontalOffset - tagSize) / horizontalStep).toInt()
+        val lastColumn = ceil((horizontalOffset + size.width + tagSize) / horizontalStep).toInt()
+        val firstRow = floor((verticalOffset - tagSize) / verticalStep).toInt()
+        val lastRow = ceil((verticalOffset + size.height + tagSize) / verticalStep).toInt()
+
+        for (row in firstRow..lastRow) {
+            for (column in firstColumn..lastColumn) {
+                val tag = LogicTag.all[positiveModulo(column, LogicTag.all.size)]
+                val center = Offset(
+                    x = column * horizontalStep + tagSize / 2f - horizontalOffset,
+                    y = row * verticalStep + tagSize / 2f - verticalOffset,
+                )
+                with(tag) { drawAt(center, tagSize) }
+            }
+        }
+    }
+}
+
+private fun positiveModulo(value: Int, modulus: Int): Int = (value % modulus + modulus) % modulus
 
 @Composable
 private fun LogicTagGrid(

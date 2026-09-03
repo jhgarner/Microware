@@ -19,11 +19,17 @@ data class LogicTag(val tag: Int) {
     }
 
     fun DrawScope.draw() {
+        drawAt(
+            center = Offset(size.width / 2f, size.height / 2f),
+            size = size.minDimension,
+        )
+    }
+
+    fun DrawScope.drawAt(center: Offset, size: Float) {
         val color = logicTagColors[tag % logicTagColors.size]
         val sides = tag / logicTagColors.size + 3
         val startAngle = if (sides == 4) -3 * PI / 4 else -PI / 2
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension * 0.42f
+        val radius = size * 0.42f
         val path = regularPolygon(center, radius, sides, startAngle)
 
         drawPath(path, color.color)
