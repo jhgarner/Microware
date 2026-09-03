@@ -5,9 +5,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.serialization.Serializable
@@ -81,45 +84,25 @@ private fun StoredObj.toObj(): Obj {
 fun LibraryTarget(foreground: Color) {
     Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
         val strokeWidth = 2.dp.toPx()
-        val left = size.width * 0.18f
-        val right = size.width * 0.82f
-        val top = size.height * 0.2f
-        val middle = size.height * 0.5f
-        val bottom = size.height * 0.8f
-        drawLine(
-            color = foreground,
-            start = Offset(left, top),
-            end = Offset(right, top),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = foreground,
-            start = Offset(left, middle),
-            end = Offset(right, middle),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = foreground,
-            start = Offset(left, bottom),
-            end = Offset(right, bottom),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = foreground,
-            start = Offset(left, top),
-            end = Offset(left, bottom),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = foreground,
-            start = Offset(right, top),
-            end = Offset(right, bottom),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round
-        )
+        val bookWidth = size.width * .18f
+        val bottom = size.height * .88f
+        val cornerRadius = CornerRadius(strokeWidth * 1.5f)
+
+        fun drawBook(centerX: Float, top: Float, rotation: Float = 0f) {
+            rotate(rotation, pivot = Offset(centerX, bottom)) {
+                drawRoundRect(
+                    color = foreground,
+                    topLeft = Offset(centerX - bookWidth / 2f, top),
+                    size = Size(bookWidth, bottom - top),
+                    cornerRadius = cornerRadius,
+                    style = Stroke(strokeWidth),
+                )
+            }
+        }
+
+        drawBook(size.width * .86f, size.height * .23f, rotation = -10f)
+        drawBook(size.width * .18f, size.height * .16f)
+        drawBook(size.width * .38f, size.height * .22f)
+        drawBook(size.width * .58f, size.height * .14f)
     }
 }
