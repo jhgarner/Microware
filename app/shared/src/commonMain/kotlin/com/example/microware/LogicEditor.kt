@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +51,9 @@ import kotlin.math.sin
 
 private enum class ActionChoice { Move, MoveTo, Win, Lose }
 private enum class TriggerLayout { Large, Small }
+
+private const val MaxActionSpeed = 100
+
 private data class DirectionStar(
     val crossAxisPosition: Float,
     val travelOffset: Float,
@@ -411,7 +415,7 @@ private fun LogicCard(logic: Logic, onEdit: () -> Unit, onDelete: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Palette.OffWhite.color)
-            .border(BorderStroke(2.dp, Color.Black))
+            .border(BorderStroke(2.dp, Color.Black), shape = RoundedCornerShape(8.dp))
             .clickable(onClick = onEdit)
             .semantics { contentDescription = "Edit logic" }
             .padding(8.dp),
@@ -424,7 +428,6 @@ private fun LogicCard(logic: Logic, onEdit: () -> Unit, onDelete: () -> Unit) {
                 Canvas(Modifier.size(36.dp).padding(4.dp)) { drawAction(action) }
             }
         }
-        Canvas(Modifier.size(28.dp).padding(4.dp)) { drawEditIcon() }
         IconButton("Delete logic", onClick = onDelete) { _ -> drawTrashIcon() }
     }
 }
@@ -437,7 +440,9 @@ private fun EditableActionCard(
     onDelete: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().border(1.dp, Color.Black).padding(4.dp),
+        modifier = Modifier.fillMaxWidth()
+            .border(1.dp, Color.LightGray, shape = RoundedCornerShape(8.dp))
+            .padding(4.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -449,79 +454,98 @@ private fun EditableActionCard(
         }
 
         when (action) {
-            is Action.Move -> Row(
+            is Action.Move -> Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                LogicTagPicker(
-                    action.mover,
-                    { it?.let { tag -> onChange(Action.Move(tag, action.target, action.speed)) } },
-                    usedTags = usedTags,
-                    allowClear = false,
-                )
-                IconButton("Change direction", onClick = {
-                    val directions = listOf(Direction.N, Direction.E, Direction.S, Direction.W)
-                    val nextDirection =
-                        directions[(directions.indexOf(action.target) + 1) % directions.size]
-                    onChange(Action.Move(action.mover, nextDirection, action.speed))
-                }) { time -> drawDirectionIcon(action.target, time) }
-                SpeedControl(action.speed) {
-                    onChange(
-                        Action.Move(
-                            action.mover,
-                            action.target,
-                            it
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        6.dp,
+                        Alignment.CenterHorizontally
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    LogicTagPicker(
+                        action.mover,
+                        {
+                            it?.let { tag ->
+                                onChange(
+                                    Action.Move(
+                                        tag,
+                                        action.target,
+                                        action.speed
+                                    )
+                                )
+                            }
+                        },
+                        usedTags = usedTags,
+                        allowClear = false,
                     )
+                    IconButton("Change direction", onClick = {
+                        val directions = listOf(Direction.N, Direction.E, Direction.S, Direction.W)
+                        val nextDirection =
+                            directions[(directions.indexOf(action.target) + 1) % directions.size]
+                        onChange(Action.Move(action.mover, nextDirection, action.speed))
+                    }) { time -> drawDirectionIcon(action.target, time) }
+                }
+                SpeedControl(action.speed) {
+                    it?.let { speed ->
+                        onChange(Action.Move(action.mover, action.target, speed))
+                    }
                 }
             }
 
-            is Action.MoveTo -> Row(
+            is Action.MoveTo -> Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                LogicTagPicker(
-                    action.mover,
-                    {
-                        it?.let { tag ->
-                            onChange(
-                                Action.MoveTo(
-                                    tag,
-                                    action.target,
-                                    action.speed
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        6.dp,
+                        Alignment.CenterHorizontally
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    LogicTagPicker(
+                        action.mover,
+                        {
+                            it?.let { tag ->
+                                onChange(
+                                    Action.MoveTo(
+                                        tag,
+                                        action.target,
+                                        action.speed
+                                    )
                                 )
-                            )
-                        }
-                    },
-                    usedTags = usedTags,
-                    allowClear = false,
-                )
-                Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
-                LogicTagPicker(
-                    action.target,
-                    { it?.let { tag -> onChange(Action.MoveTo(action.mover, tag, action.speed)) } },
-                    usedTags = usedTags,
-                    allowClear = false,
-                )
-                IconButton(
-                    "Toggle instant teleport",
-                    modifier = Modifier.size(40.dp),
-                    selected = action.speed == null,
-                    onClick = {
-                        onChange(
-                            Action.MoveTo(
-                                action.mover,
-                                action.target,
-                                if (action.speed == null) 1 else null
-                            )
-                        )
-                    }) { _ -> drawTeleportIcon() }
-                action.speed?.let { speed ->
-                    SpeedControl(speed, compact = true) {
-                        onChange(Action.MoveTo(action.mover, action.target, it))
-                    }
+                            }
+                        },
+                        usedTags = usedTags,
+                        allowClear = false,
+                    )
+                    Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
+                    LogicTagPicker(
+                        action.target,
+                        {
+                            it?.let { tag ->
+                                onChange(
+                                    Action.MoveTo(
+                                        action.mover,
+                                        tag,
+                                        action.speed
+                                    )
+                                )
+                            }
+                        },
+                        usedTags = usedTags,
+                        allowClear = false,
+                    )
+                }
+                SpeedControl(action.speed, allowInfinity = true) {
+                    onChange(Action.MoveTo(action.mover, action.target, it))
                 }
             }
 
@@ -531,36 +555,20 @@ private fun EditableActionCard(
 }
 
 @Composable
-private fun SpeedControl(speed: Int, compact: Boolean = false, onChange: (Int) -> Unit) {
-    val controlSize = if (compact) 40.dp else 48.dp
-    val indicatorSize = if (compact) 20.dp else 24.dp
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
-            "Slower",
-            modifier = Modifier.size(controlSize),
-            enabled = speed > 1,
-            onClick = { onChange(speed - 1) }) { _ ->
-            drawMinusIcon()
-        }
-        Canvas(Modifier.size(indicatorSize)) {
-            repeat(speed.coerceAtMost(5)) { index ->
-                val y = size.height * (index + 1) / (speed.coerceAtMost(5) + 1)
-                drawLine(
-                    Color.Black,
-                    Offset(size.width * .25f, y),
-                    Offset(size.width * .75f, y),
-                    2.dp.toPx()
-                )
-            }
-        }
-        IconButton(
-            "Faster",
-            modifier = Modifier.size(controlSize),
-            enabled = speed < 5,
-            onClick = { onChange(speed + 1) }) { _ ->
-            drawPlusIcon()
-        }
-    }
+private fun SpeedControl(
+    speed: Int?,
+    allowInfinity: Boolean = false,
+    onChange: (Int?) -> Unit,
+) {
+    IntegerSliderControl(
+        dimension = IntegerSliderDimension.Speed,
+        value = speed,
+        maxValue = MaxActionSpeed,
+        onValueChange = onChange,
+        modifier = Modifier.padding(horizontal = 8.dp),
+        activeColor = Palette.Black,
+        allowInfinity = allowInfinity,
+    )
 }
 
 @Composable
@@ -840,7 +848,7 @@ private fun DrawScope.drawMoveToIcon() {
 }
 
 private fun DrawScope.drawWinIcon() {
-    drawCircle(Palette.Yellow.color, size.minDimension * .38f, center)
+    drawCircle(Palette.Green.color, size.minDimension * .5f, center)
     drawLine(
         Color.Black,
         Offset(size.width * .28f, size.height * .52f),
@@ -856,7 +864,7 @@ private fun DrawScope.drawWinIcon() {
 }
 
 private fun DrawScope.drawLoseIcon() {
-    drawCircle(Palette.Red.color, size.minDimension * .38f, center)
+    drawCircle(Palette.Red.color, size.minDimension * .5f, center)
     drawCloseIcon()
 }
 
@@ -987,32 +995,6 @@ private fun DrawScope.drawTrashIcon() {
         Offset(size.width * .6f, size.height * .75f),
         1.dp.toPx()
     )
-}
-
-private fun DrawScope.drawTeleportIcon() {
-    drawLine(
-        Palette.Cyan.color,
-        Offset(size.width * .15f, size.height * .18f),
-        Offset(size.width * .15f, size.height * .82f),
-        3.dp.toPx()
-    )
-    drawLine(
-        Palette.Cyan.color,
-        Offset(size.width * .85f, size.height * .18f),
-        Offset(size.width * .85f, size.height * .82f),
-        3.dp.toPx()
-    )
-    val bolt = androidx.compose.ui.graphics.Path().apply {
-        moveTo(size.width * .55f, size.height * .12f)
-        lineTo(size.width * .28f, size.height * .55f)
-        lineTo(size.width * .48f, size.height * .55f)
-        lineTo(size.width * .4f, size.height * .88f)
-        lineTo(size.width * .72f, size.height * .42f)
-        lineTo(size.width * .52f, size.height * .42f)
-        close()
-    }
-    drawPath(bolt, Palette.Yellow.color)
-    drawPath(bolt, Color.Black, style = Stroke(1.dp.toPx()))
 }
 
 data class Frame(val start: Float, val stop: Float, val ease: Easing, val duration: Float)

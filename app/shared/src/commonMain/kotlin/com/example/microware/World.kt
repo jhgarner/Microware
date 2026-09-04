@@ -290,13 +290,13 @@ fun CreateObjectForm(
             dimension = IntegerSliderDimension.Width,
             value = width,
             maxValue = maxWidth,
-            onValueChange = { width = it },
+            onValueChange = { it?.let { newWidth -> width = newWidth } },
         )
         IntegerSliderControl(
             dimension = IntegerSliderDimension.Height,
             value = height,
             maxValue = maxHeight,
-            onValueChange = { height = it },
+            onValueChange = { it?.let { newHeight -> height = newHeight } },
         )
         Button(
             onClick = { onCreate(width, height) },

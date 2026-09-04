@@ -1,12 +1,10 @@
 package com.example.microware
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,9 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
@@ -29,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -53,21 +49,26 @@ private val IncrementButtonHeight = 48.dp
 enum class IntegerSliderDimension {
     Width,
     Height,
+    Speed,
 }
 
 @Composable
 fun IntegerSliderControl(
     dimension: IntegerSliderDimension,
-    value: Int,
+    value: Int?,
     maxValue: Int,
-    onValueChange: (Int) -> Unit,
+    onValueChange: (Int?) -> Unit,
     modifier: Modifier = Modifier,
     activeColor: Palette = Palette.Navy,
     inactiveColor: Palette = Palette.LightGray,
+    allowInfinity: Boolean = false,
 ) {
     require(maxValue >= 1) { "maxValue must be at least 1" }
-    val clampedValue = value.coerceIn(1, maxValue)
+    require(allowInfinity || value != null) { "value cannot be infinity for this slider" }
+    val finiteValue = value?.coerceIn(1, maxValue)
     val latestOnValueChange = rememberUpdatedState(onValueChange)
+    val hasPreviousValue = value == null || finiteValue != 1
+    val hasNextValue = value != null && (finiteValue!! < maxValue || allowInfinity)
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -81,57 +82,42 @@ fun IntegerSliderControl(
                 dimension = dimension,
                 color = activeColor.color,
             )
-            OutlinedButton(
-                onClick = { onValueChange((clampedValue - 1).coerceAtLeast(1)) },
-                enabled = clampedValue > 1,
+            IconButton(
+                description = "Decrease ${dimension.name.lowercase()}",
+                buttonSize = null,
+                onClick = {
+                    onValueChange(
+                        if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(1)
+                    )
+                },
+                enabled = hasPreviousValue,
                 modifier = Modifier
                     .requiredSize(IncrementButtonWidth, IncrementButtonHeight)
                     .align(Alignment.Bottom),
-                shape = RoundedCornerShape(4.dp),
-                border = BorderStroke(
-                    1.dp,
-                    if (clampedValue > 1) activeColor.color else inactiveColor.color,
-                ),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = activeColor.color,
-                    disabledContentColor = inactiveColor.color,
-                ),
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                Text(
-                    text = "−",
-                )
-            }
+            ) { _ -> drawDecrementIcon() }
         }
         IntegerSlider(
-            value = clampedValue,
+            value = finiteValue,
             maxValue = maxValue,
             onValueChange = latestOnValueChange.value,
             activeColor = activeColor,
             inactiveColor = inactiveColor,
+            allowInfinity = allowInfinity,
             modifier = Modifier.weight(1f),
         )
-        OutlinedButton(
-            onClick = { onValueChange((clampedValue + 1).coerceAtMost(maxValue)) },
-            enabled = clampedValue < maxValue,
+        IconButton(
+            description = "Increase ${dimension.name.lowercase()}",
+            buttonSize = null,
+            onClick = {
+                onValueChange(
+                    if (finiteValue!! < maxValue) finiteValue + 1 else null
+                )
+            },
+            enabled = hasNextValue,
             modifier = Modifier
                 .requiredSize(IncrementButtonWidth, IncrementButtonHeight)
                 .align(Alignment.Bottom),
-            shape = RoundedCornerShape(4.dp),
-            border = BorderStroke(
-                1.dp,
-                if (clampedValue < maxValue) activeColor.color else inactiveColor.color,
-            ),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = activeColor.color,
-                disabledContentColor = inactiveColor.color,
-            ),
-            contentPadding = PaddingValues(0.dp),
-        ) {
-            Text(
-                text = "+",
-            )
-        }
+        ) { _ -> drawIncrementIcon() }
     }
 }
 
@@ -189,7 +175,7 @@ private fun RowScope.DimensionIcon(
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round,
             )
-        } else {
+        } else if (dimension == IntegerSliderDimension.Height) {
             drawLine(
                 color = color,
                 start = Offset(center, inset),
@@ -225,17 +211,84 @@ private fun RowScope.DimensionIcon(
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round,
             )
+        } else {
+            drawLine(
+                color = color,
+                start = Offset(size.width * .15f, size.height * .3f),
+                end = Offset(size.width * .38f, size.height * .3f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = color,
+                start = Offset(size.width * .15f, size.height * .7f),
+                end = Offset(size.width * .28f, size.height * .7f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = color,
+                start = Offset(size.width * .3f, center),
+                end = Offset(size.width * .85f, center),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = color,
+                start = Offset(size.width * .67f, center - arrowSize),
+                end = Offset(size.width * .85f, center),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = color,
+                start = Offset(size.width * .67f, center + arrowSize),
+                end = Offset(size.width * .85f, center),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round,
+            )
         }
     }
 }
 
+private fun DrawScope.drawDecrementIcon() {
+    val side = size.minDimension
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val halfLength = side * .35f
+    drawLine(
+        Color.Black,
+        Offset(center.x - halfLength, center.y),
+        Offset(center.x + halfLength, center.y),
+        3.dp.toPx(),
+    )
+}
+
+private fun DrawScope.drawIncrementIcon() {
+    val side = size.minDimension
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val halfLength = side * .35f
+    drawLine(
+        Color.Black,
+        Offset(center.x, center.y - halfLength),
+        Offset(center.x, center.y + halfLength),
+        3.dp.toPx(),
+    )
+    drawLine(
+        Color.Black,
+        Offset(center.x - halfLength, center.y),
+        Offset(center.x + halfLength, center.y),
+        3.dp.toPx(),
+    )
+}
+
 @Composable
 private fun IntegerSlider(
-    value: Int,
+    value: Int?,
     maxValue: Int,
-    onValueChange: (Int) -> Unit,
+    onValueChange: (Int?) -> Unit,
     activeColor: Palette,
     inactiveColor: Palette,
+    allowInfinity: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val horizontalPaddingPx = SliderHorizontalPadding.toPx()
@@ -252,9 +305,10 @@ private fun IntegerSlider(
                         val usableWidth = size.width - horizontalPaddingPx * 2f
                         val fraction = ((position.x - horizontalPaddingPx) / usableWidth)
                             .coerceIn(0f, 1f)
+                        val lastIndex = maxValue - 1 + if (allowInfinity) 1 else 0
+                        val index = (fraction * lastIndex).roundToInt().coerceIn(0, lastIndex)
                         latestOnValueChange.value(
-                            (1f + fraction * (maxValue - 1)).roundToInt()
-                                .coerceIn(1, maxValue)
+                            if (allowInfinity && index == lastIndex) null else index + 1
                         )
                     }
 
@@ -279,7 +333,9 @@ private fun IntegerSlider(
         val bubbleHeightPx = ValueIndicatorHeight.toPx()
         val trackStart = horizontalPaddingPx
         val trackEnd = maxWidth.toPx() - horizontalPaddingPx
-        val fraction = (value - 1).toFloat() / (maxValue - 1)
+        val lastIndex = maxValue - 1 + if (allowInfinity) 1 else 0
+        val selectedIndex = if (value == null) lastIndex else value - 1
+        val fraction = if (lastIndex == 0) 0f else selectedIndex.toFloat() / lastIndex
         val thumbX = trackStart + (trackEnd - trackStart) * fraction
         val trackY = SliderTrackY.toPx()
         val trackThickness = SliderTrackThickness.toPx()
@@ -322,7 +378,7 @@ private fun IntegerSlider(
 
 @Composable
 private fun ValueIndicator(
-    value: Int,
+    value: Int?,
     color: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -347,7 +403,7 @@ private fun ValueIndicator(
             drawPath(path, color)
         }
         Text(
-            text = value.toString(),
+            text = value?.toString() ?: "∞",
             color = Palette.OffWhite.color,
             textAlign = TextAlign.Center,
             modifier = Modifier.offset(y = (-3).dp),
