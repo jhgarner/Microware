@@ -1,6 +1,7 @@
 package com.example.microware
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -25,14 +26,14 @@ data class LogicTag(val tag: Int) {
         )
     }
 
-    fun DrawScope.drawAt(center: Offset, size: Float) {
-        val color = logicTagColors[tag % logicTagColors.size]
+    fun DrawScope.drawAt(center: Offset, size: Float, color: Color? = null) {
+        val fillColor = color ?: logicTagColors[tag % logicTagColors.size].color
         val sides = tag / logicTagColors.size + 3
         val startAngle = if (sides == 4) -3 * PI / 4 else -PI / 2
         val radius = size * 0.42f
         val path = regularPolygon(center, radius, sides, startAngle)
 
-        drawPath(path, color.color)
+        drawPath(path, fillColor)
         drawPath(
             path = path,
             color = Palette.Black.color,

@@ -8,9 +8,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 
 private enum class GameEditorPage { World, Logic }
 
+private const val disabledLogicButtonScale = .72f
+
 @Composable
 fun GameEditor(
     mutableGame: MutableState<Game>,
@@ -55,7 +57,7 @@ fun GameEditor(
                 logicPage = LogicEditorPage.List
             }
             page = it
-        })
+        }, logicEnabled = mutableGame.value.world.logicTags.isNotEmpty())
 
         GameEditorPage.World -> EditorPage(onBack = { page = null }) {
             val mutableWorld = remember(mutableGame) { mutableGame.worldState() }
@@ -88,8 +90,11 @@ fun GameEditor(
 }
 
 @Composable
-private fun GameEditorMenu(onSelect: (GameEditorPage) -> Unit) {
-    Row(
+private fun GameEditorMenu(
+    onSelect: (GameEditorPage) -> Unit,
+    logicEnabled: Boolean,
+) {
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(
@@ -98,14 +103,35 @@ private fun GameEditorMenu(onSelect: (GameEditorPage) -> Unit) {
                 end = insets.rightDp() + 24.dp,
                 bottom = insets.bottomDp() + 24.dp,
             ),
-        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        MenuButton("Edit world", Palette.Forest.color, { drawWorldIcon() }) {
-            onSelect(GameEditorPage.World)
-        }
-        MenuButton("Edit logic", Palette.Maroon.color, { drawLogicIcon() }) {
-            onSelect(GameEditorPage.Logic)
+        val spacing = 24.dp
+        val buttonHeight = (maxHeight - spacing).coerceAtLeast(0.dp)
+        val logicButtonScale = if (logicEnabled) 1f else disabledLogicButtonScale
+        val worldButtonSize = minOf(
+            maxWidth,
+            buttonHeight / (1f + logicButtonScale),
+        )
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterVertically),
+        ) {
+            MenuButton(
+                description = "Edit world",
+                color = Palette.Forest.color,
+                buttonSize = worldButtonSize,
+                icon = { _ -> drawWorldIcon() },
+                onClick = { onSelect(GameEditorPage.World) },
+            )
+            MenuButton(
+                description = "Edit logic",
+                color = Palette.Maroon.color,
+                buttonSize = worldButtonSize * logicButtonScale,
+                enabled = logicEnabled,
+                icon = { enabled -> drawLogicIcon(enabled) },
+                onClick = { onSelect(GameEditorPage.Logic) },
+            )
         }
     }
 }
@@ -114,21 +140,26 @@ private fun GameEditorMenu(onSelect: (GameEditorPage) -> Unit) {
 private fun MenuButton(
     description: String,
     color: Color,
-    icon: DrawScope.() -> Unit,
+    buttonSize: Dp,
+    enabled: Boolean = true,
+    icon: DrawScope.(Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier.size(120.dp).semantics { contentDescription = description },
+        enabled = enabled,
+        modifier = Modifier.size(buttonSize).semantics { contentDescription = description },
         colors = ButtonDefaults.buttonColors(
             containerColor = Palette.OffWhite.color,
             contentColor = color,
+            disabledContainerColor = Palette.OffWhite.color,
+            disabledContentColor = Palette.DarkGray.color,
         ),
-        border = BorderStroke(4.dp, color),
+        border = BorderStroke(4.dp, if (enabled) color else Palette.DarkGray.color),
         shape = RectangleShape,
         contentPadding = PaddingValues(20.dp),
     ) {
-        Canvas(Modifier.fillMaxSize(), onDraw = icon)
+        Canvas(Modifier.fillMaxSize()) { icon(enabled) }
     }
 }
 
@@ -272,38 +303,15 @@ internal fun DrawScope.drawWorldIcon() {
         moveTo(.61f.x(), .16f.y())
         lineTo(.51f.x(), .33f.y())
         lineTo(.61f.x(), .28f.y())
-        lineTo(.715f.x(), .33f.y())
+        lineTo(.712f.x(), .33f.y())
         close()
     }
     drawPath(snow2, Palette.OffWhite.color)
     drawPath(snow2, Color.Black, style = Stroke(stroke))
 
-//    val beach = Path().apply {
-//        moveTo(.56f.x(), .59f.y())
-//        lineTo(.73f.x(), .5f.y())
-//        lineTo(.94f.x(), .61f.y())
-//        lineTo(.94f.x(), .84f.y())
-//        lineTo(.56f.x(), .84f.y())
-//        close()
-//    }
-//    drawPath(beach, Palette.Tan.color)
-//    drawPath(beach, Color.Black, style = Stroke(stroke))
-//
-//    val water = Path().apply {
-//        moveTo(.8f.x(), .55f.y())
-//        lineTo(.94f.x(), .62f.y())
-//        lineTo(.94f.x(), .84f.y())
-//        lineTo(.79f.x(), .84f.y())
-//        lineTo(.84f.x(), .72f.y())
-//        lineTo(.78f.x(), .64f.y())
-//        close()
-//    }
-//    drawPath(water, Palette.Cyan.color)
-//    drawPath(water, Color.Black, style = Stroke(stroke))
-
     val house = Path().apply {
         moveTo(.25f.x(), .53f.y())
-        lineTo(.44f.x(), .38f.y())
+        lineTo(.45f.x(), .38f.y())
         lineTo(.65f.x(), .53f.y())
         lineTo(.62f.x(), .53f.y())
         lineTo(.62f.x(), .83f.y())
@@ -316,12 +324,12 @@ internal fun DrawScope.drawWorldIcon() {
 
     drawRect(
         color = Palette.Navy.color,
-        topLeft = point(.40f, .69f),
+        topLeft = point(.40f, .70f),
         size = Size(size.width * .10f, size.height * .13f),
     )
     drawRect(
         color = Color.Black,
-        topLeft = point(.40f, .69f),
+        topLeft = point(.40f, .70f),
         size = Size(size.width * .10f, size.height * .13f),
         style = Stroke(stroke / 1.5f),
     )
@@ -350,9 +358,12 @@ internal fun DrawScope.drawWorldIcon() {
     )
 }
 
-internal fun DrawScope.drawLogicIcon() {
+internal fun DrawScope.drawLogicIcon(enabled: Boolean = true) {
     val pageStroke = 2.dp.toPx()
     val textStroke = 1.5.dp.toPx()
+    val pageColor = if (enabled) Palette.Tan.color else Palette.OffWhite.color
+    val outlineColor = if (enabled) Color.Black else Palette.DarkGray.color
+    val tagColor = if (enabled) null else Palette.DarkGray.color
     fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
     fun Float.x(): Float = size.width * this
     fun Float.y(): Float = size.width * this
@@ -376,11 +387,11 @@ internal fun DrawScope.drawLogicIcon() {
         close()
     }
 
-    drawPath(leftPage, Palette.Tan.color)
-    drawPath(rightPage, Palette.Tan.color)
-    drawPath(leftPage, Color.Black, style = Stroke(pageStroke))
-    drawPath(rightPage, Color.Black, style = Stroke(pageStroke))
-    drawLine(Color.Black, point(.5f, .23f), point(.5f, .75f), pageStroke)
+    drawPath(leftPage, pageColor)
+    drawPath(rightPage, pageColor)
+    drawPath(leftPage, outlineColor, style = Stroke(pageStroke))
+    drawPath(rightPage, outlineColor, style = Stroke(pageStroke))
+    drawLine(outlineColor, point(.5f, .23f), point(.5f, .75f), pageStroke)
 
     drawLine(Palette.DarkGray.color, point(.23f, .34f), point(.43f, .34f), textStroke)
     drawLine(Palette.DarkGray.color, point(.23f, .63f), point(.43f, .63f), textStroke)
@@ -388,9 +399,9 @@ internal fun DrawScope.drawLogicIcon() {
     drawLine(Palette.DarkGray.color, point(.57f, .63f), point(.77f, .63f), textStroke)
 
     with(LogicTag(58)) {
-        drawAt(point(.33f, .49f), size.minDimension * .17f)
+        drawAt(point(.33f, .49f), size.minDimension * .17f, color = tagColor)
     }
     with(LogicTag(29)) {
-        drawAt(point(.67f, .49f), size.minDimension * .17f)
+        drawAt(point(.67f, .49f), size.minDimension * .17f, color = tagColor)
     }
 }

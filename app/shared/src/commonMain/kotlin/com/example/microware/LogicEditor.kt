@@ -67,6 +67,7 @@ private data class DirectionStar(
     val travelOffset: Float,
     val radius: Float,
 )
+
 private data class ConfettiPiece(
     val startX: Float,
     val startY: Float,
@@ -269,7 +270,10 @@ private fun LogicBuilder(
             ) {
                 Column(Modifier.fillMaxSize()) {
                     trigger?.let { selectedTrigger ->
-                        TriggerParameters(selectedTrigger, usedTags) { updateDraft(updatedTrigger = it) }
+                        TriggerParameters(
+                            selectedTrigger,
+                            usedTags
+                        ) { updateDraft(updatedTrigger = it) }
                         Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
                     }
 
@@ -305,12 +309,20 @@ private fun LogicBuilder(
                             ) {
                                 ActionButton(ActionChoice.Move) {
                                     updateDraft(
-                                        updatedActions = actions + Action.Move(defaultTag, Direction.E, 1)
+                                        updatedActions = actions + Action.Move(
+                                            defaultTag,
+                                            Direction.E,
+                                            50
+                                        )
                                     )
                                 }
                                 ActionButton(ActionChoice.MoveTo) {
                                     updateDraft(
-                                        updatedActions = actions + Action.MoveTo(defaultTag, defaultTag, 1)
+                                        updatedActions = actions + Action.MoveTo(
+                                            defaultTag,
+                                            defaultTag,
+                                            50
+                                        )
                                     )
                                 }
                                 ActionButton(ActionChoice.Win) {
