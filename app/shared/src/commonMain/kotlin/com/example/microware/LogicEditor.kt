@@ -32,12 +32,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -52,6 +55,11 @@ import kotlin.math.sin
 private enum class ActionChoice { Move, MoveTo, Win, Lose }
 private enum class TriggerLayout { Large, Small }
 
+sealed interface LogicEditorPage {
+    object List : LogicEditorPage
+    data class Editing(val index: Int?) : LogicEditorPage
+}
+
 private const val MaxActionSpeed = 100
 
 private data class DirectionStar(
@@ -59,33 +67,53 @@ private data class DirectionStar(
     val travelOffset: Float,
     val radius: Float,
 )
+private data class ConfettiPiece(
+    val startX: Float,
+    val startY: Float,
+    val driftX: Float,
+    val driftY: Float,
+    val length: Float,
+    val thickness: Float,
+    val rotation: Float,
+    val color: Color,
+    val delay: Float,
+)
+
+private val winConfetti = listOf(
+    ConfettiPiece(.3f, .2f, -.3f, -.48f, .09f, .035f, -25f, Palette.Red.color, .02f),
+    ConfettiPiece(.4f, .18f, -.16f, -.66f, .07f, .03f, 20f, Palette.Cyan.color, .08f),
+    ConfettiPiece(.5f, .16f, .02f, -.78f, .08f, .035f, 75f, Palette.Orange.color, .04f),
+    ConfettiPiece(.6f, .18f, .2f, -.6f, .07f, .03f, -45f, Palette.Purple.color, .1f),
+    ConfettiPiece(.7f, .2f, .34f, -.43f, .09f, .035f, 35f, Palette.Green.color, .06f),
+    ConfettiPiece(.35f, .21f, -.5f, -.3f, .06f, .03f, 60f, Palette.Pink.color, .14f),
+    ConfettiPiece(.65f, .21f, .48f, -.28f, .06f, .03f, -70f, Palette.Yellow.color, .12f),
+)
 
 @Composable
 fun LogicEditor(
     world: World,
     logics: List<Logic>,
     onLogicsChange: (List<Logic>) -> Unit,
+    page: LogicEditorPage,
+    onPageChange: (LogicEditorPage) -> Unit,
 ) {
-    var editedLogicIndex by remember { mutableStateOf<Int?>(null) }
-
-    if (editedLogicIndex != null) {
-        val index = editedLogicIndex
-        val existingLogic = index?.takeIf { it >= 0 }?.let(logics::getOrNull)
+    if (page is LogicEditorPage.Editing) {
+        val existingLogic = page.index?.takeIf { it >= 0 }?.let(logics::getOrNull)
         LogicBuilder(
             usedTags = world.logicTags.keys,
             initialLogic = existingLogic,
-            onCancel = { editedLogicIndex = null },
-            onSave = { changedLogic ->
-                onLogicsChange(
-                    if (index == null || index < 0) {
-                        logics + changedLogic
-                    } else {
+            onLogicChange = { changedLogic ->
+                val index = page.index
+                if (index == null) {
+                    onLogicsChange(logics + changedLogic)
+                    onPageChange(LogicEditorPage.Editing(logics.size))
+                } else {
+                    onLogicsChange(
                         logics.mapIndexed { candidateIndex, logic ->
                             if (candidateIndex == index) changedLogic else logic
                         }
-                    }
-                )
-                editedLogicIndex = null
+                    )
+                }
             },
         )
         return
@@ -113,7 +141,7 @@ fun LogicEditor(
             itemsIndexed(logics) { index, logic ->
                 LogicCard(
                     logic = logic,
-                    onEdit = { editedLogicIndex = index },
+                    onEdit = { onPageChange(LogicEditorPage.Editing(index)) },
                     onDelete = {
                         onLogicsChange(logics.filterIndexed { candidateIndex, _ -> candidateIndex != index })
                     },
@@ -124,7 +152,7 @@ fun LogicEditor(
         IconButton(
             description = "Create logic",
             modifier = Modifier.align(Alignment.BottomCenter).size(64.dp),
-            onClick = { editedLogicIndex = -1 },
+            onClick = { onPageChange(LogicEditorPage.Editing(null)) },
         ) { _ -> drawPlusIcon() }
     }
 }
@@ -133,8 +161,7 @@ fun LogicEditor(
 private fun LogicBuilder(
     usedTags: Set<LogicTag>,
     initialLogic: Logic?,
-    onCancel: () -> Unit,
-    onSave: (Logic) -> Unit,
+    onLogicChange: (Logic) -> Unit,
 ) {
     val defaultTag = usedTags.firstOrNull() ?: LogicTag.all.first()
     var trigger by remember(initialLogic) { mutableStateOf(initialLogic?.trigger) }
@@ -143,6 +170,18 @@ private fun LogicBuilder(
         mutableStateOf(if (initialLogic == null) TriggerLayout.Large else TriggerLayout.Small)
     }
     var detailsVisible by remember(initialLogic) { mutableStateOf(initialLogic != null) }
+
+    fun updateDraft(
+        updatedTrigger: Trigger? = trigger,
+        updatedActions: List<Action> = actions,
+    ) {
+        trigger = updatedTrigger
+        actions = updatedActions
+
+        if (updatedTrigger != null && (initialLogic != null || updatedActions.isNotEmpty())) {
+            onLogicChange(Logic(updatedTrigger, updatedActions))
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -216,9 +255,11 @@ private fun LogicBuilder(
                 buttonWidth = triggerButtonWidth.value.dp,
                 buttonHeight = triggerButtonHeight.value.dp,
                 buttonSpacing = triggerButtonSpacing.value.dp,
-                onStartSelected = { trigger = Trigger.Start },
-                onTapSelected = { trigger = Trigger.Tap(defaultTag) },
-                onCollisionSelected = { trigger = Trigger.Collision(defaultTag, defaultTag) },
+                onStartSelected = { updateDraft(updatedTrigger = Trigger.Start) },
+                onTapSelected = { updateDraft(updatedTrigger = Trigger.Tap(defaultTag)) },
+                onCollisionSelected = {
+                    updateDraft(updatedTrigger = Trigger.Collision(defaultTag, defaultTag))
+                },
             )
 
             AnimatedVisibility(
@@ -228,7 +269,7 @@ private fun LogicBuilder(
             ) {
                 Column(Modifier.fillMaxSize()) {
                     trigger?.let { selectedTrigger ->
-                        TriggerParameters(selectedTrigger, usedTags) { trigger = it }
+                        TriggerParameters(selectedTrigger, usedTags) { updateDraft(updatedTrigger = it) }
                         Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
                     }
 
@@ -242,13 +283,18 @@ private fun LogicBuilder(
                                 action = action,
                                 usedTags = usedTags,
                                 onChange = { changed ->
-                                    actions = actions.mapIndexed { candidateIndex, current ->
-                                        if (candidateIndex == index) changed else current
-                                    }
+                                    updateDraft(
+                                        updatedActions = actions.mapIndexed { candidateIndex, current ->
+                                            if (candidateIndex == index) changed else current
+                                        }
+                                    )
                                 },
                                 onDelete = {
-                                    actions =
-                                        actions.filterIndexed { candidateIndex, _ -> candidateIndex != index }
+                                    updateDraft(
+                                        updatedActions = actions.filterIndexed { candidateIndex, _ ->
+                                            candidateIndex != index
+                                        }
+                                    )
                                 },
                             )
                         }
@@ -258,24 +304,23 @@ private fun LogicBuilder(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 ActionButton(ActionChoice.Move) {
-                                    actions = actions + Action.Move(defaultTag, Direction.E, 1)
+                                    updateDraft(
+                                        updatedActions = actions + Action.Move(defaultTag, Direction.E, 1)
+                                    )
                                 }
                                 ActionButton(ActionChoice.MoveTo) {
-                                    actions = actions + Action.MoveTo(defaultTag, defaultTag, 1)
+                                    updateDraft(
+                                        updatedActions = actions + Action.MoveTo(defaultTag, defaultTag, 1)
+                                    )
                                 }
-                                ActionButton(ActionChoice.Win) { actions = actions + Action.Win }
-                                ActionButton(ActionChoice.Lose) { actions = actions + Action.Lose }
+                                ActionButton(ActionChoice.Win) {
+                                    updateDraft(updatedActions = actions + Action.Win)
+                                }
+                                ActionButton(ActionChoice.Lose) {
+                                    updateDraft(updatedActions = actions + Action.Lose)
+                                }
                             }
                         }
-                    }
-
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton("Cancel logic", onClick = onCancel) { _ -> drawCloseIcon() }
-                        IconButton(
-                            description = "Save logic",
-                            enabled = trigger != null && actions.isNotEmpty(),
-                            onClick = { trigger?.let { onSave(Logic(it, actions)) } },
-                        ) { _ -> drawCheckIcon() }
                     }
                 }
             }
@@ -577,7 +622,7 @@ private fun ActionButton(choice: ActionChoice, onClick: () -> Unit) {
         when (choice) {
             ActionChoice.Move -> drawDirectionIcon(Direction.E, time)
             ActionChoice.MoveTo -> drawMoveToIcon()
-            ActionChoice.Win -> drawWinIcon()
+            ActionChoice.Win -> drawWinIcon(time)
             ActionChoice.Lose -> drawLoseIcon()
         }
     }
@@ -847,20 +892,95 @@ private fun DrawScope.drawMoveToIcon() {
     )
 }
 
-private fun DrawScope.drawWinIcon() {
-    drawCircle(Palette.Green.color, size.minDimension * .5f, center)
+private fun DrawScope.drawWinIcon(t: Float = 0f) {
+    val strokeWidth = 2.dp.toPx()
+    val left = size.width * .27f
+    val right = size.width * .73f
+    val top = size.height * .2f
+    val bottom = size.height * .6f
+
+    val leftHandle = Path().apply {
+        moveTo(left + strokeWidth, size.height * .28f)
+        quadraticTo(size.width * .1f, size.height * .23f, size.width * .14f, size.height * .42f)
+        quadraticTo(size.width * .17f, size.height * .53f, left + strokeWidth, size.height * .48f)
+    }
+    val rightHandle = Path().apply {
+        moveTo(right - strokeWidth, size.height * .28f)
+        quadraticTo(size.width * .9f, size.height * .23f, size.width * .86f, size.height * .42f)
+        quadraticTo(size.width * .83f, size.height * .53f, right - strokeWidth, size.height * .48f)
+    }
+    drawPath(leftHandle, Color.Black, style = Stroke(strokeWidth))
+    drawPath(rightHandle, Color.Black, style = Stroke(strokeWidth))
+
+    val cup = Path().apply {
+        moveTo(left, top)
+        lineTo(right, top)
+        lineTo(size.width * .69f, size.height * .4f)
+        quadraticTo(size.width * .66f, bottom, size.width * .5f, bottom)
+        quadraticTo(size.width * .34f, bottom, size.width * .31f, size.height * .4f)
+        close()
+    }
+    drawPath(cup, Palette.Yellow.color)
+    drawPath(cup, Color.Black, style = Stroke(strokeWidth))
     drawLine(
         Color.Black,
-        Offset(size.width * .28f, size.height * .52f),
-        Offset(size.width * .44f, size.height * .68f),
-        3.dp.toPx()
+        Offset(size.width * .5f, bottom),
+        Offset(size.width * .5f, size.height * .76f),
+        strokeWidth,
+        StrokeCap.Round,
     )
-    drawLine(
-        Color.Black,
-        Offset(size.width * .44f, size.height * .68f),
-        Offset(size.width * .75f, size.height * .32f),
-        3.dp.toPx()
+    drawRoundRect(
+        color = Palette.Yellow.color,
+        topLeft = Offset(size.width * .32f, size.height * .74f),
+        size = Size(size.width * .36f, size.height * .1f),
+        cornerRadius = CornerRadius(strokeWidth),
     )
+    drawRoundRect(
+        color = Color.Black,
+        topLeft = Offset(size.width * .32f, size.height * .74f),
+        size = Size(size.width * .36f, size.height * .1f),
+        cornerRadius = CornerRadius(strokeWidth),
+        style = Stroke(strokeWidth),
+    )
+
+    winConfetti.forEach { piece ->
+        val localTime = t - piece.delay
+        val alpha = animate(localTime) {
+            anim(0f, .08f)
+            anim(1f, .12f)
+            anim(1f, .44f)
+            anim(0f, .16f)
+        }
+        if (alpha <= 0f) return@forEach
+
+        val travel = animate(localTime) {
+            anim(0f, .12f)
+            anim(1f, .62f)
+            anim(1.1f, .16f)
+        }
+        val rotation = animate(localTime, piece.rotation) {
+            anim(piece.rotation + 180f, .28f)
+            anim(piece.rotation + 360f, .62f)
+        }
+        val confettiCenter = Offset(
+            size.width * (piece.startX + piece.driftX * travel),
+            size.height * (piece.startY + piece.driftY * travel),
+        )
+        rotate(rotation, pivot = confettiCenter) {
+            drawRoundRect(
+                color = piece.color.copy(alpha = alpha),
+                topLeft = Offset(
+                    confettiCenter.x - size.width * piece.length / 2f,
+                    confettiCenter.y - size.height * piece.thickness / 2f,
+                ),
+                size = Size(
+                    size.width * piece.length,
+                    size.height * piece.thickness,
+                ),
+                cornerRadius = CornerRadius(size.height * piece.thickness / 2f),
+            )
+        }
+    }
 }
 
 private fun DrawScope.drawLoseIcon() {
