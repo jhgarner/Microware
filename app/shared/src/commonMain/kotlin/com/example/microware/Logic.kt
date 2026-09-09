@@ -1,7 +1,12 @@
 package com.example.microware
 
-data class Logic(val trigger: Trigger, val actions: List<Action>) {
-}
+data class Logic(
+    val id: Int,
+    val trigger: Trigger,
+    val actions: List<Action>,
+)
+
+fun List<Logic>.nextId(): Int = (maxOfOrNull { it.id } ?: 0) + 1
 
 sealed interface Action {
     class Move(val mover: LogicTag, val target: Direction, val speed: Int) : Action

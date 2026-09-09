@@ -6,16 +6,15 @@ import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +25,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -41,12 +42,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
@@ -116,76 +118,201 @@ private val winConfetti = listOf(
     ConfettiPiece(.65f, .21f, .48f, -.28f, .06f, .03f, -70f, Palette.Yellow.color, .12f),
 )
 
+internal class LogicEditorState {
+    val dragController = DragController()
+    val mutableTrash = mutableStateOf(Trash())
+    val willBeDeleted = mutableStateOf(false)
+    val listItemBounds = mutableMapOf<Int, Rect>()
+    var dropAnimation by mutableStateOf<LogicDropAnimation?>(null)
+    var rootOriginInWindow by mutableStateOf(Offset.Zero)
+    private var nextDropAnimationRequest = 0
+
+    fun nextDropAnimationRequest(): Int = ++nextDropAnimationRequest
+}
+
+@Composable
+internal fun rememberLogicEditorState(): LogicEditorState = remember { LogicEditorState() }
+
 @Composable
 fun LogicEditor(
     world: World,
     logics: List<Logic>,
     onLogicsChange: (List<Logic>) -> Unit,
+    library: MutableState<Library>,
     page: LogicEditorPage,
     onPageChange: (LogicEditorPage) -> Unit,
 ) {
-    if (page is LogicEditorPage.Editing) {
-        val existingLogic = page.index?.takeIf { it >= 0 }?.let(logics::getOrNull)
-        LogicBuilder(
-            usedTags = world.logicTags.keys,
-            initialLogic = existingLogic,
-            onLogicChange = { changedLogic ->
-                val index = page.index
-                if (index == null) {
-                    onLogicsChange(logics + changedLogic)
-                    onPageChange(LogicEditorPage.Editing(logics.size))
-                } else {
-                    onLogicsChange(
-                        logics.mapIndexed { candidateIndex, logic ->
-                            if (candidateIndex == index) changedLogic else logic
-                        }
-                    )
-                }
-            },
-        )
-        return
-    }
+    val state = rememberLogicEditorState()
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(
-                start = insets.leftDp(),
-                end = insets.rightDp(),
-                bottom = insets.bottomDp(),
-            ),
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                8.dp,
-                8.dp,
-                8.dp,
-                72.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            itemsIndexed(logics) { index, logic ->
-                LogicCard(
-                    logic = logic,
-                    onEdit = { onPageChange(LogicEditorPage.Editing(index)) },
-                    onDelete = {
-                        onLogicsChange(logics.filterIndexed { candidateIndex, _ -> candidateIndex != index })
-                    },
-                )
+            .onGloballyPositioned {
+                state.dragController.setRootCoordinates(it)
+                state.rootOriginInWindow = it.positionInWindow()
             }
-        }
-
-        IconButton(
-            description = "Create logic",
-            modifier = Modifier.align(Alignment.BottomCenter).size(64.dp),
-            onClick = { onPageChange(LogicEditorPage.Editing(null)) },
-        ) { _ -> drawPlusIcon() }
+            .dragObserver(state.dragController),
+    ) {
+        LogicEditorContent(
+            world = world,
+            logics = logics,
+            onLogicsChange = onLogicsChange,
+            state = state,
+            page = page,
+            onPageChange = onPageChange,
+        )
+        LogicEditorToolbar(
+            state = state,
+            world = world,
+            logics = logics,
+            library = library,
+            page = page,
+            onLogicsChange = onLogicsChange,
+            onPageChange = onPageChange,
+        )
     }
 }
 
 @Composable
-private fun LogicBuilder(
+internal fun LogicEditorContent(
+    world: World,
+    logics: List<Logic>,
+    onLogicsChange: (List<Logic>) -> Unit,
+    state: LogicEditorState,
+    page: LogicEditorPage,
+    onPageChange: (LogicEditorPage) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
+) {
+    val dragController = state.dragController
+    val offer = dragController.offer
+    val editingIndex = (page as? LogicEditorPage.Editing)?.index
+
+    LaunchedEffect(state.dropAnimation?.request) {
+        val request = state.dropAnimation?.request ?: return@LaunchedEffect
+        delay((LogicDropAnimationDurationMillis + 50).toLong())
+        if (state.dropAnimation?.request == request) {
+            state.dropAnimation?.completion?.complete()
+            state.dropAnimation = null
+        }
+    }
+
+    fun handleLogicDrop(
+        offer: Offer,
+        targetIndex: Int,
+        completion: DropCompletion,
+    ) {
+        val logic = offer.item as? Logic ?: return
+        val sourceIndex = (offer.from as? LogicListItemDragSource)?.index
+        val openLogic = editingIndex?.let(logics::getOrNull)
+        val updatedLogics = logics.toMutableList()
+        val movedLogic: Logic
+
+        if (sourceIndex != null) {
+            if (sourceIndex !in updatedLogics.indices) return
+            movedLogic = updatedLogics.removeAt(sourceIndex)
+            val adjustedTargetIndex = (targetIndex - if (targetIndex > sourceIndex) 1 else 0)
+                .coerceIn(0, updatedLogics.size)
+            updatedLogics.add(adjustedTargetIndex, movedLogic)
+        } else {
+            movedLogic = logic.copy(id = updatedLogics.nextId())
+            updatedLogics.add(targetIndex.coerceIn(0, updatedLogics.size), movedLogic)
+        }
+
+        val dropRequest = state.nextDropAnimationRequest()
+        state.dropAnimation = LogicDropAnimation(
+            request = dropRequest,
+            logic = movedLogic,
+            startTopLeftInWindow = offer.offset - offer.localOffset,
+            sourceBounds = sourceIndex
+                ?.let(logics::getOrNull)
+                ?.let { state.listItemBounds[it.id] },
+            completion = completion,
+        )
+        onLogicsChange(updatedLogics)
+        openLogic?.let { logicBeingEdited ->
+            val updatedIndex = updatedLogics.indexOfFirst { it === logicBeingEdited }
+            if (updatedIndex >= 0 && updatedIndex != editingIndex) {
+                onPageChange(LogicEditorPage.Editing(updatedIndex))
+            }
+        }
+    }
+
+    BoxWithConstraints(modifier = modifier) {
+        Column(Modifier.fillMaxSize()) {
+            LogicTable(
+                items = logics,
+                dragController = dragController,
+                from = LogicListDragSource,
+                offered = offer,
+                willBeDeleted = state.willBeDeleted.value,
+                dropAnimation = state.dropAnimation,
+                onItemBoundsChanged = { index, bounds ->
+                    logics.getOrNull(index)?.let { logic ->
+                        state.listItemBounds[logic.id] = bounds
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(
+                        start = insets.leftDp(),
+                        end = insets.rightDp(),
+                        top = insets.topDp(),
+                    ),
+                onDrop = ::handleLogicDrop,
+            )
+            Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
+        }
+
+        LogicDragGhost(
+            offer = offer,
+            rootOriginInWindow = state.rootOriginInWindow,
+            width = maxWidth - insets.leftDp() - insets.rightDp() - 16.dp,
+        )
+    }
+}
+
+@Composable
+internal fun BoxWithConstraintsScope.LogicEditorToolbar(
+    state: LogicEditorState,
+    world: World,
+    logics: List<Logic>,
+    library: MutableState<Library>,
+    page: LogicEditorPage,
+    onLogicsChange: (List<Logic>) -> Unit,
+    onPageChange: (LogicEditorPage) -> Unit,
+) {
+    val editingIndex = (page as? LogicEditorPage.Editing)?.index
+    LogicEditToolbar(
+        offered = state.dragController.offer,
+        dragController = state.dragController,
+        usedTags = world.logicTags.keys,
+        logics = logics,
+        editing = page is LogicEditorPage.Editing,
+        editingIndex = editingIndex,
+        editingLogic = editingIndex?.takeIf { it >= 0 }?.let(logics::getOrNull),
+        onLogicChange = { changedLogic ->
+            if (editingIndex == null) {
+                onLogicsChange(logics + changedLogic.copy(id = logics.nextId()))
+                onPageChange(LogicEditorPage.Editing(logics.size))
+            } else {
+                onLogicsChange(
+                    logics.mapIndexed { candidateIndex, logic ->
+                        if (candidateIndex == editingIndex) changedLogic else logic
+                    }
+                )
+            }
+        },
+        onLogicsChange = onLogicsChange,
+        onPageChange = onPageChange,
+        settableTrash = state.mutableTrash,
+        settableLibrary = library,
+        willBeDeleted = state.willBeDeleted,
+    )
+}
+
+@Composable
+internal fun LogicBuilder(
     usedTags: Set<LogicTag>,
     initialLogic: Logic?,
     onLogicChange: (Logic) -> Unit,
@@ -206,7 +333,13 @@ private fun LogicBuilder(
         actions = updatedActions
 
         if (updatedTrigger != null && (initialLogic != null || updatedActions.isNotEmpty())) {
-            onLogicChange(Logic(updatedTrigger, updatedActions))
+            onLogicChange(
+                Logic(
+                    id = initialLogic?.id ?: 0,
+                    trigger = updatedTrigger,
+                    actions = updatedActions,
+                )
+            )
         }
     }
 
@@ -493,29 +626,6 @@ private fun TriggerParameters(
 }
 
 @Composable
-private fun LogicCard(logic: Logic, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Palette.OffWhite.color)
-            .border(BorderStroke(2.dp, Color.Black), shape = RoundedCornerShape(8.dp))
-            .clickable(onClick = onEdit)
-            .semantics { contentDescription = "Edit logic" }
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Canvas(Modifier.size(40.dp).padding(5.dp)) { drawTrigger(logic.trigger) }
-        Canvas(Modifier.size(28.dp).padding(4.dp)) { drawArrowIcon() }
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            logic.actions.take(5).forEach { action ->
-                Canvas(Modifier.size(36.dp).padding(4.dp)) { drawAction(action) }
-            }
-        }
-        IconButton("Delete logic", onClick = onDelete) { _ -> drawTrashIcon() }
-    }
-}
-
-@Composable
 private fun EditableActionCard(
     action: Action,
     usedTags: Set<LogicTag>,
@@ -666,13 +776,13 @@ private fun ActionButton(choice: ActionChoice, onClick: () -> Unit) {
     }
 }
 
-private fun DrawScope.drawTrigger(trigger: Trigger) = when (trigger) {
+internal fun DrawScope.drawTrigger(trigger: Trigger) = when (trigger) {
     Trigger.Start -> drawStartIcon()
     is Trigger.Tap -> drawTapIcon()
     is Trigger.Collision -> drawCollisionIcon()
 }
 
-private fun DrawScope.drawAction(action: Action) = when (action) {
+internal fun DrawScope.drawAction(action: Action) = when (action) {
     is Action.Move -> drawTrainIcon()
     is Action.MoveTo -> drawMoveToIcon()
     Action.Win -> drawWinIcon()
@@ -1272,7 +1382,7 @@ private fun DrawScope.drawLoseIcon() {
     drawCloseIcon()
 }
 
-private fun DrawScope.drawArrowIcon() = drawDirectionIcon(Direction.E)
+internal fun DrawScope.drawArrowIcon() = drawDirectionIcon(Direction.E)
 
 private fun DrawScope.drawDownArrowIcon() {
     val centerX = size.width / 2f

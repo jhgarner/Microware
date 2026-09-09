@@ -18,10 +18,17 @@ import kotlinx.serialization.json.Json
 
 private const val LibraryStorageKey = "microware.library.v1"
 
-data class Library(val objects: List<Obj>) {
-    constructor() : this(emptyList())
+data class Library(
+    val objects: List<Obj>,
+    val logics: List<Logic> = emptyList(),
+) {
+    constructor() : this(emptyList(), emptyList())
 
     fun add(obj: Obj): Library = copy(objects = objects + obj.copy(id = nextId()))
+
+    fun add(logic: Logic): Library = copy(
+        logics = logics + logic.copy(id = logics.nextId()),
+    )
 
     fun remove(id: Int): Library = copy(objects = objects.filterNot { it.id == id })
 
@@ -29,7 +36,10 @@ data class Library(val objects: List<Obj>) {
 }
 
 @Serializable
-private data class StoredLibrary(val objects: List<StoredObj> = emptyList())
+private data class StoredLibrary(
+    val objects: List<StoredObj> = emptyList(),
+    val logics: List<StoredLogic> = emptyList(),
+)
 
 @Serializable
 private data class StoredObj(
@@ -41,18 +51,49 @@ private data class StoredObj(
     val pixels: List<Int>,
 )
 
+@Serializable
+private data class StoredLogic(
+    val id: Int? = null,
+    val trigger: StoredTrigger,
+    val actions: List<StoredAction>,
+)
+
+@Serializable
+private data class StoredTrigger(
+    val type: String,
+    val firstTag: Int? = null,
+    val secondTag: Int? = null,
+)
+
+@Serializable
+private data class StoredAction(
+    val type: String,
+    val moverTag: Int? = null,
+    val targetTag: Int? = null,
+    val direction: String? = null,
+    val speed: Int? = null,
+)
+
 private val libraryJson = Json { ignoreUnknownKeys = true }
 
 fun loadLibrary(): Library {
     val encoded = AppStorage.read(LibraryStorageKey) ?: return Library()
     return runCatching {
         val stored = libraryJson.decodeFromString<StoredLibrary>(encoded)
-        Library(stored.objects.map { it.toObj() })
+        Library(
+            objects = stored.objects.map { it.toObj() },
+            logics = stored.logics.mapIndexed { index, logic ->
+                logic.toLogic(id = logic.id ?: index + 1)
+            },
+        )
     }.getOrDefault(Library())
 }
 
 fun saveLibrary(library: Library) {
-    val stored = StoredLibrary(library.objects.map { it.toStoredObj() })
+    val stored = StoredLibrary(
+        objects = library.objects.map { it.toStoredObj() },
+        logics = library.logics.map { it.toStoredLogic() },
+    )
     AppStorage.write(LibraryStorageKey, libraryJson.encodeToString(stored))
 }
 
@@ -78,6 +119,76 @@ private fun StoredObj.toObj(): Obj {
         offset = Offset(offsetX, offsetY),
         sprite = Sprite(rows)
     )
+}
+
+private fun Logic.toStoredLogic(): StoredLogic = StoredLogic(
+    id = id,
+    trigger = trigger.toStoredTrigger(),
+    actions = actions.map { it.toStoredAction() },
+)
+
+private fun Trigger.toStoredTrigger(): StoredTrigger = when (this) {
+    Trigger.Start -> StoredTrigger(type = "start")
+    is Trigger.Tap -> StoredTrigger(type = "tap", firstTag = target.tag)
+    is Trigger.Collision -> StoredTrigger(
+        type = "collision",
+        firstTag = firstTarget.tag,
+        secondTag = secondTarget.tag,
+    )
+}
+
+private fun Action.toStoredAction(): StoredAction = when (this) {
+    is Action.Move -> StoredAction(
+        type = "move",
+        moverTag = mover.tag,
+        direction = target.name,
+        speed = speed,
+    )
+
+    is Action.MoveTo -> StoredAction(
+        type = "moveTo",
+        moverTag = mover.tag,
+        targetTag = target.tag,
+        speed = speed,
+    )
+
+    Action.Win -> StoredAction(type = "win")
+    Action.Lose -> StoredAction(type = "lose")
+}
+
+private fun StoredLogic.toLogic(id: Int): Logic = Logic(
+    id = id,
+    trigger = trigger.toTrigger(),
+    actions = actions.map { it.toAction() },
+)
+
+private fun StoredTrigger.toTrigger(): Trigger = when (type) {
+    "start" -> Trigger.Start
+    "tap" -> Trigger.Tap(LogicTag(requireNotNull(firstTag)))
+    "collision" -> Trigger.Collision(
+        firstTarget = LogicTag(requireNotNull(firstTag)),
+        secondTarget = LogicTag(requireNotNull(secondTag)),
+    )
+
+    else -> error("Unknown trigger type: $type")
+}
+
+private fun StoredAction.toAction(): Action = when (type) {
+    "move" -> Action.Move(
+        mover = LogicTag(requireNotNull(moverTag)),
+        target = Direction.valueOf(requireNotNull(direction)),
+        speed = requireNotNull(speed),
+    )
+
+    "moveTo" -> Action.MoveTo(
+        mover = LogicTag(requireNotNull(moverTag)),
+        target = LogicTag(requireNotNull(targetTag)),
+        speed = speed,
+    )
+
+    "win" -> Action.Win
+    "lose" -> Action.Lose
+    else -> error("Unknown action type: $type")
 }
 
 @Composable

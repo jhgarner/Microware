@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +40,18 @@ import kotlin.math.roundToInt
 
 const val WorldWidth = MaxSpriteWidth
 const val WorldHeight = MaxSpriteHeight
+
+internal class WorldEditorState {
+    val dragController = DragController()
+    val objectBeingEdited = mutableStateOf<Obj?>(null)
+    val mutableTrash = mutableStateOf(Trash())
+    val mutableWillBeDeleted = mutableStateOf(false)
+    var worldOriginInParent by mutableStateOf(Offset.Zero)
+    var worldScale by mutableStateOf(1f)
+}
+
+@Composable
+internal fun rememberWorldEditorState(): WorldEditorState = remember { WorldEditorState() }
 
 data class World(
     val background: Sprite,
@@ -118,109 +131,120 @@ fun WorldEditor(
     mutableWorld: MutableState<World>,
     library: MutableState<Library>,
 ) {
-    var world by mutableWorld
-    val dragController = remember { DragController() }
-    val offer = dragController.offer
-    var worldOriginInRoot by remember { mutableStateOf(Offset.Zero) }
-    var worldScale by remember { mutableStateOf(1f) }
-    val objectBeingEdited = remember { mutableStateOf<Obj?>(null) }
-    val mutableTrash = remember { mutableStateOf(Trash()) }
-    val mutableWillBeDeleted = remember { mutableStateOf(false) }
+    val state = rememberWorldEditorState()
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned { dragController.setRootCoordinates(it) }
-            .dragObserver(dragController)
+            .onGloballyPositioned { state.dragController.setRootCoordinates(it) }
+            .dragObserver(state.dragController)
     ) {
-        val toolbarHeight = HandleSize + TrashGap
-
-        var worldOriginInParent by remember { mutableStateOf(Offset.Zero) }
-        Column(modifier = Modifier.fillMaxSize()) {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .padding(start = insets.leftDp(), end = insets.rightDp(), top = insets.topDp())
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .zIndex(if (offer != null) 1f else 0f)
-                    .dropTarget(
-                        offered = offer,
-                        onGiven = {
-                            val localOffset =
-                                (it.offset - worldOriginInParent - it.localOffset) / worldScale
-                            val obj = world.clamped(it.obj.copy(offset = localOffset))
-                            world = if (it.from is World) {
-                                world.updateObject(obj)
-                            } else {
-                                world.addObject(obj)
-                            }
-                        },
-                    )
-            ) {
-                val availableWidth = maxWidth.roundToPx()
-                val availableHeight = maxHeight.roundToPx()
-                val fitScale = min(
-                    availableWidth.toFloat() / world.background.width,
-                    availableHeight.toFloat() / world.background.height
-                )
-                val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
-                val worldWidth = (world.background.width * scale).roundToInt()
-                val worldHeight = (world.background.height * scale).roundToInt()
-                val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
-                val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
-
-                Box(
-                    modifier = Modifier
-                        .requiredSize(worldWidth.toDp(), worldHeight.toDp())
-                        .offset { IntOffset(worldLeft, worldTop) }
-                        .onGloballyPositioned { coordinates ->
-                            worldOriginInParent = coordinates.positionInWindow()
-                            worldOriginInRoot = coordinates.localToRoot(Offset.Zero)
-                            worldScale = scale
-                        }
-                        .clipToBounds()
-                ) {
-                    WorldSprite(
-                        obj = Obj(id = 0, sprite = world.background, offset = Offset.Zero),
-                        origin = IntOffset.Zero,
-                        scale = scale,
-                        from = Unit,
-                    )
-                }
-                for (obj in world.objects) {
-                    WorldSprite(
-                        obj = obj,
-                        origin = IntOffset(worldLeft, worldTop),
-                        scale = scale,
-                        opacity = if (offer?.obj?.id == obj.id && mutableWillBeDeleted.value) 0.5f else 1f,
-                        from = world,
-                        dragController = dragController,
-                    )
-                }
-
-                offer?.apply {
-                    WorldSprite(
-                        obj = obj.copy(offset = (offset - worldOriginInParent - localOffset) / scale),
-                        origin = IntOffset(worldLeft, worldTop),
-                        scale = scale,
-                        from = Unit,
-                        opacity = 0.5f
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(toolbarHeight + insets.bottomDp()))
-        }
-
-        WorldEditToolbar(
-            offered = offer,
-            dragController = dragController,
-            settableTrash = mutableTrash,
-            settableLibrary = library,
-            settableWorld = mutableWorld,
-            settableObjectEdited = objectBeingEdited,
-            willBeDeleted = mutableWillBeDeleted,
-        )
+        WorldEditorContent(mutableWorld = mutableWorld, state = state)
+        WorldEditorToolbar(state = state, mutableWorld = mutableWorld, library = library)
     }
+}
+
+@Composable
+internal fun WorldEditorContent(
+    mutableWorld: MutableState<World>,
+    state: WorldEditorState,
+    modifier: Modifier = Modifier.fillMaxSize(),
+) {
+    var world by mutableWorld
+    val offer = state.dragController.offer
+    val toolbarHeight = HandleSize + TrashGap
+
+    Column(modifier = modifier) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .padding(start = insets.leftDp(), end = insets.rightDp(), top = insets.topDp())
+                .fillMaxWidth()
+                .weight(1f)
+                .zIndex(if (offer != null) 1f else 0f)
+                .dropTarget(
+                    dragController = state.dragController,
+                    offered = offer,
+                    onGiven = { offer, _ ->
+                        val localOffset =
+                            (offer.offset - state.worldOriginInParent - offer.localOffset) / state.worldScale
+                        val obj = world.clamped(offer.obj.copy(offset = localOffset))
+                        world = if (offer.from is World) {
+                            world.updateObject(obj)
+                        } else {
+                            world.addObject(obj)
+                        }
+                    },
+                )
+        ) {
+            val availableWidth = maxWidth.roundToPx()
+            val availableHeight = maxHeight.roundToPx()
+            val fitScale = min(
+                availableWidth.toFloat() / world.background.width,
+                availableHeight.toFloat() / world.background.height
+            )
+            val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
+            val worldWidth = (world.background.width * scale).roundToInt()
+            val worldHeight = (world.background.height * scale).roundToInt()
+            val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
+            val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
+
+            Box(
+                modifier = Modifier
+                    .requiredSize(worldWidth.toDp(), worldHeight.toDp())
+                    .offset { IntOffset(worldLeft, worldTop) }
+                    .onGloballyPositioned { coordinates ->
+                        state.worldOriginInParent = coordinates.positionInWindow()
+                        state.worldScale = scale
+                    }
+                    .clipToBounds()
+            ) {
+                WorldSprite(
+                    obj = Obj(id = 0, sprite = world.background, offset = Offset.Zero),
+                    origin = IntOffset.Zero,
+                    scale = scale,
+                    from = Unit,
+                )
+            }
+            for (obj in world.objects) {
+                WorldSprite(
+                    obj = obj,
+                    origin = IntOffset(worldLeft, worldTop),
+                    scale = scale,
+                    opacity = if (offer?.obj?.id == obj.id && state.mutableWillBeDeleted.value) .5f else 1f,
+                    from = world,
+                    dragController = state.dragController,
+                )
+            }
+
+            offer?.apply {
+                WorldSprite(
+                    obj = obj.copy(offset = (offset - state.worldOriginInParent - localOffset) / state.worldScale),
+                    origin = IntOffset(worldLeft, worldTop),
+                    scale = scale,
+                    from = Unit,
+                    opacity = 0.5f
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(toolbarHeight + insets.bottomDp()))
+    }
+}
+
+@Composable
+internal fun BoxWithConstraintsScope.WorldEditorToolbar(
+    state: WorldEditorState,
+    mutableWorld: MutableState<World>,
+    library: MutableState<Library>,
+) {
+    WorldEditToolbar(
+        offered = state.dragController.offer,
+        dragController = state.dragController,
+        settableTrash = state.mutableTrash,
+        settableLibrary = library,
+        settableWorld = mutableWorld,
+        settableObjectEdited = state.objectBeingEdited,
+        willBeDeleted = state.mutableWillBeDeleted,
+    )
 }
 
 @Composable

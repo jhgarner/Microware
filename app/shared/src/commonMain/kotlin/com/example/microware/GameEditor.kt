@@ -1,8 +1,12 @@
 package com.example.microware
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,6 +39,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -41,132 +48,123 @@ import androidx.compose.ui.unit.dp
 
 private enum class GameEditorPage { World, Logic }
 
-private const val disabledLogicButtonScale = .72f
-
 @Composable
 fun GameEditor(
     mutableGame: MutableState<Game>,
     library: MutableState<Library>,
+    onBack: () -> Unit = {},
 ) {
-    var page by remember { mutableStateOf<GameEditorPage?>(null) }
+    var page by remember { mutableStateOf(GameEditorPage.World) }
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
+    val logicEnabled = mutableGame.value.world.logicTags.isNotEmpty() ||
+        mutableGame.value.logics.isNotEmpty()
+    val mutableWorld = remember(mutableGame) { mutableGame.worldState() }
+    val worldEditorState = rememberWorldEditorState()
+    val logicEditorState = rememberLogicEditorState()
 
-    when (page) {
-        null -> GameEditorMenu(onSelect = {
-            if (it == GameEditorPage.Logic) {
-                logicPage = LogicEditorPage.List
-            }
-            page = it
-        }, logicEnabled = mutableGame.value.world.logicTags.isNotEmpty())
-
-        GameEditorPage.World -> EditorPage(onBack = { page = null }) {
-            val mutableWorld = remember(mutableGame) { mutableGame.worldState() }
-            WorldEditor(mutableWorld = mutableWorld, library = library)
+    LaunchedEffect(logicEnabled) {
+        if (!logicEnabled && page == GameEditorPage.Logic) {
+            page = GameEditorPage.World
         }
+    }
 
-        GameEditorPage.Logic -> EditorPage(
-            onBack = {
-                if (logicPage is LogicEditorPage.Editing) {
+    EditorPage(
+        page = page,
+        logicEnabled = logicEnabled,
+        onPageChange = { selectedPage ->
+            if (selectedPage == GameEditorPage.World || logicEnabled) {
+                if (selectedPage == GameEditorPage.World) {
                     logicPage = LogicEditorPage.List
-                } else {
-                    page = null
                 }
-            },
-            backDescription = if (logicPage is LogicEditorPage.Editing) {
-                "Back to logic list"
+                page = selectedPage
+            }
+        },
+        onBack = {
+            if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
+                logicPage = LogicEditorPage.List
             } else {
-                "Back to game editor menu"
-            },
-        ) {
-            LogicEditor(
-                world = mutableGame.value.world,
-                logics = mutableGame.value.logics,
-                onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
-                page = logicPage,
-                onPageChange = { logicPage = it },
-            )
-        }
-    }
-}
-
-@Composable
-private fun GameEditorMenu(
-    onSelect: (GameEditorPage) -> Unit,
-    logicEnabled: Boolean,
-) {
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                start = insets.leftDp() + 24.dp,
-                top = insets.topDp() + 24.dp,
-                end = insets.rightDp() + 24.dp,
-                bottom = insets.bottomDp() + 24.dp,
-            ),
+                onBack()
+            }
+        },
+        backDescription = if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
+            "Back to logic list"
+        } else {
+            "Back from game editor"
+        },
     ) {
-        val spacing = 24.dp
-        val buttonHeight = (maxHeight - spacing).coerceAtLeast(0.dp)
-        val logicButtonScale = if (logicEnabled) 1f else disabledLogicButtonScale
-        val worldButtonSize = minOf(
-            maxWidth,
-            buttonHeight / (1f + logicButtonScale),
-        )
-
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterVertically),
-        ) {
-            MenuButton(
-                description = "Edit world",
-                color = Palette.Forest.color,
-                buttonSize = worldButtonSize,
-                icon = { _ -> drawWorldIcon() },
-                onClick = { onSelect(GameEditorPage.World) },
-            )
-            MenuButton(
-                description = "Edit logic",
-                color = Palette.Maroon.color,
-                buttonSize = worldButtonSize * logicButtonScale,
-                enabled = logicEnabled,
-                icon = { enabled -> drawLogicIcon(enabled) },
-                onClick = { onSelect(GameEditorPage.Logic) },
-            )
+        val activeDragController = when (page) {
+            GameEditorPage.World -> worldEditorState.dragController
+            GameEditorPage.Logic -> logicEditorState.dragController
         }
-    }
-}
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned {
+                    activeDragController.setRootCoordinates(it)
+                    logicEditorState.rootOriginInWindow = it.positionInWindow()
+                }
+                .dragObserver(activeDragController),
+        ) {
+            AnimatedContent(
+                targetState = page,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    val direction = if (targetState == GameEditorPage.Logic) 1 else -1
+                    slideInHorizontally(
+                        animationSpec = tween(durationMillis = 300),
+                        initialOffsetX = { width -> direction * width },
+                    ) togetherWith slideOutHorizontally(
+                        animationSpec = tween(durationMillis = 300),
+                        targetOffsetX = { width -> -direction * width },
+                    )
+                },
+                label = "editor content",
+            ) { visiblePage ->
+                when (visiblePage) {
+                    GameEditorPage.World -> WorldEditorContent(
+                        mutableWorld = mutableWorld,
+                        state = worldEditorState,
+                    )
 
-@Composable
-private fun MenuButton(
-    description: String,
-    color: Color,
-    buttonSize: Dp,
-    enabled: Boolean = true,
-    icon: DrawScope.(Boolean) -> Unit,
-    onClick: () -> Unit,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.size(buttonSize).semantics { contentDescription = description },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Palette.OffWhite.color,
-            contentColor = color,
-            disabledContainerColor = Palette.OffWhite.color,
-            disabledContentColor = Palette.DarkGray.color,
-        ),
-        border = BorderStroke(4.dp, if (enabled) color else Palette.DarkGray.color),
-        shape = RectangleShape,
-        contentPadding = PaddingValues(20.dp),
-    ) {
-        Canvas(Modifier.fillMaxSize()) { icon(enabled) }
+                    GameEditorPage.Logic -> LogicEditorContent(
+                        world = mutableGame.value.world,
+                        logics = mutableGame.value.logics,
+                        onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
+                        state = logicEditorState,
+                        page = logicPage,
+                        onPageChange = { logicPage = it },
+                    )
+                }
+            }
+
+            when (page) {
+                GameEditorPage.World -> WorldEditorToolbar(
+                    state = worldEditorState,
+                    mutableWorld = mutableWorld,
+                    library = library,
+                )
+
+                GameEditorPage.Logic -> LogicEditorToolbar(
+                    state = logicEditorState,
+                    world = mutableGame.value.world,
+                    logics = mutableGame.value.logics,
+                    library = library,
+                    page = logicPage,
+                    onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
+                    onPageChange = { logicPage = it },
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun EditorPage(
+    page: GameEditorPage,
+    logicEnabled: Boolean,
+    onPageChange: (GameEditorPage) -> Unit,
     onBack: () -> Unit,
-    backDescription: String = "Back to game editor menu",
+    backDescription: String,
     content: @Composable () -> Unit,
 ) {
     SystemBackHandler(onBack = onBack)
@@ -178,12 +176,48 @@ private fun EditorPage(
                 .background(Palette.OffWhite.color)
                 .padding(start = insets.leftDp(), top = insets.topDp(), end = insets.rightDp()),
         ) {
-            IconButton(description = backDescription, onClick = onBack) { _ ->
-                drawBackIcon()
+            IconButton(
+                description = backDescription,
+                modifier = Modifier.align(Alignment.CenterStart),
+                onClick = onBack,
+            ) { _ -> drawBackIcon() }
+            Row(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                EditorTabButton(
+                    description = "Edit world",
+                    selected = page == GameEditorPage.World,
+                    onClick = { onPageChange(GameEditorPage.World) },
+                ) { _ -> drawWorldIcon() }
+                EditorTabButton(
+                    description = "Edit logic",
+                    selected = page == GameEditorPage.Logic,
+                    enabled = logicEnabled,
+                    onClick = { onPageChange(GameEditorPage.Logic) },
+                ) { _ -> drawLogicIcon(logicEnabled) }
             }
         }
         Box(Modifier.weight(1f)) { content() }
     }
+}
+
+@Composable
+private fun EditorTabButton(
+    description: String,
+    selected: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    icon: DrawScope.(Float) -> Unit,
+) {
+    IconButton(
+        description = description,
+        selected = selected,
+        enabled = enabled,
+        buttonSize = 52.dp,
+        onClick = onClick,
+        icon = icon,
+    )
 }
 
 @Composable

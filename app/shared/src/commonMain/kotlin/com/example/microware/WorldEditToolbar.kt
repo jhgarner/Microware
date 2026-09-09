@@ -36,18 +36,20 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     }
 
     DrawerWithHandle(
-        buttonModifier = Modifier.dropTarget(
-            offered = offered,
-            onEnter = { willBeDeleted.value = true },
-            onEnd = { willBeDeleted.value = false },
-            onExit = { willBeDeleted.value = false }),
         side = HandleEdge.Left,
         expandedSide = expandedSide,
+        dragController = dragController,
         foreground = Palette.Maroon,
         highlightForeground = Palette.Red,
         hiddenSlide = if (trash.garbage.isNotEmpty()) 16 else 500,
         offered = offered,
-        onGiven = { trash = trash.discard(it.obj); world = world.deleteObject(it.obj.id) },
+        onDragEnter = { willBeDeleted.value = true },
+        onDragExit = { willBeDeleted.value = false },
+        onDragEnd = { willBeDeleted.value = false },
+        onGiven = { offer, _ ->
+            trash = trash.discard(offer.obj)
+            world = world.deleteObject(offer.obj.id)
+        },
         buttonContent = { TrashControls(it) },
         drawerContent = { ObjectTable(items = trash.garbage, dragController = dragController) },
     )
@@ -55,10 +57,14 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     DrawerWithHandle(
         side = HandleEdge.Bottom,
         expandedSide = expandedSide,
+        dragController = dragController,
         foreground = Palette.Navy,
         highlightForeground = Palette.Cyan,
         offered = offered,
-        onGiven = { objectBeingEdited = it.obj; expandedSide.value = HandleEdge.Bottom },
+        onGiven = { offer, _ ->
+            objectBeingEdited = offer.obj
+            expandedSide.value = HandleEdge.Bottom
+        },
         extraOnDismiss = { objectBeingEdited = null },
         buttonContent = { CreateTarget(foreground = it, isEditMode = offered != null) }
     ) {
@@ -101,10 +107,14 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     DrawerWithHandle(
         side = HandleEdge.Right,
         expandedSide = expandedSide,
+        dragController = dragController,
         foreground = Palette.Forest,
         highlightForeground = Palette.Green,
         offered = offered,
-        onGiven = { library = library.add(it.obj); saveLibrary(library) },
+        onGiven = { offer, _ ->
+            library = library.add(offer.obj)
+            saveLibrary(library)
+        },
         buttonContent = { LibraryTarget(it) },
         drawerContent = { ObjectTable(items = library.objects, dragController = dragController) },
     )

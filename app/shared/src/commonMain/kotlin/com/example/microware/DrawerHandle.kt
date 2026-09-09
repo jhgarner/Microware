@@ -20,11 +20,16 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
     buttonModifier: Modifier = Modifier,
     side: HandleEdge,
     expandedSide: MutableState<HandleEdge?>,
+    dragController: DragController,
     foreground: Palette,
     highlightForeground: Palette,
     hiddenSlide: Int = 16,
     offered: Offer?,
-    onGiven: (Offer) -> Unit,
+    onGiven: (Offer, DropCompletion) -> Unit,
+    onDragEnter: () -> Unit = {},
+    onDragExit: () -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    extraOnExpand: () -> Unit = {},
     extraOnDismiss: () -> Unit = {},
     buttonContent: @Composable (Color) -> Unit,
     drawerContent: @Composable () -> Unit,
@@ -60,7 +65,10 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
             expandedSide = if (expandedSide == side) {
                 extraOnDismiss()
                 null
-            } else side
+            } else {
+                extraOnExpand()
+                side
+            }
         },
         isExpanded = isExpanded,
         isDragging = offered != null,
@@ -68,11 +76,21 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
         modifier = buttonModifier
             .offset { fleeingAnimation.value.round() }
             .dropTarget(
+                dragController = dragController,
                 offered = offered,
-                onEnter = { isHovered = true },
-                onExit = { isHovered = false },
+                onEnter = {
+                    isHovered = true
+                    onDragEnter()
+                },
+                onExit = {
+                    isHovered = false
+                    onDragExit()
+                },
                 onGiven = onGiven,
-                onEnd = { isHovered = false }),
+                onEnd = {
+                    isHovered = false
+                    onDragEnd()
+                }),
     ) {
         buttonContent(foregroundColor.color)
     }
