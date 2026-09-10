@@ -11,24 +11,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
-@Preview
 fun App() {
 
     MaterialTheme {
         Column(
             modifier = Modifier
                 .background(Palette.OffWhite.color)
-//                .windowInsetsPadding(
-//                    WindowInsets.safeContent.only(WindowInsetsSides.Vertical)
-//                )
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-//            var sprite by remember { mutableStateOf(Sprite.empty(20, 20)) }
-//            EditableCanvas(sprite) { sprite = sprite.update(it) }
             val game = remember {
                 mutableStateOf(
                     Game(

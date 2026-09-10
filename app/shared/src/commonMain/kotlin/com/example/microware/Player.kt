@@ -3,6 +3,7 @@ package com.example.microware
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -175,6 +176,12 @@ data class Player(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(
+                    start = insets.leftDp(),
+                    top = insets.topDp(),
+                    end = insets.rightDp(),
+                    bottom = insets.bottomDp(),
+                )
                 .clipToBounds()
                 .onSizeChanged { canvasSize = it }
                 .pointerInput(this@Player, canvasSize, active) {

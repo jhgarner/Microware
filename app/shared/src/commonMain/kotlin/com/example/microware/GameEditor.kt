@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,7 +46,6 @@ import androidx.compose.ui.unit.dp
 
 private enum class GameEditorPage { World, Logic, Play }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GameEditor(
     mutableGame: MutableState<Game>,
@@ -65,7 +63,7 @@ fun GameEditor(
     val logicEditorState = rememberLogicEditorState()
     val player = remember(playSession) { Player(mutableGame.value) }
     val pagerState = rememberPagerState(initialPage = GameEditorPage.World.ordinal) {
-        GameEditorPage.values().size
+        GameEditorPage.entries.size
     }
 
     LaunchedEffect(logicEnabled) {
@@ -75,7 +73,7 @@ fun GameEditor(
     }
 
     LaunchedEffect(pagerState.settledPage) {
-        GameEditorPage.values()[pagerState.settledPage]
+        GameEditorPage.entries[pagerState.settledPage]
             .takeUnless { it == GameEditorPage.Play }
             ?.let { lastEditorPage = it }
     }
@@ -87,7 +85,7 @@ fun GameEditor(
         )
     }
 
-    val settledPage = GameEditorPage.values()[pagerState.settledPage]
+    val settledPage = GameEditorPage.entries[pagerState.settledPage]
     val toolbarPage = if (settledPage == GameEditorPage.Play) lastEditorPage else settledPage
     val handlesVisible = page != GameEditorPage.Play
 
@@ -137,7 +135,7 @@ fun GameEditor(
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = false,
             ) { pageIndex ->
-                when (GameEditorPage.values()[pageIndex]) {
+                when (GameEditorPage.entries[pageIndex]) {
                     GameEditorPage.World -> WorldEditorContent(
                         mutableWorld = mutableWorld,
                         state = worldEditorState,
