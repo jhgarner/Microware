@@ -288,11 +288,13 @@ internal fun BoxWithConstraintsScope.LogicEditorToolbar(
     page: LogicEditorPage,
     onLogicsChange: (List<Logic>) -> Unit,
     onPageChange: (LogicEditorPage) -> Unit,
+    isVisible: Boolean = true,
 ) {
     val editingIndex = (page as? LogicEditorPage.Editing)?.index
     LogicEditToolbar(
         offered = state.dragController.offer,
         dragController = state.dragController,
+        isVisible = isVisible,
         usedTags = world.logicTags.keys,
         logics = logics,
         editing = page is LogicEditorPage.Editing,

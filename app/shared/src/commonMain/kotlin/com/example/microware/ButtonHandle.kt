@@ -64,6 +64,7 @@ fun BoxWithConstraintsScope.ButtonHandle(
     openEdge: HandleEdge,
     isDragging: Boolean,
     isExpanded: Boolean,
+    isVisible: Boolean = true,
     hiddenSlide: Int = 16,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -99,13 +100,19 @@ fun BoxWithConstraintsScope.ButtonHandle(
 
         HandleEdge.Bottom -> IntOffset(0, hiddenSlide)
     }
+    val fullyHiddenOffset = when (openEdge) {
+        HandleEdge.Left -> IntOffset(-(HandleSize.toPx() + insets.left()).toInt(), 0)
+        HandleEdge.Right -> IntOffset((HandleSize.toPx() + insets.right()).toInt(), 0)
+        HandleEdge.Bottom -> IntOffset(0, (HandleSize.toPx() + insets.bottom()).toInt())
+    }
     val slideX = remember { Animatable(hidingOffset.x.toFloat()) }
     val slideY = remember { Animatable(hidingOffset.y.toFloat()) }
-    LaunchedEffect(isDragging, isExpanded, hidingOffset, openSlide) {
+    LaunchedEffect(isDragging, isExpanded, isVisible, hidingOffset, openSlide) {
         coroutineScope {
             launch {
                 slideX.animateTo(
                     targetValue = when {
+                        !isVisible -> fullyHiddenOffset.x.toFloat()
                         isExpanded -> openSlide.x.toFloat()
                         isDragging -> 0f
                         else -> hidingOffset.x.toFloat()
@@ -116,6 +123,7 @@ fun BoxWithConstraintsScope.ButtonHandle(
             launch {
                 slideY.animateTo(
                     targetValue = when {
+                        !isVisible -> fullyHiddenOffset.y.toFloat()
                         isExpanded -> openSlide.y.toFloat()
                         isDragging -> 0f
                         else -> hidingOffset.y.toFloat()

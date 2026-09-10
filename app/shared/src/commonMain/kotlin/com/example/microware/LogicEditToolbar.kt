@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 internal fun BoxWithConstraintsScope.LogicEditToolbar(
     offered: Offer?,
     dragController: DragController,
+    isVisible: Boolean = true,
     usedTags: Set<LogicTag>,
     logics: List<Logic>,
     editing: Boolean,
@@ -45,6 +46,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
     }
 
     DrawerWithHandle(
+        isVisible = isVisible,
         side = HandleEdge.Left,
         expandedSide = expandedSide,
         dragController = dragController,
@@ -82,6 +84,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
     )
 
     DrawerWithHandle(
+        isVisible = isVisible,
         side = HandleEdge.Bottom,
         expandedSide = expandedSide,
         dragController = dragController,
@@ -121,6 +124,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
     }
 
     DrawerWithHandle(
+        isVisible = isVisible,
         side = HandleEdge.Right,
         expandedSide = expandedSide,
         dragController = dragController,

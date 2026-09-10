@@ -56,6 +56,7 @@ fun GameEditor(
 ) {
     var page by remember { mutableStateOf(GameEditorPage.World) }
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
+    var lastEditorPage by remember { mutableStateOf(GameEditorPage.World) }
     var playSession by remember { mutableStateOf(0) }
     val logicEnabled = mutableGame.value.world.logicTags.isNotEmpty() ||
             mutableGame.value.logics.isNotEmpty()
@@ -73,6 +74,12 @@ fun GameEditor(
         }
     }
 
+    LaunchedEffect(pagerState.settledPage) {
+        GameEditorPage.values()[pagerState.settledPage]
+            .takeUnless { it == GameEditorPage.Play }
+            ?.let { lastEditorPage = it }
+    }
+
     LaunchedEffect(page) {
         pagerState.animateScrollToPage(
             page = page.ordinal,
@@ -81,6 +88,8 @@ fun GameEditor(
     }
 
     val settledPage = GameEditorPage.values()[pagerState.settledPage]
+    val toolbarPage = if (settledPage == GameEditorPage.Play) lastEditorPage else settledPage
+    val handlesVisible = page != GameEditorPage.Play
 
     EditorPage(
         page = page,
@@ -149,11 +158,12 @@ fun GameEditor(
                 }
             }
 
-            when (settledPage) {
+            when (toolbarPage) {
                 GameEditorPage.World -> WorldEditorToolbar(
                     state = worldEditorState,
                     mutableWorld = mutableWorld,
                     library = library,
+                    isVisible = handlesVisible,
                 )
 
                 GameEditorPage.Logic -> LogicEditorToolbar(
@@ -164,6 +174,7 @@ fun GameEditor(
                     page = logicPage,
                     onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
                     onPageChange = { logicPage = it },
+                    isVisible = handlesVisible,
                 )
 
                 GameEditorPage.Play -> Unit

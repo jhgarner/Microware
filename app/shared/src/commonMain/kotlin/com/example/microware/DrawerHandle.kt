@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.round
 @Composable
 fun BoxWithConstraintsScope.DrawerWithHandle(
     buttonModifier: Modifier = Modifier,
+    isVisible: Boolean = true,
     side: HandleEdge,
     expandedSide: MutableState<HandleEdge?>,
     dragController: DragController,
@@ -35,7 +36,7 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
     drawerContent: @Composable () -> Unit,
 ) {
     var expandedSide by expandedSide
-    val isExpanded = expandedSide == side
+    val isExpanded = isVisible && expandedSide == side
     var isHovered by remember { mutableStateOf(false) }
     val foregroundColor = if (isHovered) highlightForeground else foreground
 
@@ -71,6 +72,7 @@ fun BoxWithConstraintsScope.DrawerWithHandle(
             }
         },
         isExpanded = isExpanded,
+        isVisible = isVisible,
         isDragging = offered != null,
         hiddenSlide = hiddenSlide,
         modifier = buttonModifier

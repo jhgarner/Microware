@@ -235,10 +235,12 @@ internal fun BoxWithConstraintsScope.WorldEditorToolbar(
     state: WorldEditorState,
     mutableWorld: MutableState<World>,
     library: MutableState<Library>,
+    isVisible: Boolean = true,
 ) {
     WorldEditToolbar(
         offered = state.dragController.offer,
         dragController = state.dragController,
+        isVisible = isVisible,
         settableTrash = state.mutableTrash,
         settableLibrary = library,
         settableWorld = mutableWorld,

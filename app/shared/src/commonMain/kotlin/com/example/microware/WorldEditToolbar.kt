@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 fun BoxWithConstraintsScope.WorldEditToolbar(
     offered: Offer?,
     dragController: DragController,
+    isVisible: Boolean = true,
     settableWorld: MutableState<World>,
     settableObjectEdited: MutableState<Obj?>,
     willBeDeleted: MutableState<Boolean>,
@@ -36,6 +37,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     }
 
     DrawerWithHandle(
+        isVisible = isVisible,
         side = HandleEdge.Left,
         expandedSide = expandedSide,
         dragController = dragController,
@@ -55,6 +57,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     )
 
     DrawerWithHandle(
+        isVisible = isVisible,
         side = HandleEdge.Bottom,
         expandedSide = expandedSide,
         dragController = dragController,
@@ -105,6 +108,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     }
 
     DrawerWithHandle(
+        isVisible = isVisible,
         side = HandleEdge.Right,
         expandedSide = expandedSide,
         dragController = dragController,
