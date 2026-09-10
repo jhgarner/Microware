@@ -24,6 +24,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
     onLogicChange: (Logic) -> Unit,
     onLogicsChange: (List<Logic>) -> Unit,
     onPageChange: (LogicEditorPage) -> Unit,
+    onNewLogicAtTop: () -> Unit,
     settableTrash: MutableState<Trash>,
     settableLibrary: MutableState<Library>,
     willBeDeleted: MutableState<Boolean>,
@@ -91,8 +92,12 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
             val logic = offer.item as? Logic ?: return@DrawerWithHandle
             val sourceIndex = (offer.from as? LogicListItemDragSource)?.index
             val logicToEdit = sourceIndex?.let { logic } ?: logic.copy(id = logics.nextId())
-            val index = sourceIndex ?: logics.size.also {
-                onLogicsChange(logics + logicToEdit)
+            val index = if (sourceIndex != null) {
+                sourceIndex
+            } else {
+                onNewLogicAtTop()
+                onLogicsChange(listOf(logicToEdit) + logics)
+                0
             }
             onPageChange(LogicEditorPage.Editing(index))
             expandedSide.value = HandleEdge.Bottom

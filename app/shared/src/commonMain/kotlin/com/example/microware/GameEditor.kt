@@ -46,7 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private enum class GameEditorPage { World, Logic }
+private enum class GameEditorPage { World, Logic, Play }
 
 @Composable
 fun GameEditor(
@@ -56,11 +56,13 @@ fun GameEditor(
 ) {
     var page by remember { mutableStateOf(GameEditorPage.World) }
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
+    var playSession by remember { mutableStateOf(0) }
     val logicEnabled = mutableGame.value.world.logicTags.isNotEmpty() ||
-        mutableGame.value.logics.isNotEmpty()
+            mutableGame.value.logics.isNotEmpty()
     val mutableWorld = remember(mutableGame) { mutableGame.worldState() }
     val worldEditorState = rememberWorldEditorState()
     val logicEditorState = rememberLogicEditorState()
+    val player = remember(playSession) { Player(mutableGame.value) }
 
     LaunchedEffect(logicEnabled) {
         if (!logicEnabled && page == GameEditorPage.Logic) {
@@ -72,9 +74,12 @@ fun GameEditor(
         page = page,
         logicEnabled = logicEnabled,
         onPageChange = { selectedPage ->
-            if (selectedPage == GameEditorPage.World || logicEnabled) {
+            if (selectedPage != GameEditorPage.Logic || logicEnabled) {
                 if (selectedPage == GameEditorPage.World) {
                     logicPage = LogicEditorPage.List
+                }
+                if (selectedPage == GameEditorPage.Play && page != GameEditorPage.Play) {
+                    playSession++
                 }
                 page = selectedPage
             }
@@ -95,21 +100,22 @@ fun GameEditor(
         val activeDragController = when (page) {
             GameEditorPage.World -> worldEditorState.dragController
             GameEditorPage.Logic -> logicEditorState.dragController
+            GameEditorPage.Play -> null
         }
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .onGloballyPositioned {
-                    activeDragController.setRootCoordinates(it)
+                    activeDragController?.setRootCoordinates(it)
                     logicEditorState.rootOriginInWindow = it.positionInWindow()
                 }
-                .dragObserver(activeDragController),
+                .then(activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier),
         ) {
             AnimatedContent(
                 targetState = page,
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
-                    val direction = if (targetState == GameEditorPage.Logic) 1 else -1
+                    val direction = if (targetState == GameEditorPage.World) -1 else 1
                     slideInHorizontally(
                         animationSpec = tween(durationMillis = 300),
                         initialOffsetX = { width -> direction * width },
@@ -129,11 +135,15 @@ fun GameEditor(
                     GameEditorPage.Logic -> LogicEditorContent(
                         world = mutableGame.value.world,
                         logics = mutableGame.value.logics,
-                        onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
+                        onLogicsChange = {
+                            mutableGame.value = mutableGame.value.copy(logics = it)
+                        },
                         state = logicEditorState,
                         page = logicPage,
                         onPageChange = { logicPage = it },
                     )
+
+                    GameEditorPage.Play -> player.PlayGame()
                 }
             }
 
@@ -153,6 +163,8 @@ fun GameEditor(
                     onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
                     onPageChange = { logicPage = it },
                 )
+
+                GameEditorPage.Play -> Unit
             }
         }
     }
@@ -183,7 +195,7 @@ private fun EditorPage(
             ) { _ -> drawBackIcon() }
             Row(
                 modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 EditorTabButton(
                     description = "Edit world",
@@ -196,6 +208,11 @@ private fun EditorPage(
                     enabled = logicEnabled,
                     onClick = { onPageChange(GameEditorPage.Logic) },
                 ) { _ -> drawLogicIcon(logicEnabled) }
+                EditorTabButton(
+                    description = "Play game",
+                    selected = page == GameEditorPage.Play,
+                    onClick = { onPageChange(GameEditorPage.Play) },
+                ) { _ -> drawPlayIcon() }
             }
         }
         Box(Modifier.weight(1f)) { content() }
@@ -214,6 +231,7 @@ private fun EditorTabButton(
         description = description,
         selected = selected,
         enabled = enabled,
+        padding = 0.dp,
         buttonSize = 52.dp,
         onClick = onClick,
         icon = icon,
@@ -224,6 +242,7 @@ private fun EditorTabButton(
 internal fun IconButton(
     description: String,
     modifier: Modifier = Modifier,
+    padding: Dp = 4.dp,
     selected: Boolean = false,
     enabled: Boolean = true,
     buttonSize: Dp? = 48.dp,
@@ -249,7 +268,7 @@ internal fun IconButton(
         enabled = enabled,
         modifier = modifier
             .then(buttonSize?.let { Modifier.size(it) } ?: Modifier)
-            .padding(4.dp)
+            .padding(padding)
             .semantics {
                 contentDescription = description
             },
@@ -304,6 +323,17 @@ internal fun DrawScope.drawBackIcon() {
         stroke,
         StrokeCap.Round
     )
+}
+
+internal fun DrawScope.drawPlayIcon() {
+    val path = Path().apply {
+        moveTo(size.width * .34f, size.height * .2f)
+        lineTo(size.width * .76f, size.height * .5f)
+        lineTo(size.width * .34f, size.height * .8f)
+        close()
+    }
+    drawPath(path, Palette.Green.color)
+    drawPath(path, Color.Black, style = Stroke(2.dp.toPx()))
 }
 
 internal fun DrawScope.drawWorldIcon() {

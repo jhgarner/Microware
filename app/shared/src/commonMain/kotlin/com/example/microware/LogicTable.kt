@@ -1,7 +1,7 @@
 package com.example.microware
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -29,8 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -77,12 +77,19 @@ internal fun LogicTable(
     willBeDeleted: Boolean = false,
     onDrop: ((Offer, Int, DropCompletion) -> Unit)? = null,
     dropAnimation: LogicDropAnimation? = null,
+    scrollToTopRequest: Int = 0,
     onItemBoundsChanged: ((Int, Rect) -> Unit)? = null,
 ) {
     val hasInsertionTargets = onDrop != null
     val density = LocalDensity.current
     val state = rememberLazyListState()
     var rootOriginInWindow by remember { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(scrollToTopRequest) {
+        if (scrollToTopRequest > 0 && items.isNotEmpty()) {
+            state.scrollToItem(0)
+        }
+    }
 
     Box(
         modifier = modifier.onGloballyPositioned {

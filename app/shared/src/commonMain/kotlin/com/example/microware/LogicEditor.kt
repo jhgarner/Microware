@@ -125,9 +125,15 @@ internal class LogicEditorState {
     val listItemBounds = mutableMapOf<Int, Rect>()
     var dropAnimation by mutableStateOf<LogicDropAnimation?>(null)
     var rootOriginInWindow by mutableStateOf(Offset.Zero)
+    var logicListScrollRequest by mutableStateOf(0)
+        private set
     private var nextDropAnimationRequest = 0
 
     fun nextDropAnimationRequest(): Int = ++nextDropAnimationRequest
+
+    fun scrollLogicListToTop() {
+        logicListScrollRequest++
+    }
 }
 
 @Composable
@@ -246,6 +252,7 @@ internal fun LogicEditorContent(
                 offered = offer,
                 willBeDeleted = state.willBeDeleted.value,
                 dropAnimation = state.dropAnimation,
+                scrollToTopRequest = state.logicListScrollRequest,
                 onItemBoundsChanged = { index, bounds ->
                     logics.getOrNull(index)?.let { logic ->
                         state.listItemBounds[logic.id] = bounds
@@ -293,8 +300,9 @@ internal fun BoxWithConstraintsScope.LogicEditorToolbar(
         editingLogic = editingIndex?.takeIf { it >= 0 }?.let(logics::getOrNull),
         onLogicChange = { changedLogic ->
             if (editingIndex == null) {
-                onLogicsChange(logics + changedLogic.copy(id = logics.nextId()))
-                onPageChange(LogicEditorPage.Editing(logics.size))
+                state.scrollLogicListToTop()
+                onLogicsChange(listOf(changedLogic.copy(id = logics.nextId())) + logics)
+                onPageChange(LogicEditorPage.Editing(0))
             } else {
                 onLogicsChange(
                     logics.mapIndexed { candidateIndex, logic ->
@@ -305,6 +313,7 @@ internal fun BoxWithConstraintsScope.LogicEditorToolbar(
         },
         onLogicsChange = onLogicsChange,
         onPageChange = onPageChange,
+        onNewLogicAtTop = state::scrollLogicListToTop,
         settableTrash = state.mutableTrash,
         settableLibrary = library,
         willBeDeleted = state.willBeDeleted,
@@ -1141,7 +1150,12 @@ private fun DrawScope.drawTrainIcon(t: Float = 0f) {
     drawPath(cowcatcher, Palette.Yellow.color)
     drawPath(cowcatcher, Color.Black, style = Stroke(strokeWidth))
     drawCircle(Palette.Yellow.color, size.minDimension * .045f, point(.78f, .43f))
-    drawCircle(Color.Black, size.minDimension * .045f, point(.78f, .43f), style = Stroke(strokeWidth / 1.5f))
+    drawCircle(
+        Color.Black,
+        size.minDimension * .045f,
+        point(.78f, .43f),
+        style = Stroke(strokeWidth / 1.5f)
+    )
 
     trainSteamPuffs.forEach { puff ->
         val localTime = t - puff.delay
