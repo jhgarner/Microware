@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
-import kotlinx.collections.immutable.toPersistentList
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -46,9 +45,10 @@ private data class StoredObj(
     val id: Int,
     val offsetX: Float,
     val offsetY: Float,
-    val width: Int,
-    val height: Int,
-    val pixels: List<Int>,
+    val sprite: StoredSprite? = null,
+    val width: Int? = null,
+    val height: Int? = null,
+    val pixels: List<Int>? = null,
 )
 
 @Serializable
@@ -101,24 +101,30 @@ private fun Obj.toStoredObj(): StoredObj = StoredObj(
     id = id,
     offsetX = offset.x,
     offsetY = offset.y,
-    width = sprite.width,
-    height = sprite.height,
-    pixels = sprite.rows.flatMap { row -> row.map { it.ordinal } }
+    sprite = SpriteCodec.encode(sprite),
 )
 
 private fun StoredObj.toObj(): Obj {
-    require(width > 0 && height > 0)
-    require(pixels.size == width * height)
-    val palette = Palette.entries
-    val rows = pixels.chunked(width).map { row ->
-        row.map { palette.getOrNull(it) ?: error("Unknown palette value: $it") }
-            .toPersistentList()
-    }.toPersistentList()
+    val decodedSprite = sprite?.let(SpriteCodec::decode) ?: decodeLegacySprite()
     return Obj(
         id = id,
         offset = Offset(offsetX, offsetY),
-        sprite = Sprite(rows)
+        sprite = decodedSprite,
     )
+}
+
+private fun StoredObj.decodeLegacySprite(): Sprite {
+    val legacyWidth = width ?: error("Missing sprite width")
+    val legacyHeight = height ?: error("Missing sprite height")
+    val legacyPixels = pixels ?: error("Missing sprite pixels")
+    require(legacyWidth > 0 && legacyHeight > 0)
+    require(legacyPixels.size == legacyWidth * legacyHeight)
+    val codes = ByteArray(legacyPixels.size) { index ->
+        val code = legacyPixels[index]
+        Palette.fromCode(code)
+        code.toByte()
+    }
+    return Sprite.fromPaletteCodes(legacyWidth, legacyHeight, codes)
 }
 
 private fun Logic.toStoredLogic(): StoredLogic = StoredLogic(

@@ -271,9 +271,7 @@ private fun WorldSprite(
             (obj.sprite.height * scale).roundToInt().coerceAtLeast(1)
         )
     }
-    val isFullyTransparent = obj.sprite.rows.all { row ->
-        row.all { it == Palette.Clear }
-    }
+    val isFullyTransparent = obj.sprite.isFullyTransparent()
     val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val modifier = Modifier
         .requiredSize(

@@ -80,8 +80,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
             Column(modifier = Modifier.fillMaxSize()) {
                 EditableCanvas(
                     sprite = obj.sprite,
-                    edit = { edit ->
-                        val newObj = obj.copy(sprite = obj.sprite.update(edit))
+                    commit = { committedSprite ->
+                        val newObj = obj.copy(sprite = committedSprite)
                         objectBeingEdited = newObj
                         world = world.updateObject(newObj)
                     },

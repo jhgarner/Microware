@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -25,7 +26,10 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
@@ -73,7 +77,7 @@ private fun cellsBetween(start: Cell, end: Cell): List<Cell> {
 @Composable
 fun EditableCanvas(
     sprite: Sprite,
-    edit: (Sprite.Edits) -> Unit,
+    commit: (Sprite) -> Unit,
     resize: (SpriteBounds) -> Unit,
     modifier: Modifier = Modifier,
     editorKey: Any = Unit,
@@ -86,6 +90,10 @@ fun EditableCanvas(
     val panState = remember(editorKey) { mutableStateOf(Offset.Zero) }
     val zoomState = remember(editorKey) { mutableStateOf(1f) }
     val viewportSizeState = remember(editorKey) { mutableStateOf(IntSize.Zero) }
+    val draft = remember(editorKey) { MutableSpriteDraft(sprite) }
+    LaunchedEffect(sprite) {
+        draft.synchronize(sprite)
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -124,11 +132,12 @@ fun EditableCanvas(
             selectedTool = selectedTool,
             penColor = penColor,
             sprite = sprite,
+            draft = draft,
             boundsState = boundsState,
             panState = panState,
             zoomState = zoomState,
             viewportSizeState = viewportSizeState,
-            edit = edit,
+            commit = commit,
         )
     }
 }
@@ -138,11 +147,12 @@ private fun Content(
     selectedTool: SpriteEditorTool,
     penColor: Palette,
     sprite: Sprite,
+    draft: MutableSpriteDraft,
     boundsState: MutableState<SpriteBounds>,
     panState: MutableState<Offset>,
     zoomState: MutableState<Float>,
     viewportSizeState: MutableState<IntSize>,
-    edit: (Sprite.Edits) -> Unit,
+    commit: (Sprite) -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -156,7 +166,13 @@ private fun Content(
             cropToSprite = selectedTool == SpriteEditorTool.Pen,
         )
         when (selectedTool) {
-            SpriteEditorTool.Pen -> SpriteCanvas(penColor, sprite, edit, panState, zoomState)
+            SpriteEditorTool.Pen -> SpriteCanvas(
+                penColor = penColor,
+                draft = draft,
+                commit = commit,
+                panState = panState,
+                zoomState = zoomState,
+            )
             SpriteEditorTool.Resize -> SpriteResizeCanvas(
                 sprite,
                 boundsState,
@@ -292,31 +308,34 @@ private fun BackgroundCanvas(
 @Composable
 private fun SpriteCanvas(
     penColor: Palette,
-    sprite: Sprite,
-    edit: (Sprite.Edits) -> Unit,
+    draft: MutableSpriteDraft,
+    commit: (Sprite) -> Unit,
     panState: MutableState<Offset>,
     zoomState: MutableState<Float>
 ) {
     var pan by panState
     var zoom by zoomState
-    val edit = rememberUpdatedState(edit)
-    val currentSprite = rememberUpdatedState(sprite)
+    val commit = rememberUpdatedState(commit)
+    val imagePaint = remember {
+        Paint().apply { filterQuality = FilterQuality.None }
+    }
     Canvas(
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
             .pointerInput(penColor) {
                 fun cellAt(position: Offset): Cell {
-                    val activeSprite = currentSprite.value
-                    val spriteSize = fittedSpriteSize(
+                    val frame = draft.frame
+                    val spriteSize = fittedSize(
                         Size(size.width.toFloat(), size.height.toFloat()),
-                        activeSprite
+                        frame.width,
+                        frame.height,
                     )
                     val offsetInitial = Offset(
                         (size.width - spriteSize.width) / 2f,
                         (size.height - spriteSize.height) / 2f
                     )
-                    val cellSize = spriteSize.width / activeSprite.width * zoomState.value
+                    val cellSize = spriteSize.width / frame.width * zoomState.value
                     return Cell(
                         row = floor((position.y - panState.value.y - offsetInitial.y) / cellSize).toInt(),
                         col = floor((position.x - panState.value.x - offsetInitial.x) / cellSize).toInt()
@@ -326,8 +345,9 @@ private fun SpriteCanvas(
                 racing {
                     sequence {
                         val cell = cellAt(expectTap().position)
-                        if (currentSprite.value.inBounds(cell.row, cell.col)) {
-                            edit.value(Sprite.Edits.Write(cell.row, cell.col, penColor))
+                        if (draft.inBounds(cell.row, cell.col)) {
+                            draft.apply(Sprite.Edits.Write(cell.row, cell.col, penColor))
+                            commit.value(draft.toSprite())
                         }
                     }
                     sequence {
@@ -337,25 +357,28 @@ private fun SpriteCanvas(
                             val currentCell = cellAt(change.position)
                             previousCell?.let { previous ->
                                 val edits = cellsBetween(previous, currentCell).mapNotNull { cell ->
-                                    if (currentSprite.value.inBounds(cell.row, cell.col) && visited.add(cell)) {
+                                    if (draft.inBounds(cell.row, cell.col) && visited.add(cell)) {
                                         Sprite.Edits.Write(cell.row, cell.col, penColor)
                                     } else {
                                         null
                                     }
                                 }
                                 if (edits.isNotEmpty()) {
-                                    edit.value(Sprite.Edits.WriteMany(edits))
+                                    draft.apply(Sprite.Edits.WriteMany(edits))
                                 }
                             }
                             previousCell = currentCell
                         }
+                        commit.value(draft.toSprite())
                     }
                     sequence {
                         var lastOffset: Offset? = null
                         var lastSize: Float? = null
-                        val spriteSize = fittedSpriteSize(
+                        val frame = draft.frame
+                        val spriteSize = fittedSize(
                             Size(size.width.toFloat(), size.height.toFloat()),
-                            sprite
+                            frame.width,
+                            frame.height,
                         )
                         val spriteOrigin = Offset(
                             (size.width - spriteSize.width) / 2f,
@@ -380,27 +403,33 @@ private fun SpriteCanvas(
         // This avoids banding/gaps from flooring the cell size and from
         // fractional pan offsets. Each cell's edges are computed as
         // floor(col * exactCellSize + pan) so adjacent cells share an edge.
-        val spriteSize = fittedSpriteSize(size, sprite)
+        val frame = draft.frame
+        val spriteSize = fittedSize(size, frame.width, frame.height)
         val offsetInitial = Offset(
             (size.width - spriteSize.width) / 2f,
             (size.height - spriteSize.height) / 2f
         )
-        val exactCellSize = spriteSize.width / sprite.width * zoom
+        val exactCellSize = spriteSize.width / frame.width * zoom
 
-        for (row in 0 until sprite.height) {
-            val top = floor(row * exactCellSize + pan.y + offsetInitial.y)
-            val bottom = floor((row + 1) * exactCellSize + pan.y + offsetInitial.y)
-            val h = bottom - top
-            for (col in 0 until sprite.width) {
-                val left = floor(col * exactCellSize + pan.x + offsetInitial.x)
-                val right = floor((col + 1) * exactCellSize + pan.x + offsetInitial.x)
-                val w = right - left
-                drawRect(
-                    color = sprite.get(row, col).color,
-                    topLeft = Offset(left, top),
-                    size = Size(w, h)
-                )
-            }
+        val left = floor(offsetInitial.x + pan.x)
+        val top = floor(offsetInitial.y + pan.y)
+        val right = floor(offsetInitial.x + pan.x + frame.width * exactCellSize)
+        val bottom = floor(offsetInitial.y + pan.y + frame.height * exactCellSize)
+        drawIntoCanvas { canvas ->
+            canvas.drawImageRect(
+                image = frame.bitmap,
+                srcOffset = androidx.compose.ui.unit.IntOffset.Zero,
+                srcSize = androidx.compose.ui.unit.IntSize(frame.width, frame.height),
+                dstOffset = androidx.compose.ui.unit.IntOffset(
+                    left.toInt(),
+                    top.toInt(),
+                ),
+                dstSize = androidx.compose.ui.unit.IntSize(
+                    (right - left).toInt().coerceAtLeast(1),
+                    (bottom - top).toInt().coerceAtLeast(1),
+                ),
+                paint = imagePaint,
+            )
         }
     }
 }
@@ -409,5 +438,5 @@ private fun SpriteCanvas(
 @Composable
 private fun TestCanvas() {
     val sprite by remember { mutableStateOf(Sprite.empty(20, 20)) }
-    EditableCanvas(sprite, sprite::update, {})
+    EditableCanvas(sprite, {}, {})
 }

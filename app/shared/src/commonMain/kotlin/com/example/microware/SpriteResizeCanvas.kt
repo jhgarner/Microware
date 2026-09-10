@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -12,14 +13,19 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.floor
@@ -91,6 +97,9 @@ fun SpriteResizeCanvas(
     var pan by panState
     var zoom by zoomState
     val currentBounds = rememberUpdatedState(boundsState.value)
+    val imagePaint = remember {
+        Paint().apply { filterQuality = FilterQuality.None }
+    }
 
     Canvas(
         modifier = Modifier
@@ -168,7 +177,7 @@ fun SpriteResizeCanvas(
             },
     ) {
         val geometry = resizeGeometry(size, sprite, pan, zoom)
-        drawSprite(sprite, geometry)
+        drawSprite(sprite, geometry, imagePaint)
         drawResizeOverlay(boundsState.value, geometry)
     }
 }
@@ -218,19 +227,27 @@ private fun resizeGeometry(
     )
 }
 
-private fun DrawScope.drawSprite(sprite: Sprite, geometry: ResizeGeometry) {
-    for (row in 0 until sprite.height) {
-        val top = floor(geometry.origin.y + row * geometry.cellSize)
-        val bottom = floor(geometry.origin.y + (row + 1) * geometry.cellSize)
-        for (col in 0 until sprite.width) {
-            val left = floor(geometry.origin.x + col * geometry.cellSize)
-            val right = floor(geometry.origin.x + (col + 1) * geometry.cellSize)
-            drawRect(
-                color = sprite.get(row, col).color,
-                topLeft = Offset(left, top),
-                size = Size(right - left, bottom - top),
-            )
-        }
+private fun DrawScope.drawSprite(
+    sprite: Sprite,
+    geometry: ResizeGeometry,
+    paint: Paint,
+) {
+    val left = floor(geometry.origin.x)
+    val top = floor(geometry.origin.y)
+    val right = floor(geometry.origin.x + sprite.width * geometry.cellSize)
+    val bottom = floor(geometry.origin.y + sprite.height * geometry.cellSize)
+    drawIntoCanvas { canvas ->
+        canvas.drawImageRect(
+            image = sprite.bitmap,
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(sprite.width, sprite.height),
+            dstOffset = IntOffset(left.toInt(), top.toInt()),
+            dstSize = IntSize(
+                (right - left).toInt().coerceAtLeast(1),
+                (bottom - top).toInt().coerceAtLeast(1),
+            ),
+            paint = paint,
+        )
     }
 }
 
