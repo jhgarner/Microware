@@ -1,15 +1,12 @@
 package com.example.microware
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
@@ -48,6 +47,7 @@ import androidx.compose.ui.unit.dp
 
 private enum class GameEditorPage { World, Logic, Play }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GameEditor(
     mutableGame: MutableState<Game>,
@@ -63,12 +63,24 @@ fun GameEditor(
     val worldEditorState = rememberWorldEditorState()
     val logicEditorState = rememberLogicEditorState()
     val player = remember(playSession) { Player(mutableGame.value) }
+    val pagerState = rememberPagerState(initialPage = GameEditorPage.World.ordinal) {
+        GameEditorPage.values().size
+    }
 
     LaunchedEffect(logicEnabled) {
         if (!logicEnabled && page == GameEditorPage.Logic) {
             page = GameEditorPage.World
         }
     }
+
+    LaunchedEffect(page) {
+        pagerState.animateScrollToPage(
+            page = page.ordinal,
+            animationSpec = tween(durationMillis = 300),
+        )
+    }
+
+    val settledPage = GameEditorPage.values()[pagerState.settledPage]
 
     EditorPage(
         page = page,
@@ -97,7 +109,7 @@ fun GameEditor(
             "Back from game editor"
         },
     ) {
-        val activeDragController = when (page) {
+        val activeDragController = when (settledPage) {
             GameEditorPage.World -> worldEditorState.dragController
             GameEditorPage.Logic -> logicEditorState.dragController
             GameEditorPage.Play -> null
@@ -111,22 +123,12 @@ fun GameEditor(
                 }
                 .then(activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier),
         ) {
-            AnimatedContent(
-                targetState = page,
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                transitionSpec = {
-                    val direction = if (targetState == GameEditorPage.World) -1 else 1
-                    slideInHorizontally(
-                        animationSpec = tween(durationMillis = 300),
-                        initialOffsetX = { width -> direction * width },
-                    ) togetherWith slideOutHorizontally(
-                        animationSpec = tween(durationMillis = 300),
-                        targetOffsetX = { width -> -direction * width },
-                    )
-                },
-                label = "editor content",
-            ) { visiblePage ->
-                when (visiblePage) {
+                userScrollEnabled = false,
+            ) { pageIndex ->
+                when (GameEditorPage.values()[pageIndex]) {
                     GameEditorPage.World -> WorldEditorContent(
                         mutableWorld = mutableWorld,
                         state = worldEditorState,
@@ -143,11 +145,11 @@ fun GameEditor(
                         onPageChange = { logicPage = it },
                     )
 
-                    GameEditorPage.Play -> player.PlayGame()
+                    GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
                 }
             }
 
-            when (page) {
+            when (settledPage) {
                 GameEditorPage.World -> WorldEditorToolbar(
                     state = worldEditorState,
                     mutableWorld = mutableWorld,

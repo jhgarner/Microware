@@ -153,11 +153,13 @@ data class Player(
     }
 
     @Composable
-    fun PlayGame() {
+    fun PlayGame(active: Boolean = true) {
         var frameTime by remember(this@Player) { mutableStateOf(0L) }
         var canvasSize by remember(this@Player) { mutableStateOf(IntSize.Zero) }
 
-        LaunchedEffect(this@Player) {
+        LaunchedEffect(this@Player, active) {
+            if (!active) return@LaunchedEffect
+
             var previousFrame = withFrameMillis { it }
             frameTime = previousFrame
 
@@ -175,9 +177,11 @@ data class Player(
                 .fillMaxSize()
                 .clipToBounds()
                 .onSizeChanged { canvasSize = it }
-                .pointerInput(this@Player, canvasSize) {
-                    detectTapGestures { location ->
-                        gameLocation(location, canvasSize)?.let(::tap)
+                .pointerInput(this@Player, canvasSize, active) {
+                    if (active) {
+                        detectTapGestures { location ->
+                            gameLocation(location, canvasSize)?.let(::tap)
+                        }
                     }
                 },
         ) {
