@@ -44,24 +44,24 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private enum class GameEditorPage { World, Logic, Play }
+private enum class GameEditorPage { World, Objects, Logic, Play }
 
 @Composable
 fun GameEditor(
-    mutableGame: MutableState<Game>,
+    game: Game,
     library: MutableState<Library>,
+    onWorldChange: (World) -> Unit,
+    onLogicsChange: (List<Logic>) -> Unit,
     onBack: () -> Unit = {},
 ) {
     var page by remember { mutableStateOf(GameEditorPage.World) }
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
     var lastEditorPage by remember { mutableStateOf(GameEditorPage.World) }
     var playSession by remember { mutableStateOf(0) }
-    val logicEnabled = mutableGame.value.world.logicTags.isNotEmpty() ||
-            mutableGame.value.logics.isNotEmpty()
-    val mutableWorld = remember(mutableGame) { mutableGame.worldState() }
+    val logicEnabled = game.world.logicTags.isNotEmpty() || game.logics.isNotEmpty()
     val worldEditorState = rememberWorldEditorState()
     val logicEditorState = rememberLogicEditorState()
-    val player = remember(playSession) { Player(mutableGame.value) }
+    val player = remember(playSession) { Player(game) }
     val pagerState = rememberPagerState(initialPage = GameEditorPage.World.ordinal) {
         GameEditorPage.entries.size
     }
@@ -117,7 +117,9 @@ fun GameEditor(
         },
     ) {
         val activeDragController = when (settledPage) {
-            GameEditorPage.World -> worldEditorState.dragController
+            GameEditorPage.World,
+            GameEditorPage.Objects,
+            -> worldEditorState.dragController
             GameEditorPage.Logic -> logicEditorState.dragController
             GameEditorPage.Play -> null
         }
@@ -137,16 +139,21 @@ fun GameEditor(
             ) { pageIndex ->
                 when (GameEditorPage.entries[pageIndex]) {
                     GameEditorPage.World -> WorldEditorContent(
-                        mutableWorld = mutableWorld,
+                        world = game.world,
+                        onWorldChange = onWorldChange,
+                        state = worldEditorState,
+                    )
+
+                    GameEditorPage.Objects -> ObjectOrderEditor(
+                        world = game.world,
+                        onWorldChange = onWorldChange,
                         state = worldEditorState,
                     )
 
                     GameEditorPage.Logic -> LogicEditorContent(
-                        world = mutableGame.value.world,
-                        logics = mutableGame.value.logics,
-                        onLogicsChange = {
-                            mutableGame.value = mutableGame.value.copy(logics = it)
-                        },
+                        world = game.world,
+                        logics = game.logics,
+                        onLogicsChange = onLogicsChange,
                         state = logicEditorState,
                         page = logicPage,
                         onPageChange = { logicPage = it },
@@ -159,18 +166,30 @@ fun GameEditor(
             when (toolbarPage) {
                 GameEditorPage.World -> WorldEditorToolbar(
                     state = worldEditorState,
-                    mutableWorld = mutableWorld,
+                    world = game.world,
+                    onWorldChange = onWorldChange,
                     library = library,
                     isVisible = handlesVisible,
                 )
 
+                GameEditorPage.Objects -> WorldEditorToolbar(
+                    state = worldEditorState,
+                    world = game.world,
+                    onWorldChange = onWorldChange,
+                    library = library,
+                    isVisible = handlesVisible && (
+                        worldEditorState.dragController.offer != null ||
+                            worldEditorState.objectBeingEdited.value != null
+                        ),
+                )
+
                 GameEditorPage.Logic -> LogicEditorToolbar(
                     state = logicEditorState,
-                    world = mutableGame.value.world,
-                    logics = mutableGame.value.logics,
+                    world = game.world,
+                    logics = game.logics,
                     library = library,
                     page = logicPage,
-                    onLogicsChange = { mutableGame.value = mutableGame.value.copy(logics = it) },
+                    onLogicsChange = onLogicsChange,
                     onPageChange = { logicPage = it },
                     isVisible = handlesVisible,
                 )
@@ -213,6 +232,11 @@ private fun EditorPage(
                     selected = page == GameEditorPage.World,
                     onClick = { onPageChange(GameEditorPage.World) },
                 ) { _ -> drawWorldIcon() }
+                EditorTabButton(
+                    description = "Order objects",
+                    selected = page == GameEditorPage.Objects,
+                    onClick = { onPageChange(GameEditorPage.Objects) },
+                ) { _ -> drawObjectOrderIcon() }
                 EditorTabButton(
                     description = "Edit logic",
                     selected = page == GameEditorPage.Logic,
@@ -296,18 +320,6 @@ internal fun IconButton(
             icon(iconAnimation.value)
         }
     }
-}
-
-private fun MutableState<Game>.worldState(): MutableState<World> = object : MutableState<World> {
-    override var value: World
-        get() = this@worldState.value.world
-        set(value) {
-            this@worldState.value = this@worldState.value.copy(world = value)
-        }
-
-    override fun component1(): World = value
-
-    override fun component2(): (World) -> Unit = { value = it }
 }
 
 internal fun DrawScope.drawBackIcon() {

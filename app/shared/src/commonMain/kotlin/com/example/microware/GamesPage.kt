@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,86 +59,15 @@ import kotlin.math.roundToInt
 
 private object GameListDragSource
 
-private data class DeletedGame(
-    val game: Game,
-    val index: Int,
-)
-
-internal class GameListState(initialGames: List<Game>) {
-    var games by mutableStateOf(initialGames)
-        private set
-
-    private var deletedGames by mutableStateOf(emptyList<DeletedGame>())
-
-    val canUndo: Boolean
-        get() = deletedGames.isNotEmpty()
-
-    fun createGame(): Game {
-        val game = Game(
-            world = World(),
-            logics = emptyList(),
-            id = nextId(),
-        )
-        games += game
-        return game
-    }
-
-    fun deleteGame(id: Int) {
-        val index = games.indexOfFirst { it.id == id }
-        if (index < 0) return
-
-        deletedGames += DeletedGame(games[index], index)
-        games = games.filterIndexed { itemIndex, _ -> itemIndex != index }
-    }
-
-    fun undoDelete() {
-        val deleted = deletedGames.lastOrNull() ?: return
-        deletedGames = deletedGames.dropLast(1)
-        val insertionIndex = deleted.index.coerceIn(0, games.size)
-        games = games.toMutableList().apply {
-            add(insertionIndex, deleted.game)
-        }
-    }
-
-    fun moveGame(id: Int, targetIndex: Int) {
-        if (games.size < 2) return
-        val sourceIndex = games.indexOfFirst { it.id == id }
-        if (sourceIndex < 0) return
-        val destinationIndex = targetIndex.coerceIn(0, games.lastIndex)
-        if (sourceIndex == destinationIndex) return
-
-        val reordered = games.toMutableList()
-        val game = reordered.removeAt(sourceIndex)
-        reordered.add(destinationIndex.coerceIn(0, reordered.size), game)
-        games = reordered
-    }
-
-    fun gameState(id: Int): MutableState<Game> = object : MutableState<Game> {
-        override var value: Game
-            get() = games.first { it.id == id }
-            set(value) {
-                games = games.map { game ->
-                    if (game.id == id) value else game
-                }
-            }
-
-        override fun component1(): Game = value
-
-        override fun component2(): (Game) -> Unit = { value = it }
-    }
-
-    private fun nextId(): Int = (
-            (games.asSequence() + deletedGames.asSequence().map { it.game })
-                .map { it.id }
-                .maxOrNull()
-                ?: 0
-            ) + 1
-}
-
 @Composable
 internal fun GamesPage(
-    state: GameListState,
+    games: List<Game>,
+    canUndo: Boolean,
     onOpenGame: (Int) -> Unit,
+    onCreateGame: () -> Int,
+    onDeleteGame: (Int) -> Unit,
+    onUndoDelete: () -> Unit,
+    onMoveGame: (Int, Int) -> Unit,
 ) {
     val dragController = remember { DragController() }
     val offered = dragController.offer
@@ -169,12 +97,12 @@ internal fun GamesPage(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (state.canUndo) {
+                if (canUndo) {
                     IconButton(
                         description = "Undo delete",
                         padding = 0.dp,
                         buttonSize = 56.dp,
-                        onClick = state::undoDelete,
+                        onClick = onUndoDelete,
                     ) { _ -> drawUndoIcon() }
                 }
                 GameCreateButton(
@@ -182,17 +110,17 @@ internal fun GamesPage(
                     isDragging = offered != null,
                     dragController = dragController,
                     offered = offered,
-                    onCreate = { onOpenGame(state.createGame().id) },
-                    onDelete = { gameId -> state.deleteGame(gameId) },
+                    onCreate = { onOpenGame(onCreateGame()) },
+                    onDelete = onDeleteGame,
                 )
             }
 
             GameGrid(
-                games = state.games,
+                games = games,
                 dragController = dragController,
                 offered = offered,
                 onOpenGame = onOpenGame,
-                onMoveGame = state::moveGame,
+                onMoveGame = onMoveGame,
                 gameBounds = gameBounds,
                 onBoundsChanged = { gameId, bounds -> gameBounds[gameId] = bounds },
                 modifier = Modifier.weight(1f),

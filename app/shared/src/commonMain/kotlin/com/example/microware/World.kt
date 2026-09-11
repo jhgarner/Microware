@@ -124,11 +124,30 @@ data class World(
         objects = objects.filterNot { it.id == id },
         logicTags = logicTags.filterValues { it != id },
     )
+
+    fun reorderObject(id: Int, targetIndex: Int): World {
+        val sourceIndex = objects.indexOfFirst { it.id == id }
+        if (sourceIndex < 0 || objects.size < 2) return this
+
+        val destinationIndex = if (targetIndex > sourceIndex) {
+            targetIndex - 1
+        } else {
+            targetIndex
+        }
+        val insertionIndex = destinationIndex.coerceIn(0, objects.lastIndex)
+        if (sourceIndex == insertionIndex) return this
+
+        val reordered = objects.toMutableList()
+        val obj = reordered.removeAt(sourceIndex)
+        reordered.add(insertionIndex, obj)
+        return copy(objects = reordered)
+    }
 }
 
 @Composable
 fun WorldEditor(
-    mutableWorld: MutableState<World>,
+    world: World,
+    onWorldChange: (World) -> Unit,
     library: MutableState<Library>,
 ) {
     val state = rememberWorldEditorState()
@@ -139,18 +158,23 @@ fun WorldEditor(
             .onGloballyPositioned { state.dragController.setRootCoordinates(it) }
             .dragObserver(state.dragController)
     ) {
-        WorldEditorContent(mutableWorld = mutableWorld, state = state)
-        WorldEditorToolbar(state = state, mutableWorld = mutableWorld, library = library)
+        WorldEditorContent(world = world, onWorldChange = onWorldChange, state = state)
+        WorldEditorToolbar(
+            state = state,
+            world = world,
+            onWorldChange = onWorldChange,
+            library = library,
+        )
     }
 }
 
 @Composable
 internal fun WorldEditorContent(
-    mutableWorld: MutableState<World>,
+    world: World,
+    onWorldChange: (World) -> Unit,
     state: WorldEditorState,
     modifier: Modifier = Modifier.fillMaxSize(),
 ) {
-    var world by mutableWorld
     val offer = state.dragController.offer
     val toolbarHeight = HandleSize + TrashGap
 
@@ -168,11 +192,11 @@ internal fun WorldEditorContent(
                         val localOffset =
                             (offer.offset - state.worldOriginInParent - offer.localOffset) / state.worldScale
                         val obj = world.clamped(offer.obj.copy(offset = localOffset))
-                        world = if (offer.from is World) {
+                        onWorldChange(if (offer.from is World) {
                             world.updateObject(obj)
                         } else {
                             world.addObject(obj)
-                        }
+                        })
                     },
                 )
         ) {
@@ -233,7 +257,8 @@ internal fun WorldEditorContent(
 @Composable
 internal fun BoxWithConstraintsScope.WorldEditorToolbar(
     state: WorldEditorState,
-    mutableWorld: MutableState<World>,
+    world: World,
+    onWorldChange: (World) -> Unit,
     library: MutableState<Library>,
     isVisible: Boolean = true,
 ) {
@@ -243,7 +268,8 @@ internal fun BoxWithConstraintsScope.WorldEditorToolbar(
         isVisible = isVisible,
         settableTrash = state.mutableTrash,
         settableLibrary = library,
-        settableWorld = mutableWorld,
+        world = world,
+        onWorldChange = onWorldChange,
         settableObjectEdited = state.objectBeingEdited,
         willBeDeleted = state.mutableWillBeDeleted,
     )

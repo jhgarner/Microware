@@ -18,7 +18,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     offered: Offer?,
     dragController: DragController,
     isVisible: Boolean = true,
-    settableWorld: MutableState<World>,
+    world: World,
+    onWorldChange: (World) -> Unit,
     settableObjectEdited: MutableState<Obj?>,
     willBeDeleted: MutableState<Boolean>,
     settableTrash: MutableState<Trash>,
@@ -26,12 +27,16 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
 ) {
     var trash by settableTrash
     var library by settableLibrary
-    var world by settableWorld
     var objectBeingEdited by settableObjectEdited
 
     val expandedSide = remember { mutableStateOf<HandleEdge?>(null) }
     LaunchedEffect(offered != null) {
         if (offered != null) {
+            expandedSide.value = null
+        }
+    }
+    LaunchedEffect(isVisible) {
+        if (!isVisible) {
             expandedSide.value = null
         }
     }
@@ -50,7 +55,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         onDragEnd = { willBeDeleted.value = false },
         onGiven = { offer, _ ->
             trash = trash.discard(offer.obj)
-            world = world.deleteObject(offer.obj.id)
+            onWorldChange(world.deleteObject(offer.obj.id))
         },
         buttonContent = { TrashControls(it) },
         drawerContent = { ObjectTable(items = trash.garbage, dragController = dragController) },
@@ -73,7 +78,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     ) {
         if (objectBeingEdited == null) {
             val obj = Obj(world.nextId(), 20, 20)
-            world = world.addObject(obj)
+            onWorldChange(world.addObject(obj))
             objectBeingEdited = obj
         }
         objectBeingEdited?.let { obj ->
@@ -83,7 +88,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                     commit = { committedSprite ->
                         val newObj = obj.copy(sprite = committedSprite)
                         objectBeingEdited = newObj
-                        world = world.updateObject(newObj)
+                        onWorldChange(world.updateObject(newObj))
                     },
                     resize = { bounds ->
                         val newObj = obj.copy(
@@ -94,11 +99,11 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                             sprite = obj.sprite.resized(bounds),
                         )
                         objectBeingEdited = world.clamped(newObj)
-                        world = world.updateObject(newObj)
+                        onWorldChange(world.updateObject(newObj))
                     },
                     logicTag = world.logicTagFor(obj.id),
                     onLogicTagChange = { logicTag ->
-                        world = world.assignLogicTag(obj.id, logicTag)
+                        onWorldChange(world.assignLogicTag(obj.id, logicTag))
                     },
                     modifier = Modifier.weight(1f),
                     editorKey = obj.id,
