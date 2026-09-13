@@ -14,10 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,7 +24,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -42,9 +38,7 @@ const val WorldWidth = MaxSpriteWidth
 const val WorldHeight = MaxSpriteHeight
 
 internal class WorldEditorState {
-    val dragController = DragController()
-    val objectBeingEdited = mutableStateOf<Obj?>(null)
-    val mutableTrash = mutableStateOf(Trash())
+    val dragController = DragController<Obj>()
     val mutableWillBeDeleted = mutableStateOf(false)
     var worldOriginInParent by mutableStateOf(Offset.Zero)
     var worldScale by mutableStateOf(1f)
@@ -89,6 +83,12 @@ data class World(
     }
 
     fun addObject(obj: Obj): World = copy(objects = objects + obj.copy(id = nextId()))
+    fun upsertObject(obj: Obj): World {
+        return objects.indexOfFirst { obj.id == it.id }.takeIf { it >= 0 }?.let {
+            updateObject(obj)
+        } ?: addObject(obj)
+    }
+
     fun nextId(): Int = (objects.maxOfOrNull { it.id } ?: 0) + 1
 
     fun logicTagFor(objectId: Int): LogicTag? {
@@ -142,36 +142,31 @@ data class World(
         reordered.add(insertionIndex, obj)
         return copy(objects = reordered)
     }
-}
 
-@Composable
-fun WorldEditor(
-    world: World,
-    onWorldChange: (World) -> Unit,
-    library: MutableState<Library>,
-) {
-    val state = rememberWorldEditorState()
+    fun reorderObjectFromTop(id: Int, targetIndex: Int): World {
+        val topFirst = objects.asReversed()
+        val sourceIndex = topFirst.indexOfFirst { it.id == id }
+        if (sourceIndex < 0 || topFirst.size < 2) return this
 
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .onGloballyPositioned { state.dragController.setRootCoordinates(it) }
-            .dragObserver(state.dragController)
-    ) {
-        WorldEditorContent(world = world, onWorldChange = onWorldChange, state = state)
-        WorldEditorToolbar(
-            state = state,
-            world = world,
-            onWorldChange = onWorldChange,
-            library = library,
-        )
+        val destinationIndex = if (targetIndex > sourceIndex) {
+            targetIndex - 1
+        } else {
+            targetIndex
+        }
+        val insertionIndex = destinationIndex.coerceIn(0, topFirst.lastIndex)
+        if (sourceIndex == insertionIndex) return this
+
+        val reordered = topFirst.toMutableList()
+        val obj = reordered.removeAt(sourceIndex)
+        reordered.add(insertionIndex, obj)
+        return copy(objects = reordered.asReversed())
     }
 }
 
 @Composable
 internal fun WorldEditorContent(
     world: World,
-    onWorldChange: (World) -> Unit,
+    handler: (WorldEvent) -> Unit,
     state: WorldEditorState,
     modifier: Modifier = Modifier.fillMaxSize(),
 ) {
@@ -187,16 +182,17 @@ internal fun WorldEditorContent(
                 .zIndex(if (offer != null) 1f else 0f)
                 .dropTarget(
                     dragController = state.dragController,
-                    offered = offer,
                     onGiven = { offer, _ ->
                         val localOffset =
                             (offer.offset - state.worldOriginInParent - offer.localOffset) / state.worldScale
                         val obj = world.clamped(offer.obj.copy(offset = localOffset))
-                        onWorldChange(if (offer.from is World) {
-                            world.updateObject(obj)
-                        } else {
-                            world.addObject(obj)
-                        })
+                        handler { world ->
+                            if (offer.from is World) {
+                                world.updateObject(obj)
+                            } else {
+                                world.addObject(obj)
+                            }
+                        }
                     },
                 )
         ) {
@@ -257,20 +253,15 @@ internal fun WorldEditorContent(
 @Composable
 internal fun BoxWithConstraintsScope.WorldEditorToolbar(
     state: WorldEditorState,
+    dragSource: DragSource<Obj>?,
     world: World,
-    onWorldChange: (World) -> Unit,
-    library: MutableState<Library>,
-    isVisible: Boolean = true,
+    handler: (WorldEvent) -> Unit,
 ) {
     WorldEditToolbar(
-        offered = state.dragController.offer,
-        dragController = state.dragController,
-        isVisible = isVisible,
-        settableTrash = state.mutableTrash,
-        settableLibrary = library,
+        dragTarget = state.dragController,
+        dragSource = dragSource,
         world = world,
-        onWorldChange = onWorldChange,
-        settableObjectEdited = state.objectBeingEdited,
+        handler = handler,
         willBeDeleted = state.mutableWillBeDeleted,
     )
 }
@@ -282,7 +273,7 @@ private fun WorldSprite(
     origin: IntOffset = IntOffset.Zero,
     opacity: Float = 1f,
     from: Any,
-    dragController: DragController? = null,
+    dragController: DragController<Obj>? = null,
 ) {
     val density = LocalDensity.current
     val animatedOpacity by animateFloatAsState(
@@ -298,7 +289,6 @@ private fun WorldSprite(
         )
     }
     val isFullyTransparent = obj.sprite.isFullyTransparent()
-    val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val modifier = Modifier
         .requiredSize(
             with(density) { image.width.toDp() },
@@ -310,7 +300,6 @@ private fun WorldSprite(
                 origin.y + (obj.offset.y * scale).roundToInt()
             )
         }
-        .onGloballyPositioned { layout.value = it }
         .alpha(animatedOpacity)
         .then(dragController?.let { Modifier.dragSource(it, from, obj) } ?: Modifier)
 
@@ -321,38 +310,6 @@ private fun WorldSprite(
                 color = Palette.Black.color,
                 style = Stroke(width = 1.dp.toPx())
             )
-        }
-    }
-}
-
-@Composable
-fun CreateObjectForm(
-    maxWidth: Int,
-    maxHeight: Int,
-    onCreate: (Int, Int) -> Unit,
-) {
-    var width by remember(maxWidth) { mutableStateOf(20.coerceIn(1, maxWidth)) }
-    var height by remember(maxHeight) { mutableStateOf(20.coerceIn(1, maxHeight)) }
-
-    Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-        Text("Create sprite")
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Width,
-            value = width,
-            maxValue = maxWidth,
-            onValueChange = { it?.let { newWidth -> width = newWidth } },
-        )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Height,
-            value = height,
-            maxValue = maxHeight,
-            onValueChange = { it?.let { newHeight -> height = newHeight } },
-        )
-        Button(
-            onClick = { onCreate(width, height) },
-            modifier = Modifier.padding(top = 8.dp)
-        ) {
-            Text("Create")
         }
     }
 }

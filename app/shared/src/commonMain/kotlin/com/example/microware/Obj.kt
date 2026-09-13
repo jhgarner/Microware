@@ -1,12 +1,18 @@
 package com.example.microware
 
 import androidx.compose.ui.geometry.Offset
+import com.example.microware.Identifiable.Companion.nextId
 
-// Will contain more than just the Sprite in the future
-data class Obj(val id: Int, val offset: Offset, val sprite: Sprite) {
-    constructor(id: Int, width: Int, height: Int, offset: Offset = Offset.Zero) : this(
-        id,
+data class Obj(
+    val offset: Offset,
+    val sprite: Sprite,
+    override val id: Int = nextId(),
+) : Identifiable<Obj> {
+    constructor(width: Int, height: Int, offset: Offset = Offset.Zero) : this(
         offset,
         Sprite.empty(width, height)
     )
+
+    override val self = this
+    override fun newId(id: Int): Obj = copy(id = id)
 }

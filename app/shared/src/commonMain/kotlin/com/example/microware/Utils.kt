@@ -33,6 +33,8 @@ inline fun Dp.roundToPx(): Int = with(density) { roundToPx() }
 @Composable
 inline fun Int.toDp(): Dp = with(density) { toDp() }
 
+inline fun <T, P> T.runMaybe(p: P?, action: T.(P) -> T): T = run { p?.let { action(it) } ?: this }
+
 data class Settable<T>(var value: T, val setter: (T) -> Unit) {
     operator fun <Owner> getValue(thisRef: Owner, property: KProperty<*>): T {
         return value

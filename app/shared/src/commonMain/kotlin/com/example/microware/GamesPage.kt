@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,25 +55,27 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.collections.immutable.persistentListOf
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 private object GameListDragSource
 
+private data class DeletedGame(
+    val game: Game,
+    val index: Int,
+)
+
 @Composable
 internal fun GamesPage(
     games: List<Game>,
-    canUndo: Boolean,
-    onOpenGame: (Int) -> Unit,
-    onCreateGame: () -> Int,
-    onDeleteGame: (Int) -> Unit,
-    onUndoDelete: () -> Unit,
-    onMoveGame: (Int, Int) -> Unit,
+    selectGame: (Int) -> Unit,
+    handler: (GamesEvent) -> Unit,
 ) {
-    val dragController = remember { DragController() }
+    val dragController = remember { DragController<Game>() }
     val offered = dragController.offer
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
-    val gameBounds = remember { mutableStateMapOf<Int, Rect>() }
+    var deletedGames by remember { mutableStateOf(persistentListOf<DeletedGame>()) }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -97,44 +100,54 @@ internal fun GamesPage(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (canUndo) {
+                deletedGames.lastOrNull()?.let { lastDeleted ->
                     IconButton(
                         description = "Undo delete",
                         padding = 0.dp,
                         buttonSize = 56.dp,
-                        onClick = onUndoDelete,
+                        onClick = {
+                            deletedGames = deletedGames.removingAt(deletedGames.size - 1)
+                            handler { it.addingAt(lastDeleted.index, lastDeleted.game) }
+                        },
                     ) { _ -> drawUndoIcon() }
                 }
                 GameCreateButton(
-                    modifier = Modifier.weight(1f),
-                    isDragging = offered != null,
                     dragController = dragController,
-                    offered = offered,
-                    onCreate = { onOpenGame(onCreateGame()) },
-                    onDelete = onDeleteGame,
+                    onCreate = {
+                        val id = Identifiable.nextId()
+                        handler { it.adding(Game(World(), persistentListOf(), id)) }
+                        selectGame(id)
+                    },
+                    onDelete = { id ->
+                        handler { games ->
+                            val i = games.indexOfFirst { it.id == id }
+                            deletedGames = deletedGames.adding(DeletedGame(games[i], i))
+                            games.removingAt(i)
+                        }
+                    },
                 )
             }
 
             GameGrid(
                 games = games,
                 dragController = dragController,
-                offered = offered,
-                onOpenGame = onOpenGame,
-                onMoveGame = onMoveGame,
-                gameBounds = gameBounds,
-                onBoundsChanged = { gameId, bounds -> gameBounds[gameId] = bounds },
+                onOpenGame = selectGame,
+                onMoveGame = { gameId, targetIndex ->
+                    handler { games ->
+                        val sourceIndex = games.indexOfFirst { it.id == gameId }
+                        val game = games[sourceIndex]
+                        games.removingAt(sourceIndex).addingAt(targetIndex, game)
+                    }
+                },
                 modifier = Modifier.weight(1f),
             )
         }
 
-        val draggedGame = (offered?.item as? Game)
-            ?.takeUnless { offered.released }
-        val sourceBounds = draggedGame?.let { gameBounds[it.id] }
-        if (draggedGame != null && sourceBounds != null) {
+        val draggedGame = offered?.item?.takeUnless { offered.released }
+        if (draggedGame != null) {
             GameDragGhost(
                 game = draggedGame,
                 offer = offered,
-                sourceBounds = sourceBounds,
                 rootOrigin = rootOrigin,
             )
         }
@@ -142,31 +155,29 @@ internal fun GamesPage(
 }
 
 @Composable
-private fun GameCreateButton(
-    modifier: Modifier,
-    isDragging: Boolean,
-    dragController: DragController,
-    offered: Offer?,
+private fun RowScope.GameCreateButton(
+    dragController: DragController<Game>,
     onCreate: () -> Unit,
     onDelete: (Int) -> Unit,
 ) {
+    val isDragging = dragController.offer != null
     val foreground = if (isDragging) Palette.Red.color else Palette.Navy.color
     val shape = RoundedCornerShape(8.dp)
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .weight(1f)
             .height(64.dp)
             .clip(shape)
             .background(Palette.OffWhite.color)
             .clickable(enabled = !isDragging, onClick = onCreate)
             .dropTarget(
                 dragController = dragController,
-                offered = offered,
                 onGiven = { offer, _ ->
-                    (offer.item as? Game)?.let { onDelete(it.id) }
+                    onDelete(offer.item.id)
                 },
             )
             .drawDashedBorder(foreground),
-        contentAlignment = androidx.compose.ui.Alignment.Center,
+        contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
@@ -188,37 +199,36 @@ private fun GameCreateButton(
 @Composable
 private fun GameGrid(
     games: List<Game>,
-    dragController: DragController,
-    offered: Offer?,
+    dragController: DragController<Game>,
     onOpenGame: (Int) -> Unit,
     onMoveGame: (Int, Int) -> Unit,
-    gameBounds: Map<Int, Rect>,
-    onBoundsChanged: (Int, Rect) -> Unit,
     modifier: Modifier,
 ) {
+    val gameBounds = remember { mutableStateMapOf<Int, Rect>() }
     val slotBounds = games
         .mapNotNull { gameBounds[it.id] }
         .sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
-    val draggedGame = offered?.item as? Game
     var gridBounds by remember { mutableStateOf<Rect?>(null) }
 
     LaunchedEffect(
-        draggedGame?.id,
-        offered?.offset,
-        offered?.released,
+        dragController.offer?.item?.id,
+        dragController.offer?.offset,
+        dragController.offer?.released,
         games,
         slotBounds,
         gridBounds,
     ) {
+        val offer = dragController.offer
+        val draggedGame = offer?.item
         if (
             draggedGame == null ||
-            offered.released ||
-            gridBounds?.contains(offered.offset) != true
+            offer.released ||
+            gridBounds?.contains(offer.offset) != true
         ) {
             return@LaunchedEffect
         }
 
-        val targetIndex = nearestGridSlot(slotBounds, offered.offset)
+        val targetIndex = nearestGridSlot(slotBounds, offer.offset)
             ?: return@LaunchedEffect
         onMoveGame(draggedGame.id, targetIndex)
     }
@@ -230,12 +240,9 @@ private fun GameGrid(
             .onGloballyPositioned { gridBounds = it.boundsInWindow() }
             .dropTarget(
                 dragController = dragController,
-                offered = offered,
                 onGiven = { offer, _ ->
-                    (offer.item as? Game)?.let { draggedGame ->
-                        nearestGridSlot(slotBounds, offer.offset)?.let { targetIndex ->
-                            onMoveGame(draggedGame.id, targetIndex)
-                        }
+                    nearestGridSlot(slotBounds, offer.offset)?.let { targetIndex ->
+                        onMoveGame(offer.item.id, targetIndex)
                     }
                 },
             ),
@@ -250,19 +257,16 @@ private fun GameGrid(
             GameGridItem(
                 game = game,
                 dragController = dragController,
-                offered = offered,
                 onOpen = { onOpenGame(game.id) },
                 onDrop = { offer ->
-                    (offer.item as? Game)?.let { draggedGame ->
-                        val targetIndex = nearestGridSlot(slotBounds, offer.offset)
-                        targetIndex?.let { onMoveGame(draggedGame.id, it) }
-                    }
+                    val targetIndex = nearestGridSlot(slotBounds, offer.offset)
+                    targetIndex?.let { onMoveGame(offer.item.id, it) }
                 },
-                onBoundsChanged = { onBoundsChanged(game.id, it) },
+                onBoundsChanged = { gameBounds[game.id] = it },
                 modifier = Modifier.animateItem(
                     fadeInSpec = null,
                     fadeOutSpec = null,
-                    placementSpec = tween<IntOffset>(durationMillis = 180),
+                    placementSpec = tween(durationMillis = 180),
                 ),
             )
         }
@@ -272,16 +276,26 @@ private fun GameGrid(
 @Composable
 private fun GameGridItem(
     game: Game,
-    dragController: DragController,
-    offered: Offer?,
+    dragController: DragController<Game>,
     onOpen: () -> Unit,
-    onDrop: (Offer) -> Unit,
+    onDrop: (Offer<Game>) -> Unit,
     onBoundsChanged: (Rect) -> Unit,
     modifier: Modifier,
 ) {
+    val offer = dragController.offer
     val shape = RoundedCornerShape(8.dp)
     Box(
         modifier = modifier
+            .alpha(
+                if (offer?.item != null &&
+                    offer.item.id == game.id &&
+                    !offer.released
+                ) {
+                    0f
+                } else {
+                    1f
+                }
+            )
             .aspectRatio(1f)
             .clip(shape)
             .onGloballyPositioned { onBoundsChanged(it.boundsInWindow()) }
@@ -289,20 +303,9 @@ private fun GameGridItem(
             .drawBorder(Palette.DarkGray.color)
             .dropTarget(
                 dragController = dragController,
-                offered = offered,
                 onGiven = { offer, _ ->
                     onDrop(offer)
                 },
-            )
-            .alpha(
-                if (offered?.item is Game &&
-                    offered.item.id == game.id &&
-                    !offered.released
-                ) {
-                    0f
-                } else {
-                    1f
-                }
             )
             .dragSource(dragController, GameListDragSource, game) {
                 sequence {
@@ -319,8 +322,7 @@ private fun GameGridItem(
 @Composable
 private fun GameDragGhost(
     game: Game,
-    offer: Offer,
-    sourceBounds: Rect,
+    offer: Offer<Game>,
     rootOrigin: Offset,
 ) {
     val density = LocalDensity.current
@@ -333,8 +335,8 @@ private fun GameDragGhost(
                 )
             }
             .size(
-                width = with(density) { sourceBounds.width.toDp() },
-                height = with(density) { sourceBounds.height.toDp() },
+                width = with(density) { offer.size.width.toDp() },
+                height = offer.size.height.toDp(),
             )
             .alpha(1f)
             .zIndex(2f)

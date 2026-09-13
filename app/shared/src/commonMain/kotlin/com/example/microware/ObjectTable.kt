@@ -36,7 +36,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ObjectTable(
     items: List<Obj>,
-    dragController: DragController,
+    dragSource: DragSource<Obj>,
     from: Any = Unit,
 ) {
     LazyVerticalGrid(
@@ -49,7 +49,7 @@ fun ObjectTable(
             ItemPreview(
                 obj = obj,
                 zIndex = -index.toFloat(),
-                dragController = dragController,
+                dragSource = dragSource,
                 from = from
             )
         }
@@ -59,7 +59,7 @@ fun ObjectTable(
 @Composable
 private fun ItemPreview(
     obj: Obj,
-    dragController: DragController,
+    dragSource: DragSource<Obj>,
     from: Any,
     zIndex: Float,
 ) {
@@ -86,7 +86,7 @@ private fun ItemPreview(
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .padding(4.dp)
-            .dragSource(dragController, from, obj) {
+            .dragSource(dragSource, from, obj) {
                 sequence {
                     expectTap()
                     wiggleCount += 1

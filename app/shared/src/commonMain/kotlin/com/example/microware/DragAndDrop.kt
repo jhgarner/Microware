@@ -5,11 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -21,29 +19,31 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
 
-data class Offer(
+data class Offer<T>(
     val offset: Offset,
+    val size: IntSize,
     val localOffset: Offset,
-    val item: Any,
+    val item: T,
     val from: Any,
     val released: Boolean = false,
 )
 
-val Offer.obj: Obj
-    get() = item as Obj
+val Offer<Obj>.obj: Obj
+    get() = item
 
-internal data class DropTargetCallbacks(
+data class DropTargetCallbacks<T>(
     val onStart: () -> Unit = {},
     val onEnter: () -> Unit = {},
     val onExit: () -> Unit = {},
-    val onGiven: (Offer, DropCompletion) -> Unit = { _, _ -> },
+    val onGiven: (Offer<T>, DropCompletion) -> Unit = { _, _ -> },
     val onEnd: () -> Unit = {},
 )
 
-internal class DropTarget {
+class DropTarget<T> {
     var bounds: Rect? = null
-    var callbacks = DropTargetCallbacks()
+    var callbacks = DropTargetCallbacks<T>()
 }
 
 class DropCompletion(
@@ -72,35 +72,56 @@ class DropCompletion(
     }
 }
 
-internal data class DropRelease(
-    val offer: Offer,
+data class DropRelease<T>(
+    val offer: Offer<T>,
     val completion: DropCompletion,
 )
 
-class DragController {
-    private val offerState = mutableStateOf<Offer?>(null)
+interface DragTarget<T> {
+    val offer: Offer<T>?
+
+    fun registerDropTarget(target: DropTarget<T>)
+    fun unregisterDropTarget(target: DropTarget<T>)
+    fun releaseFor(target: DropTarget<T>): DropRelease<T>?
+    fun updateDropTargetBounds(target: DropTarget<T>, bounds: Rect)
+}
+
+interface DragSource<T> {
+    fun startOrUpdate(
+        pointerId: PointerId,
+        offset: Offset,
+        size: IntSize,
+        localOffset: Offset,
+        item: T,
+        from: Any,
+    )
+}
+
+class DragController<T> : DragTarget<T>, DragSource<T> {
+    private val offerState = mutableStateOf<Offer<T>?>(null)
     private var rootCoordinates: LayoutCoordinates? = null
-    private val dropTargets = mutableListOf<DropTarget>()
-    private var hoveredDropTarget: DropTarget? = null
-    private var releaseTarget: DropTarget? = null
+    private val dropTargets = mutableListOf<DropTarget<T>>()
+    private var hoveredDropTarget: DropTarget<T>? = null
+    private var releaseTarget: DropTarget<T>? = null
     private var releaseCompletion: DropCompletion? = null
     private var releaseDispatched = false
 
     internal var activePointerId: PointerId? = null
         private set
 
-    val offer: Offer?
+    override val offer: Offer<T>?
         get() = offerState.value
 
     internal fun setRootCoordinates(coordinates: LayoutCoordinates) {
         rootCoordinates = coordinates
     }
 
-    internal fun startOrUpdate(
+    override fun startOrUpdate(
         pointerId: PointerId,
         offset: Offset,
+        size: IntSize,
         localOffset: Offset,
-        item: Any,
+        item: T,
         from: Any,
     ) {
         when (activePointerId) {
@@ -108,6 +129,7 @@ class DragController {
                 activePointerId = pointerId
                 offerState.value = Offer(
                     offset = offset,
+                    size = size,
                     localOffset = localOffset,
                     item = item,
                     from = from,
@@ -178,7 +200,7 @@ class DragController {
         }
     }
 
-    internal fun releaseFor(target: DropTarget): DropRelease? {
+    override fun releaseFor(target: DropTarget<T>): DropRelease<T>? {
         if (
             offerState.value?.released != true ||
             releaseTarget !== target ||
@@ -196,7 +218,7 @@ class DragController {
         )
     }
 
-    internal fun registerDropTarget(target: DropTarget) {
+    override fun registerDropTarget(target: DropTarget<T>) {
         if (target !in dropTargets) {
             dropTargets += target
             if (activePointerId != null) {
@@ -205,7 +227,7 @@ class DragController {
         }
     }
 
-    internal fun unregisterDropTarget(target: DropTarget) {
+    override fun unregisterDropTarget(target: DropTarget<T>) {
         if (hoveredDropTarget === target) {
             target.callbacks.onExit()
             target.callbacks.onEnd()
@@ -220,7 +242,7 @@ class DragController {
         dropTargets.remove(target)
     }
 
-    internal fun updateDropTargetBounds(target: DropTarget, bounds: Rect) {
+    override fun updateDropTargetBounds(target: DropTarget<T>, bounds: Rect) {
         target.bounds = bounds
         if (activePointerId != null) {
             updateHoveredDropTarget(offerState.value?.offset)
@@ -251,17 +273,18 @@ class DragController {
 }
 
 @Composable
-fun Modifier.dragSource(
-    dragController: DragController,
+fun <T> Modifier.dragSource(
+    dragController: DragSource<T>,
     from: Any,
-    item: Any,
+    item: T,
     raceBefore: suspend context(PointerRacer) () -> Unit = { },
 ): Modifier {
     val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val currentItem = rememberUpdatedState(item)
     val currentFrom = rememberUpdatedState(from)
+    val density = density
     return onGloballyPositioned { layout.value = it }
-        .pointerInput(item) {
+        .pointerInput(item, density) {
             racing {
                 raceBefore()
                 sequence {
@@ -270,6 +293,7 @@ fun Modifier.dragSource(
                         dragController.startOrUpdate(
                             pointerId = change.id,
                             offset = localToWindow(change.position),
+                            size = layout.value?.size ?: IntSize.Zero,
                             localOffset = change.position,
                             item = currentItem.value,
                             from = currentFrom.value,
@@ -280,7 +304,7 @@ fun Modifier.dragSource(
         }
 }
 
-fun Modifier.dragObserver(dragController: DragController): Modifier =
+fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier =
     pointerInput(dragController) {
         try {
             awaitEachGesture {
@@ -322,16 +346,15 @@ fun Modifier.dragObserver(dragController: DragController): Modifier =
         }
     }
 
-fun Modifier.dropTarget(
-    dragController: DragController,
-    offered: Offer?,
+fun <T> Modifier.dropTarget(
+    dragController: DragTarget<T>,
     onStart: () -> Unit = {},
     onEnter: () -> Unit = {},
     onExit: () -> Unit = {},
-    onGiven: (Offer, DropCompletion) -> Unit = { _, _ -> },
+    onGiven: (Offer<T>, DropCompletion) -> Unit = { _, _ -> },
     onEnd: () -> Unit = {},
 ): Modifier = composed {
-    val target = remember { DropTarget() }
+    val target = remember { DropTarget<T>() }
 
     SideEffect {
         target.callbacks = DropTargetCallbacks(
@@ -348,8 +371,8 @@ fun Modifier.dropTarget(
         onDispose { dragController.unregisterDropTarget(target) }
     }
 
-    LaunchedEffect(offered?.released, target) {
-        if (offered?.released == true) {
+    LaunchedEffect(dragController.offer?.released, target) {
+        if (dragController.offer?.released == true) {
             withFrameNanos { }
             val release = dragController.releaseFor(target) ?: return@LaunchedEffect
             try {

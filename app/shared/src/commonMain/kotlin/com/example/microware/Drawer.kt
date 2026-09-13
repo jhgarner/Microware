@@ -32,15 +32,16 @@ import kotlinx.coroutines.launch
 val HandleSize = 56.dp
 val OverlayShadowElevation = 8.dp
 
+data class DrawerState<Data>(val data: Data, val onDismiss: () -> Unit)
+
 @Composable
-fun Drawer(
+fun <Data> Drawer(
     placement: HandleEdge,
-    isExpanded: Boolean,
-    onDismissRequest: (() -> Unit)? = null,
+    state: DrawerState<Data>?,
     modifier: Modifier = Modifier,
-    content: @Composable BoxScope.() -> Unit,
+    content: @Composable BoxScope.(Data) -> Unit,
 ) {
-    val fraction = animateFloatAsState(if (isExpanded) 1f else 0f, tween(durationMillis = 180))
+    val fraction = animateFloatAsState(if (state != null) 1f else 0f, tween(durationMillis = 180))
     val scrimAlpha = fraction.value * 0.32f
     if (scrimAlpha > 0f) {
         Box(
@@ -48,15 +49,13 @@ fun Drawer(
                 .zIndex(0.4f)
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = scrimAlpha))
-                .then(
-                    if (onDismissRequest != null) {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onDismissRequest
-                        )
-                    } else Modifier
-                )
+                .runMaybe(state?.onDismiss) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = it
+                    )
+                }
         )
     }
     BoxWithConstraints(modifier = modifier.fillMaxSize().zIndex(1f)) {
@@ -104,12 +103,12 @@ fun Drawer(
         }
         val slideX = remember { Animatable(closedOffset.x) }
         val slideY = remember { Animatable(closedOffset.y) }
-        LaunchedEffect(isExpanded) {
+        LaunchedEffect(state == null) {
             coroutineScope {
                 launch {
                     slideX.animateTo(
                         targetValue = when {
-                            isExpanded -> expandedOffset.x
+                            state != null -> expandedOffset.x
                             else -> closedOffset.x
                         },
                         animationSpec = tween(durationMillis = 180)
@@ -118,7 +117,7 @@ fun Drawer(
                 launch {
                     slideY.animateTo(
                         targetValue = when {
-                            isExpanded -> expandedOffset.y
+                            state != null -> expandedOffset.y
                             else -> closedOffset.y
                         },
                         animationSpec = tween(durationMillis = 180)
@@ -137,9 +136,7 @@ fun Drawer(
                 .padding(12.dp)
         ) {
             Box(modifier = Modifier.padding(contentPadding)) {
-                if (isExpanded) {
-                    content()
-                }
+                state?.let { content(it.data) }
             }
         }
     }

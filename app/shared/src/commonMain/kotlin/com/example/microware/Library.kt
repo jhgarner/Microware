@@ -15,34 +15,28 @@ import androidx.compose.ui.unit.dp
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-private const val LibraryStorageKey = "microware.library.v1"
+private const val ObjLibraryStorageKey = "microware.library.obj.v1"
+private const val LogicLibraryStorageKey = "microware.library.logic.v1"
 
-data class Library(
-    val objects: List<Obj>,
-    val logics: List<Logic> = emptyList(),
+data class Library<T : Identifiable<T>>(
+    val items: List<T> = emptyList(),
 ) {
-    constructor() : this(emptyList(), emptyList())
-
-    fun add(obj: Obj): Library = copy(objects = objects + obj.copy(id = nextId()))
-
-    fun add(logic: Logic): Library = copy(
-        logics = logics + logic.copy(id = logics.nextId()),
-    )
-
-    fun remove(id: Int): Library = copy(objects = objects.filterNot { it.id == id })
-
-    private fun nextId(): Int = (objects.maxOfOrNull { it.id } ?: -1) + 1
+    fun add(item: T): Library<T> = copy(items = items + item.newId())
 }
 
 @Serializable
-private data class StoredLibrary(
+private data class ObjStoredLibrary(
     val objects: List<StoredObj> = emptyList(),
-    val logics: List<StoredLogic> = emptyList(),
 )
 
 @Serializable
+private data class LogicStoredLibrary(
+    val logics: List<StoredLogic> = emptyList(),
+)
+
+
+@Serializable
 private data class StoredObj(
-    val id: Int,
     val offsetX: Float,
     val offsetY: Float,
     val sprite: StoredSprite? = null,
@@ -53,7 +47,6 @@ private data class StoredObj(
 
 @Serializable
 private data class StoredLogic(
-    val id: Int? = null,
     val trigger: StoredTrigger,
     val actions: List<StoredAction>,
 )
@@ -76,29 +69,41 @@ private data class StoredAction(
 
 private val libraryJson = Json { ignoreUnknownKeys = true }
 
-fun loadLibrary(): Library {
-    val encoded = AppStorage.read(LibraryStorageKey) ?: return Library()
+fun loadObjLibrary(): Library<Obj> {
+    val encoded = AppStorage.read(ObjLibraryStorageKey) ?: return Library()
     return runCatching {
-        val stored = libraryJson.decodeFromString<StoredLibrary>(encoded)
+        val stored = libraryJson.decodeFromString<ObjStoredLibrary>(encoded)
         Library(
-            objects = stored.objects.map { it.toObj() },
-            logics = stored.logics.mapIndexed { index, logic ->
-                logic.toLogic(id = logic.id ?: index + 1)
-            },
+            items = stored.objects.map { it.toObj() },
         )
     }.getOrDefault(Library())
 }
 
-fun saveLibrary(library: Library) {
-    val stored = StoredLibrary(
-        objects = library.objects.map { it.toStoredObj() },
-        logics = library.logics.map { it.toStoredLogic() },
+fun loadLogicLibrary(): Library<Logic> {
+    val encoded = AppStorage.read(LogicLibraryStorageKey) ?: return Library()
+    return runCatching {
+        val stored = libraryJson.decodeFromString<LogicStoredLibrary>(encoded)
+        Library(
+            items = stored.logics.map { it.toLogic() },
+        )
+    }.getOrDefault(Library())
+}
+
+fun saveObjLibrary(library: Library<Obj>) {
+    val stored = ObjStoredLibrary(
+        objects = library.items.map { it.toStoredObj() },
     )
-    AppStorage.write(LibraryStorageKey, libraryJson.encodeToString(stored))
+    AppStorage.write(ObjLibraryStorageKey, libraryJson.encodeToString(stored))
+}
+
+fun saveLogicLibrary(library: Library<Logic>) {
+    val stored = LogicStoredLibrary(
+        logics = library.items.map { it.toStoredLogic() },
+    )
+    AppStorage.write(LogicLibraryStorageKey, libraryJson.encodeToString(stored))
 }
 
 private fun Obj.toStoredObj(): StoredObj = StoredObj(
-    id = id,
     offsetX = offset.x,
     offsetY = offset.y,
     sprite = SpriteCodec.encode(sprite),
@@ -107,7 +112,6 @@ private fun Obj.toStoredObj(): StoredObj = StoredObj(
 private fun StoredObj.toObj(): Obj {
     val decodedSprite = sprite?.let(SpriteCodec::decode) ?: decodeLegacySprite()
     return Obj(
-        id = id,
         offset = Offset(offsetX, offsetY),
         sprite = decodedSprite,
     )
@@ -128,7 +132,6 @@ private fun StoredObj.decodeLegacySprite(): Sprite {
 }
 
 private fun Logic.toStoredLogic(): StoredLogic = StoredLogic(
-    id = id,
     trigger = trigger.toStoredTrigger(),
     actions = actions.map { it.toStoredAction() },
 )
@@ -162,8 +165,7 @@ private fun Action.toStoredAction(): StoredAction = when (this) {
     Action.Lose -> StoredAction(type = "lose")
 }
 
-private fun StoredLogic.toLogic(id: Int): Logic = Logic(
-    id = id,
+private fun StoredLogic.toLogic(): Logic = Logic(
     trigger = trigger.toTrigger(),
     actions = actions.map { it.toAction() },
 )

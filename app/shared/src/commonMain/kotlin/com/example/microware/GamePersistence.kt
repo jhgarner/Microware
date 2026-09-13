@@ -1,6 +1,8 @@
 package com.example.microware
 
 import androidx.compose.ui.geometry.Offset
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -10,15 +12,13 @@ private const val CurrentGamesVersion = 1
 @Serializable
 internal data class StoredGames(
     val version: Int = CurrentGamesVersion,
-    val nextGameId: Int = 1,
     val games: List<StoredGame> = emptyList(),
 )
 
 @Serializable
 internal data class StoredGame(
-    val id: Int,
     val world: GameStoredWorld,
-    val logics: List<GameStoredLogic> = emptyList(),
+    val logics: List<GameStoredLogic> = persistentListOf(),
 )
 
 @Serializable
@@ -44,7 +44,6 @@ internal data class GameStoredObj(
 
 @Serializable
 internal data class GameStoredLogic(
-    val id: Int,
     val trigger: GameStoredTrigger,
     val actions: List<GameStoredAction>,
 )
@@ -89,28 +88,23 @@ internal object AppGameRepository : GameRepository {
 
 internal fun StoredGames.toState(): GameStoreState {
     val games = games.map(StoredGame::toGame)
-    val minimumNextId = (games.maxOfOrNull { it.id } ?: 0) + 1
     return GameStoreState(
-        games = games,
-        nextGameId = maxOf(nextGameId, minimumNextId),
+        games = games.toPersistentList(),
     )
 }
 
 internal fun GameStoreState.toStoredGames(): StoredGames = StoredGames(
-    nextGameId = nextGameId,
     games = games.map(Game::toStoredGame),
 )
 
 private fun Game.toStoredGame(): StoredGame = StoredGame(
-    id = id,
     world = world.toStoredWorld(),
     logics = logics.map(Logic::toStoredLogic),
 )
 
 private fun StoredGame.toGame(): Game = Game(
-    id = id,
     world = world.toWorld(),
-    logics = logics.map(GameStoredLogic::toLogic),
+    logics = logics.map(GameStoredLogic::toLogic).toPersistentList(),
 )
 
 private fun World.toStoredWorld(): GameStoredWorld = GameStoredWorld(
@@ -143,13 +137,11 @@ private fun GameStoredObj.toObj(): Obj = Obj(
 )
 
 private fun Logic.toStoredLogic(): GameStoredLogic = GameStoredLogic(
-    id = id,
     trigger = trigger.toStoredTrigger(),
     actions = actions.map(Action::toStoredAction),
 )
 
 private fun GameStoredLogic.toLogic(): Logic = Logic(
-    id = id,
     trigger = trigger.toTrigger(),
     actions = actions.map(GameStoredAction::toAction),
 )

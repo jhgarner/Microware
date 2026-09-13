@@ -4,147 +4,190 @@ import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.microware.ExpandedLogic.Editor
+
+private var library by mutableStateOf(loadLogicLibrary())
+
+private sealed interface ExpandedLogic {
+    val edge: HandleEdge
+
+    data object Trash : ExpandedLogic {
+        override val edge = HandleEdge.Left
+    }
+
+    data class Editor(val builder: LogicBuildHandler) : ExpandedLogic {
+        override val edge = HandleEdge.Bottom
+    }
+
+    data object Library : ExpandedLogic {
+        override val edge = HandleEdge.Right
+    }
+
+    companion object {
+    }
+}
 
 @Composable
 internal fun BoxWithConstraintsScope.LogicEditToolbar(
-    offered: Offer?,
-    dragController: DragController,
-    isVisible: Boolean = true,
+    dragController: DragController<Logic>,
     usedTags: Set<LogicTag>,
-    logics: List<Logic>,
-    editing: Boolean,
-    editingIndex: Int?,
-    editingLogic: Logic?,
-    onLogicChange: (Logic) -> Unit,
-    onLogicsChange: (List<Logic>) -> Unit,
-    onPageChange: (LogicEditorPage) -> Unit,
-    onNewLogicAtTop: () -> Unit,
-    settableTrash: MutableState<Trash>,
-    settableLibrary: MutableState<Library>,
+    handler: (LogicsEvent) -> Unit,
     willBeDeleted: MutableState<Boolean>,
 ) {
-    var trash by settableTrash
-    var library by settableLibrary
-    val expandedSide = remember { mutableStateOf<HandleEdge?>(null) }
+    var trash by remember { mutableStateOf(Trash()) }
+    val offer = dragController.offer
 
-    LaunchedEffect(offered != null) {
-        if (offered != null) {
-            expandedSide.value = null
-        }
-    }
-    LaunchedEffect(editing) {
-        if (!editing) {
-            expandedSide.value = null
-        }
+    val (expandedSide, setExpanded) = remember { mutableStateOf<ExpandedLogic?>(null) }.apply {
+        if (offer != null) value = null
     }
 
+    fun updateLogic(id: Int, logicEvent: LogicEvent) {
+        handler { logics ->
+            val oldLogic = logics.byId(id) ?: return@handler logics
+            val newLogic = logicEvent.modifyLogic(oldLogic)
+            setExpanded(Editor(LogicBuildHandler.Update(newLogic) { updateLogic(id, it) }))
+            logics.upserting(newLogic)
+        }
+    }
+
+    fun fromEdge(edge: HandleEdge?): ExpandedLogic? = when (edge) {
+        null -> null
+        HandleEdge.Left -> ExpandedLogic.Trash
+        HandleEdge.Bottom -> Editor(LogicBuildHandler.New { trigger ->
+            val newLogic = Logic(trigger)
+            handler { it.addingAt(0, newLogic) }
+            setExpanded(Editor(LogicBuildHandler.Update(newLogic) { updateLogic(newLogic.id, it) }))
+        })
+
+        HandleEdge.Right -> ExpandedLogic.Library
+    }
+
+    val trashState = when {
+        offer != null -> DrawerHandleState.Dragging(
+            dragController,
+            onEnter = { willBeDeleted.value = true },
+            onExit = { willBeDeleted.value = false },
+            onEnd = { willBeDeleted.value = false },
+            onGiven = { offer, _ ->
+                handler { logics ->
+                    val logic = offer.item
+                    if (offer.from !== LogicTrashDragSource) {
+                        trash = trash.discard(logic)
+                    }
+                    logics.indexOfFirst { it.id == logic.id }
+                        .takeIf { it >= 0 }
+                        ?.let { logics.removingAt(it) }
+                        ?: logics
+                }
+            }
+        )
+
+        expandedSide is ExpandedLogic.Trash -> DrawerHandleState.Expanded(
+            expandedSide.edge,
+            dragController
+        )
+
+        expandedSide != null -> DrawerHandleState.Expanded(expandedSide.edge, null)
+        else -> DrawerHandleState.Waiting()
+    }
     DrawerWithHandle(
-        isVisible = isVisible,
+        state = trashState,
+        setExpanded = { setExpanded(fromEdge(it)) },
         side = HandleEdge.Left,
-        expandedSide = expandedSide,
-        dragController = dragController,
         foreground = Palette.Maroon,
         highlightForeground = Palette.Red,
         hiddenSlide = if (trash.logicGarbage.isNotEmpty()) 16 else 500,
-        offered = offered,
-        onDragEnter = { willBeDeleted.value = true },
-        onDragExit = { willBeDeleted.value = false },
-        onDragEnd = { willBeDeleted.value = false },
-        onGiven = { offer, _ ->
-            val logic = offer.item as? Logic ?: return@DrawerWithHandle
-            if (offer.from !== LogicTrashDragSource) {
-                trash = trash.discard(logic)
-            }
-            (offer.from as? LogicListItemDragSource)?.index?.let { index ->
-                onLogicsChange(logics.filterIndexed { candidateIndex, _ -> candidateIndex != index })
-                if (editingIndex == index) {
-                    onPageChange(LogicEditorPage.List)
-                } else if (editingIndex != null && index < editingIndex) {
-                    onPageChange(LogicEditorPage.Editing(editingIndex - 1))
-                }
-            }
-        },
         buttonContent = { TrashControls(it) },
         drawerContent = {
             LogicTable(
                 items = trash.logicGarbage,
                 dragController = dragController,
                 from = LogicTrashDragSource,
-                offered = offered,
                 modifier = Modifier.fillMaxSize(),
             )
         },
     )
 
+    val createState = when {
+        offer != null -> DrawerHandleState.Dragging(dragController, onGiven = { offer, _ ->
+            setExpanded(Editor(LogicBuildHandler.Update(offer.item) {
+                updateLogic(
+                    offer.item.id,
+                    it
+                )
+            }))
+        })
+
+        expandedSide is ExpandedLogic.Editor -> DrawerHandleState.Expanded(
+            expandedSide.edge,
+            expandedSide.builder
+        )
+
+        expandedSide != null -> DrawerHandleState.Expanded(expandedSide.edge, null)
+        else -> DrawerHandleState.Waiting()
+    }
     DrawerWithHandle(
-        isVisible = isVisible,
+        state = createState,
+        setExpanded = { setExpanded(fromEdge(it)) },
         side = HandleEdge.Bottom,
-        expandedSide = expandedSide,
-        dragController = dragController,
         foreground = Palette.Navy,
         highlightForeground = Palette.Cyan,
-        offered = offered,
-        onGiven = { offer, _ ->
-            val logic = offer.item as? Logic ?: return@DrawerWithHandle
-            val sourceIndex = (offer.from as? LogicListItemDragSource)?.index
-            val logicToEdit = sourceIndex?.let { logic } ?: logic.copy(id = logics.nextId())
-            val index = if (sourceIndex != null) {
-                sourceIndex
-            } else {
-                onNewLogicAtTop()
-                onLogicsChange(listOf(logicToEdit) + logics)
-                0
-            }
-            onPageChange(LogicEditorPage.Editing(index))
-            expandedSide.value = HandleEdge.Bottom
-        },
-        extraOnExpand = { onPageChange(LogicEditorPage.Editing(null)) },
-        extraOnDismiss = { onPageChange(LogicEditorPage.List) },
         buttonContent = {
             CreateTarget(
                 foreground = it,
-                isEditMode = offered != null || editing,
+                isEditMode = dragController.offer != null,
             )
         },
     ) {
         Column(Modifier.fillMaxSize()) {
             LogicBuilder(
                 usedTags = usedTags,
-                initialLogic = editingLogic,
-                onLogicChange = onLogicChange,
+                handler = it,
             )
         }
     }
 
+    val libraryState = when {
+        offer != null -> DrawerHandleState.Dragging(
+            dragController,
+            onEnter = { willBeDeleted.value = true },
+            onExit = { willBeDeleted.value = false },
+            onEnd = { willBeDeleted.value = false },
+            onGiven = { offer, _ ->
+                val logic = offer.item
+                if (offer.from !== LogicLibraryDragSource) {
+                    library = library.add(logic)
+                    saveLogicLibrary(library)
+                }
+            },
+        )
+
+        expandedSide is ExpandedLogic.Library -> DrawerHandleState.Expanded(
+            expandedSide.edge,
+            dragController
+        )
+
+        expandedSide != null -> DrawerHandleState.Expanded(expandedSide.edge, null)
+        else -> DrawerHandleState.Waiting()
+    }
     DrawerWithHandle(
-        isVisible = isVisible,
+        state = libraryState,
+        setExpanded = { setExpanded(fromEdge(it)) },
         side = HandleEdge.Right,
-        expandedSide = expandedSide,
-        dragController = dragController,
         foreground = Palette.Forest,
         highlightForeground = Palette.Green,
-        offered = offered,
-        onGiven = { offer, _ ->
-            val logic = offer.item as? Logic ?: return@DrawerWithHandle
-            if (offer.from !== LogicLibraryDragSource) {
-                library = library.add(logic)
-                saveLibrary(library)
-            }
-        },
         buttonContent = { LibraryTarget(it) },
         drawerContent = {
             LogicTable(
-                items = library.logics,
+                items = library.items,
                 dragController = dragController,
                 from = LogicLibraryDragSource,
-                offered = offered,
                 modifier = Modifier.fillMaxSize(),
             )
         },

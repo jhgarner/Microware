@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+@Immutable
 enum class HandleEdge(val innerAlignment: Alignment) {
     Left(innerAlignment = Alignment.CenterEnd),
     Right(innerAlignment = Alignment.BottomStart),
@@ -58,15 +60,20 @@ private fun BoxScope.restingModsForEdge(edge: HandleEdge): Modifier = when (edge
         .align(Alignment.BottomCenter)
 }
 
+sealed interface DrawerButtonState {
+    val onClick: (() -> Unit)? get() = null
+
+    data class Waiting(override val onClick: () -> Unit) : DrawerButtonState
+    data object Dragging : DrawerButtonState
+    data class Expanded(override val onClick: () -> Unit) : DrawerButtonState
+}
+
 @Composable
 fun BoxWithConstraintsScope.ButtonHandle(
     foreground: Color,
     openEdge: HandleEdge,
-    isDragging: Boolean,
-    isExpanded: Boolean,
-    isVisible: Boolean = true,
+    state: DrawerButtonState?,
     hiddenSlide: Int = 16,
-    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -107,26 +114,26 @@ fun BoxWithConstraintsScope.ButtonHandle(
     }
     val slideX = remember { Animatable(hidingOffset.x.toFloat()) }
     val slideY = remember { Animatable(hidingOffset.y.toFloat()) }
-    LaunchedEffect(isDragging, isExpanded, isVisible, hidingOffset, openSlide) {
+    LaunchedEffect(state, hidingOffset, openSlide) {
         coroutineScope {
             launch {
                 slideX.animateTo(
-                    targetValue = when {
-                        !isVisible -> fullyHiddenOffset.x.toFloat()
-                        isExpanded -> openSlide.x.toFloat()
-                        isDragging -> 0f
-                        else -> hidingOffset.x.toFloat()
+                    targetValue = when (state) {
+                        null -> fullyHiddenOffset.x.toFloat()
+                        is DrawerButtonState.Expanded -> openSlide.x.toFloat()
+                        DrawerButtonState.Dragging -> 0f
+                        is DrawerButtonState.Waiting -> hidingOffset.x.toFloat()
                     },
                     animationSpec = tween(durationMillis = 180)
                 )
             }
             launch {
                 slideY.animateTo(
-                    targetValue = when {
-                        !isVisible -> fullyHiddenOffset.y.toFloat()
-                        isExpanded -> openSlide.y.toFloat()
-                        isDragging -> 0f
-                        else -> hidingOffset.y.toFloat()
+                    targetValue = when (state) {
+                        null -> fullyHiddenOffset.y.toFloat()
+                        is DrawerButtonState.Expanded -> openSlide.y.toFloat()
+                        DrawerButtonState.Dragging -> 0f
+                        is DrawerButtonState.Waiting -> hidingOffset.y.toFloat()
                     },
                     animationSpec = tween(durationMillis = 180)
                 )
@@ -141,15 +148,15 @@ fun BoxWithConstraintsScope.ButtonHandle(
         .shadow(OverlayShadowElevation, shape)
         .background(Palette.OffWhite.color, shape)
 
-    if (onClick != null) {
-        targetModifier = targetModifier.clickable(onClick = onClick)
+    state?.onClick?.let {
+        targetModifier = targetModifier.clickable(onClick = it)
     }
 
     Box(modifier = targetModifier) {
         HandleBorder(openEdge = openEdge, color = foreground)
         Box(modifier = Modifier.size(HandleSize).align(openEdge.innerAlignment)) {
             Crossfade(
-                targetState = isExpanded,
+                targetState = state is DrawerButtonState.Expanded,
                 animationSpec = tween(durationMillis = 180),
                 label = "handle icon"
             ) { expanded ->

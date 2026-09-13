@@ -18,35 +18,12 @@ import kotlinx.collections.immutable.persistentListOf
 val TrashGap = 8.dp
 
 data class Trash(
-    val garbage: PersistentList<Obj>,
-    val logicGarbage: PersistentList<Logic>,
-    val state: TrashState,
+    val garbage: PersistentList<Obj> = persistentListOf(),
+    val logicGarbage: PersistentList<Logic> = persistentListOf(),
 ) {
-    constructor() : this(persistentListOf(), persistentListOf(), TrashState.Closed)
+    fun discard(obj: Obj): Trash = copy(garbage = garbage.upserting(obj))
 
-    fun discard(garbage: Obj): Trash =
-        copy(garbage = this.garbage.adding(garbage.copy(id = nextId())))
-
-    fun discard(logic: Logic): Trash =
-        copy(
-            logicGarbage = logicGarbage.adding(
-                logic.copy(id = (logicGarbage.maxOfOrNull { it.id } ?: 0) + 1)
-            )
-        )
-
-    fun nextId(): Int = (garbage.maxOfOrNull { it.id } ?: -1) + 1
-
-    fun open(): Trash = copy(state = TrashState.Open)
-
-    fun close(): Trash = copy(state = TrashState.Closed)
-
-    fun hover(): Trash = copy(state = TrashState.Hovered)
-}
-
-sealed interface TrashState {
-    object Open : TrashState
-    object Closed : TrashState
-    object Hovered : TrashState
+    fun discard(logic: Logic): Trash = copy(logicGarbage = logicGarbage.upserting(logic))
 }
 
 @Composable

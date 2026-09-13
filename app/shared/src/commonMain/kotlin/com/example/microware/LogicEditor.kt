@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +26,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -42,13 +41,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
@@ -119,17 +116,10 @@ private val winConfetti = listOf(
 )
 
 internal class LogicEditorState {
-    val dragController = DragController()
-    val mutableTrash = mutableStateOf(Trash())
+    val dragController = DragController<Logic>()
     val willBeDeleted = mutableStateOf(false)
-    val listItemBounds = mutableMapOf<Int, Rect>()
-    var dropAnimation by mutableStateOf<LogicDropAnimation?>(null)
-    var rootOriginInWindow by mutableStateOf(Offset.Zero)
     var logicListScrollRequest by mutableStateOf(0)
         private set
-    private var nextDropAnimationRequest = 0
-
-    fun nextDropAnimationRequest(): Int = ++nextDropAnimationRequest
 
     fun scrollLogicListToTop() {
         logicListScrollRequest++
@@ -140,142 +130,75 @@ internal class LogicEditorState {
 internal fun rememberLogicEditorState(): LogicEditorState = remember { LogicEditorState() }
 
 @Composable
-fun LogicEditor(
-    world: World,
-    logics: List<Logic>,
-    onLogicsChange: (List<Logic>) -> Unit,
-    library: MutableState<Library>,
-    page: LogicEditorPage,
-    onPageChange: (LogicEditorPage) -> Unit,
-) {
-    val state = rememberLogicEditorState()
-
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .onGloballyPositioned {
-                state.dragController.setRootCoordinates(it)
-                state.rootOriginInWindow = it.positionInWindow()
-            }
-            .dragObserver(state.dragController),
-    ) {
-        LogicEditorContent(
-            world = world,
-            logics = logics,
-            onLogicsChange = onLogicsChange,
-            state = state,
-            page = page,
-            onPageChange = onPageChange,
-        )
-        LogicEditorToolbar(
-            state = state,
-            world = world,
-            logics = logics,
-            library = library,
-            page = page,
-            onLogicsChange = onLogicsChange,
-            onPageChange = onPageChange,
-        )
-    }
-}
-
-@Composable
 internal fun LogicEditorContent(
-    world: World,
     logics: List<Logic>,
-    onLogicsChange: (List<Logic>) -> Unit,
+    handler: (LogicsEvent) -> Unit,
     state: LogicEditorState,
     page: LogicEditorPage,
     onPageChange: (LogicEditorPage) -> Unit,
     modifier: Modifier = Modifier.fillMaxSize(),
 ) {
     val dragController = state.dragController
-    val offer = dragController.offer
     val editingIndex = (page as? LogicEditorPage.Editing)?.index
 
-    LaunchedEffect(state.dropAnimation?.request) {
-        val request = state.dropAnimation?.request ?: return@LaunchedEffect
-        delay((LogicDropAnimationDurationMillis + 50).toLong())
-        if (state.dropAnimation?.request == request) {
-            state.dropAnimation?.completion?.complete()
-            state.dropAnimation = null
-        }
-    }
-
     fun handleLogicDrop(
-        offer: Offer,
+        offer: Offer<Logic>,
         targetIndex: Int,
-        completion: DropCompletion,
-    ) {
-        val logic = offer.item as? Logic ?: return
-        val sourceIndex = (offer.from as? LogicListItemDragSource)?.index
+    ): Logic {
+        val logic = offer.item
+        val sourceIndex = if (offer.from === LogicListDragSource) {
+            logics.indexOfFirst { it.id == logic.id }.takeIf { it >= 0 }
+        } else {
+            null
+        }
         val openLogic = editingIndex?.let(logics::getOrNull)
         val updatedLogics = logics.toMutableList()
         val movedLogic: Logic
 
         if (sourceIndex != null) {
-            if (sourceIndex !in updatedLogics.indices) return
             movedLogic = updatedLogics.removeAt(sourceIndex)
             val adjustedTargetIndex = (targetIndex - if (targetIndex > sourceIndex) 1 else 0)
                 .coerceIn(0, updatedLogics.size)
             updatedLogics.add(adjustedTargetIndex, movedLogic)
         } else {
-            movedLogic = logic.copy(id = updatedLogics.nextId())
+            movedLogic = logic.newId()
             updatedLogics.add(targetIndex.coerceIn(0, updatedLogics.size), movedLogic)
         }
 
-        val dropRequest = state.nextDropAnimationRequest()
-        state.dropAnimation = LogicDropAnimation(
-            request = dropRequest,
-            logic = movedLogic,
-            startTopLeftInWindow = offer.offset - offer.localOffset,
-            sourceBounds = sourceIndex
-                ?.let(logics::getOrNull)
-                ?.let { state.listItemBounds[it.id] },
-            completion = completion,
-        )
-        onLogicsChange(updatedLogics)
+        handler { updatedLogics.toPersistentList() }
         openLogic?.let { logicBeingEdited ->
             val updatedIndex = updatedLogics.indexOfFirst { it === logicBeingEdited }
             if (updatedIndex >= 0 && updatedIndex != editingIndex) {
                 onPageChange(LogicEditorPage.Editing(updatedIndex))
             }
         }
+        return movedLogic
     }
 
-    BoxWithConstraints(modifier = modifier) {
+    Box(modifier = modifier) {
         Column(Modifier.fillMaxSize()) {
             LogicTable(
                 items = logics,
                 dragController = dragController,
                 from = LogicListDragSource,
-                offered = offer,
                 willBeDeleted = state.willBeDeleted.value,
-                dropAnimation = state.dropAnimation,
                 scrollToTopRequest = state.logicListScrollRequest,
-                onItemBoundsChanged = { index, bounds ->
-                    logics.getOrNull(index)?.let { logic ->
-                        state.listItemBounds[logic.id] = bounds
-                    }
-                },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxSize()
                     .padding(
                         start = insets.leftDp(),
                         end = insets.rightDp(),
                         top = insets.topDp(),
                     ),
+                listModifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                belowList = {
+                    Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
+                },
                 onDrop = ::handleLogicDrop,
             )
-            Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
         }
-
-        LogicDragGhost(
-            offer = offer,
-            rootOriginInWindow = state.rootOriginInWindow,
-            width = maxWidth - insets.leftDp() - insets.rightDp() - 16.dp,
-        )
     }
 }
 
@@ -283,51 +206,42 @@ internal fun LogicEditorContent(
 internal fun BoxWithConstraintsScope.LogicEditorToolbar(
     state: LogicEditorState,
     world: World,
-    logics: List<Logic>,
-    library: MutableState<Library>,
-    page: LogicEditorPage,
-    onLogicsChange: (List<Logic>) -> Unit,
-    onPageChange: (LogicEditorPage) -> Unit,
-    isVisible: Boolean = true,
+    handler: (LogicsEvent) -> Unit,
 ) {
-    val editingIndex = (page as? LogicEditorPage.Editing)?.index
     LogicEditToolbar(
-        offered = state.dragController.offer,
         dragController = state.dragController,
-        isVisible = isVisible,
         usedTags = world.logicTags.keys,
-        logics = logics,
-        editing = page is LogicEditorPage.Editing,
-        editingIndex = editingIndex,
-        editingLogic = editingIndex?.takeIf { it >= 0 }?.let(logics::getOrNull),
-        onLogicChange = { changedLogic ->
-            if (editingIndex == null) {
-                state.scrollLogicListToTop()
-                onLogicsChange(listOf(changedLogic.copy(id = logics.nextId())) + logics)
-                onPageChange(LogicEditorPage.Editing(0))
-            } else {
-                onLogicsChange(
-                    logics.mapIndexed { candidateIndex, logic ->
-                        if (candidateIndex == editingIndex) changedLogic else logic
-                    }
-                )
-            }
-        },
-        onLogicsChange = onLogicsChange,
-        onPageChange = onPageChange,
-        onNewLogicAtTop = state::scrollLogicListToTop,
-        settableTrash = state.mutableTrash,
-        settableLibrary = library,
+        handler = handler,
+//        onLogicChange = { changedLogic ->
+//            if (editingIndex == null) {
+//                state.scrollLogicListToTop()
+//                onLogicsChange(listOf(changedLogic.copy(id = logics.nextId())) + logics)
+//                onPageChange(LogicEditorPage.Editing(0))
+//            } else {
+//                onLogicsChange(
+//                    logics.mapIndexed { candidateIndex, logic ->
+//                        if (candidateIndex == editingIndex) changedLogic else logic
+//                    }
+//                )
+//            }
+//        },
+//        onLogicsChange = onLogicsChange,
         willBeDeleted = state.willBeDeleted,
     )
+}
+
+sealed interface LogicBuildHandler {
+    data class New(val new: (Trigger) -> Unit) : LogicBuildHandler
+    data class Update(val logic: Logic, val update: (LogicEvent) -> Unit) : LogicBuildHandler
 }
 
 @Composable
 internal fun LogicBuilder(
     usedTags: Set<LogicTag>,
-    initialLogic: Logic?,
-    onLogicChange: (Logic) -> Unit,
+    handler: LogicBuildHandler,
 ) {
+    val updater = handler as? LogicBuildHandler.Update
+    val initialLogic = updater?.logic
     val defaultTag = usedTags.firstOrNull() ?: LogicTag.all.first()
     var trigger by remember(initialLogic) { mutableStateOf(initialLogic?.trigger) }
     var actions by remember(initialLogic) { mutableStateOf(initialLogic?.actions.orEmpty()) }
@@ -336,21 +250,17 @@ internal fun LogicBuilder(
     }
     var detailsVisible by remember(initialLogic) { mutableStateOf(initialLogic != null) }
 
-    fun updateDraft(
-        updatedTrigger: Trigger? = trigger,
-        updatedActions: List<Action> = actions,
-    ) {
-        trigger = updatedTrigger
-        actions = updatedActions
+    fun updateTrigger(trigger: Trigger) {
+        when (handler) {
+            is LogicBuildHandler.New -> handler.new(trigger)
+            is LogicBuildHandler.Update -> handler.update { logic -> logic.copy(trigger = trigger) }
+        }
+    }
 
-        if (updatedTrigger != null && (initialLogic != null || updatedActions.isNotEmpty())) {
-            onLogicChange(
-                Logic(
-                    id = initialLogic?.id ?: 0,
-                    trigger = updatedTrigger,
-                    actions = updatedActions,
-                )
-            )
+    fun updateActions(actions: List<Action>) {
+        when (handler) {
+            is LogicBuildHandler.New -> throw RuntimeException("Something went really wrong with the ui")
+            is LogicBuildHandler.Update -> handler.update { logic -> logic.copy(actions = actions) }
         }
     }
 
@@ -426,10 +336,10 @@ internal fun LogicBuilder(
                 buttonWidth = triggerButtonWidth.value.dp,
                 buttonHeight = triggerButtonHeight.value.dp,
                 buttonSpacing = triggerButtonSpacing.value.dp,
-                onStartSelected = { updateDraft(updatedTrigger = Trigger.Start) },
-                onTapSelected = { updateDraft(updatedTrigger = Trigger.Tap(defaultTag)) },
+                onStartSelected = { updateTrigger(Trigger.Start) },
+                onTapSelected = { updateTrigger(Trigger.Tap(defaultTag)) },
                 onCollisionSelected = {
-                    updateDraft(updatedTrigger = Trigger.Collision(defaultTag, defaultTag))
+                    updateTrigger(Trigger.Collision(defaultTag, defaultTag))
                 },
             )
 
@@ -443,13 +353,13 @@ internal fun LogicBuilder(
                         TriggerParameters(
                             selectedTrigger,
                             usedTags
-                        ) { updateDraft(updatedTrigger = it) }
+                        ) { updateTrigger(it) }
                         Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
                     }
 
                     LazyColumn(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         itemsIndexed(actions) { index, action ->
@@ -457,15 +367,15 @@ internal fun LogicBuilder(
                                 action = action,
                                 usedTags = usedTags,
                                 onChange = { changed ->
-                                    updateDraft(
-                                        updatedActions = actions.mapIndexed { candidateIndex, current ->
+                                    updateActions(
+                                        actions.mapIndexed { candidateIndex, current ->
                                             if (candidateIndex == index) changed else current
                                         }
                                     )
                                 },
                                 onDelete = {
-                                    updateDraft(
-                                        updatedActions = actions.filterIndexed { candidateIndex, _ ->
+                                    updateActions(
+                                        actions.filterIndexed { candidateIndex, _ ->
                                             candidateIndex != index
                                         }
                                     )
@@ -478,8 +388,8 @@ internal fun LogicBuilder(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 ActionButton(ActionChoice.Move) {
-                                    updateDraft(
-                                        updatedActions = actions + Action.Move(
+                                    updateActions(
+                                        actions + Action.Move(
                                             defaultTag,
                                             Direction.E,
                                             50
@@ -487,8 +397,8 @@ internal fun LogicBuilder(
                                     )
                                 }
                                 ActionButton(ActionChoice.MoveTo) {
-                                    updateDraft(
-                                        updatedActions = actions + Action.MoveTo(
+                                    updateActions(
+                                        actions + Action.MoveTo(
                                             defaultTag,
                                             defaultTag,
                                             50
@@ -496,10 +406,10 @@ internal fun LogicBuilder(
                                     )
                                 }
                                 ActionButton(ActionChoice.Win) {
-                                    updateDraft(updatedActions = actions + Action.Win)
+                                    updateActions(actions + Action.Win)
                                 }
                                 ActionButton(ActionChoice.Lose) {
-                                    updateDraft(updatedActions = actions + Action.Lose)
+                                    updateActions(actions + Action.Lose)
                                 }
                             }
                         }

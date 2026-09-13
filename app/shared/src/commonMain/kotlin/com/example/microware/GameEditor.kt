@@ -22,7 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,7 +37,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -49,9 +47,7 @@ private enum class GameEditorPage { World, Objects, Logic, Play }
 @Composable
 fun GameEditor(
     game: Game,
-    library: MutableState<Library>,
-    onWorldChange: (World) -> Unit,
-    onLogicsChange: (List<Logic>) -> Unit,
+    handler: (GameEvents) -> Unit,
     onBack: () -> Unit = {},
 ) {
     var page by remember { mutableStateOf(GameEditorPage.World) }
@@ -87,7 +83,6 @@ fun GameEditor(
 
     val settledPage = GameEditorPage.entries[pagerState.settledPage]
     val toolbarPage = if (settledPage == GameEditorPage.Play) lastEditorPage else settledPage
-    val handlesVisible = page != GameEditorPage.Play
 
     EditorPage(
         page = page,
@@ -119,7 +114,8 @@ fun GameEditor(
         val activeDragController = when (settledPage) {
             GameEditorPage.World,
             GameEditorPage.Objects,
-            -> worldEditorState.dragController
+                -> worldEditorState.dragController
+
             GameEditorPage.Logic -> logicEditorState.dragController
             GameEditorPage.Play -> null
         }
@@ -128,7 +124,6 @@ fun GameEditor(
                 .fillMaxSize()
                 .onGloballyPositioned {
                     activeDragController?.setRootCoordinates(it)
-                    logicEditorState.rootOriginInWindow = it.positionInWindow()
                 }
                 .then(activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier),
         ) {
@@ -140,20 +135,19 @@ fun GameEditor(
                 when (GameEditorPage.entries[pageIndex]) {
                     GameEditorPage.World -> WorldEditorContent(
                         world = game.world,
-                        onWorldChange = onWorldChange,
+                        handler = handler,
                         state = worldEditorState,
                     )
 
                     GameEditorPage.Objects -> ObjectOrderEditor(
                         world = game.world,
-                        onWorldChange = onWorldChange,
+                        handler = handler,
                         state = worldEditorState,
                     )
 
                     GameEditorPage.Logic -> LogicEditorContent(
-                        world = game.world,
                         logics = game.logics,
-                        onLogicsChange = onLogicsChange,
+                        handler = handler,
                         state = logicEditorState,
                         page = logicPage,
                         onPageChange = { logicPage = it },
@@ -164,34 +158,20 @@ fun GameEditor(
             }
 
             when (toolbarPage) {
-                GameEditorPage.World -> WorldEditorToolbar(
+                GameEditorPage.World, GameEditorPage.Objects -> WorldEditorToolbar(
                     state = worldEditorState,
                     world = game.world,
-                    onWorldChange = onWorldChange,
-                    library = library,
-                    isVisible = handlesVisible,
-                )
-
-                GameEditorPage.Objects -> WorldEditorToolbar(
-                    state = worldEditorState,
-                    world = game.world,
-                    onWorldChange = onWorldChange,
-                    library = library,
-                    isVisible = handlesVisible && (
-                        worldEditorState.dragController.offer != null ||
-                            worldEditorState.objectBeingEdited.value != null
-                        ),
+                    handler = handler,
+                    dragSource = when (toolbarPage) {
+                        GameEditorPage.World -> worldEditorState.dragController
+                        GameEditorPage.Objects -> null
+                    },
                 )
 
                 GameEditorPage.Logic -> LogicEditorToolbar(
                     state = logicEditorState,
                     world = game.world,
-                    logics = game.logics,
-                    library = library,
-                    page = logicPage,
-                    onLogicsChange = onLogicsChange,
-                    onPageChange = { logicPage = it },
-                    isVisible = handlesVisible,
+                    handler = handler,
                 )
 
                 GameEditorPage.Play -> Unit
