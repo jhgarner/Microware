@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -80,10 +81,7 @@ internal fun GamesPage(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned {
-                rootOrigin = it.positionInWindow()
-                dragController.setRootCoordinates(it)
-            }
+            .onGloballyPositioned { rootOrigin = it.positionInWindow() }
             .dragObserver(dragController),
     ) {
         Column(
@@ -143,7 +141,7 @@ internal fun GamesPage(
             )
         }
 
-        val draggedGame = offered?.item?.takeUnless { offered.released }
+        val draggedGame = offered?.item
         if (draggedGame != null) {
             GameDragGhost(
                 game = draggedGame,
@@ -172,9 +170,7 @@ private fun RowScope.GameCreateButton(
             .clickable(enabled = !isDragging, onClick = onCreate)
             .dropTarget(
                 dragController = dragController,
-                onGiven = { offer, _ ->
-                    onDelete(offer.item.id)
-                },
+                onGiven = { onDelete(it.item.id) },
             )
             .drawDashedBorder(foreground),
         contentAlignment = Alignment.Center,
@@ -213,7 +209,6 @@ private fun GameGrid(
     LaunchedEffect(
         dragController.offer?.item?.id,
         dragController.offer?.offset,
-        dragController.offer?.released,
         games,
         slotBounds,
         gridBounds,
@@ -222,7 +217,6 @@ private fun GameGrid(
         val draggedGame = offer?.item
         if (
             draggedGame == null ||
-            offer.released ||
             gridBounds?.contains(offer.offset) != true
         ) {
             return@LaunchedEffect
@@ -240,7 +234,7 @@ private fun GameGrid(
             .onGloballyPositioned { gridBounds = it.boundsInWindow() }
             .dropTarget(
                 dragController = dragController,
-                onGiven = { offer, _ ->
+                onGiven = { offer ->
                     nearestGridSlot(slotBounds, offer.offset)?.let { targetIndex ->
                         onMoveGame(offer.item.id, targetIndex)
                     }
@@ -288,8 +282,7 @@ private fun GameGridItem(
         modifier = modifier
             .alpha(
                 if (offer?.item != null &&
-                    offer.item.id == game.id &&
-                    !offer.released
+                    offer.item.id == game.id
                 ) {
                     0f
                 } else {
@@ -303,14 +296,15 @@ private fun GameGridItem(
             .drawBorder(Palette.DarkGray.color)
             .dropTarget(
                 dragController = dragController,
-                onGiven = { offer, _ ->
-                    onDrop(offer)
-                },
+                onGiven = { onDrop(it) },
             )
-            .dragSource(dragController, GameListDragSource, game) {
-                sequence {
-                    expectTap()
-                    onOpen()
+            .dragSource(dragController, GameListDragSource, game)
+            .pointerInput(onOpen) {
+                racing {
+                    sequence {
+                        expectTap()
+                        onOpen()
+                    }
                 }
             }
             .semantics { contentDescription = "Open game" },
@@ -330,8 +324,8 @@ private fun GameDragGhost(
         modifier = Modifier
             .offset {
                 IntOffset(
-                    (offer.offset.x - rootOrigin.x - offer.localOffset.x).roundToInt(),
-                    (offer.offset.y - rootOrigin.y - offer.localOffset.y).roundToInt(),
+                    (offer.offset.x - offer.localOffset.x).roundToInt(),
+                    (offer.offset.y - offer.localOffset.y).roundToInt(),
                 )
             }
             .size(

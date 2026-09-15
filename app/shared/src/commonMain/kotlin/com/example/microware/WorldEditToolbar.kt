@@ -60,7 +60,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
             onEnter = { willBeDeleted.value = true },
             onExit = { willBeDeleted.value = false },
             onEnd = { willBeDeleted.value = false },
-            onGiven = { offer, _ ->
+            onGiven = { offer ->
                 trash = trash.discard(offer.item)
                 handler { world -> world.deleteObject(offer.item.id) }
             }
@@ -87,7 +87,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     )
 
     val createState = when {
-        offer != null -> DrawerHandleState.Dragging(dragTarget, onGiven = { offer, _ ->
+        offer != null -> DrawerHandleState.Dragging(dragTarget, onGiven = { offer ->
             setExpanded(Expanded.Editor(offer.item))
         })
 
@@ -142,7 +142,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
             onEnter = { willBeDeleted.value = true },
             onExit = { willBeDeleted.value = false },
             onEnd = { willBeDeleted.value = false },
-            onGiven = { offer, _ ->
+            onGiven = { offer ->
                 library = library.add(offer.obj)
                 saveObjLibrary(library)
             },

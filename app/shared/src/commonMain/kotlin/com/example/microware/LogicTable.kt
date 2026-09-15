@@ -40,7 +40,6 @@ internal fun LogicTable(
     GhostingLazyColumn(
         items = items,
         dragController = dragController,
-        from = from,
         modifier = modifier,
         listModifier = listModifier,
         belowList = belowList,

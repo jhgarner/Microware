@@ -182,7 +182,7 @@ internal fun WorldEditorContent(
                 .zIndex(if (offer != null) 1f else 0f)
                 .dropTarget(
                     dragController = state.dragController,
-                    onGiven = { offer, _ ->
+                    onGiven = { offer ->
                         val localOffset =
                             (offer.offset - state.worldOriginInParent - offer.localOffset) / state.worldScale
                         val obj = world.clamped(offer.obj.copy(offset = localOffset))

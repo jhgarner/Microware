@@ -74,7 +74,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
             onEnter = { willBeDeleted.value = true },
             onExit = { willBeDeleted.value = false },
             onEnd = { willBeDeleted.value = false },
-            onGiven = { offer, _ ->
+            onGiven = { offer ->
                 handler { logics ->
                     val logic = offer.item
                     if (offer.from !== LogicTrashDragSource) {
@@ -110,12 +110,13 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
                 dragController = dragController,
                 from = LogicTrashDragSource,
                 modifier = Modifier.fillMaxSize(),
+                onDrop = { _, _ -> throw RuntimeException("bad") }
             )
         },
     )
 
     val createState = when {
-        offer != null -> DrawerHandleState.Dragging(dragController, onGiven = { offer, _ ->
+        offer != null -> DrawerHandleState.Dragging(dragController, onGiven = { offer ->
             setExpanded(Editor(LogicBuildHandler.Update(offer.item) {
                 updateLogic(
                     offer.item.id,
@@ -159,7 +160,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
             onEnter = { willBeDeleted.value = true },
             onExit = { willBeDeleted.value = false },
             onEnd = { willBeDeleted.value = false },
-            onGiven = { offer, _ ->
+            onGiven = { offer ->
                 val logic = offer.item
                 if (offer.from !== LogicLibraryDragSource) {
                     library = library.add(logic)
@@ -189,6 +190,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
                 dragController = dragController,
                 from = LogicLibraryDragSource,
                 modifier = Modifier.fillMaxSize(),
+                onDrop = { _, _ -> throw RuntimeException("bad") }
             )
         },
     )

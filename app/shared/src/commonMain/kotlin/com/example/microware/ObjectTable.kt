@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -86,10 +87,13 @@ private fun ItemPreview(
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .padding(4.dp)
-            .dragSource(dragSource, from, obj) {
-                sequence {
-                    expectTap()
-                    wiggleCount += 1
+            .dragSource(dragSource, from, obj)
+            .pointerInput(Unit) {
+                racing {
+                    sequence {
+                        expectTap()
+                        wiggleCount += 1
+                    }
                 }
             }
     ) {

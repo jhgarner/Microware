@@ -1,6 +1,7 @@
 package com.example.microware
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.node.Ref
@@ -32,6 +33,10 @@ inline fun Dp.roundToPx(): Int = with(density) { roundToPx() }
 
 @Composable
 inline fun Int.toDp(): Dp = with(density) { toDp() }
+
+inline fun <T> MutableState<T>.modify(f: (T) -> T) {
+    value = f(value)
+}
 
 inline fun <T, P> T.runMaybe(p: P?, action: T.(P) -> T): T = run { p?.let { action(it) } ?: this }
 

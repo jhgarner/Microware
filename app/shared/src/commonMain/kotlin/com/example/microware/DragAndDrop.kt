@@ -1,25 +1,22 @@
 package com.example.microware
 
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
 
 data class Offer<T>(
     val offset: Offset,
@@ -27,7 +24,6 @@ data class Offer<T>(
     val localOffset: Offset,
     val item: T,
     val from: Any,
-    val released: Boolean = false,
 )
 
 val Offer<Obj>.obj: Obj
@@ -37,223 +33,89 @@ data class DropTargetCallbacks<T>(
     val onStart: () -> Unit = {},
     val onEnter: () -> Unit = {},
     val onExit: () -> Unit = {},
-    val onGiven: (Offer<T>, DropCompletion) -> Unit = { _, _ -> },
+    val onGiven: (Offer<T>) -> Unit = {},
     val onEnd: () -> Unit = {},
 )
 
 class DropTarget<T> {
     var bounds: Rect? = null
-    var callbacks = DropTargetCallbacks<T>()
+    var callbacks by mutableStateOf(DropTargetCallbacks<T>())
 }
-
-class DropCompletion(
-    private val onComplete: () -> Unit,
-) {
-    private var deferred = false
-    private var completed = false
-
-    fun defer() {
-        if (!completed) {
-            deferred = true
-        }
-    }
-
-    fun complete() {
-        if (!completed) {
-            completed = true
-            onComplete()
-        }
-    }
-
-    internal fun completeIfNotDeferred() {
-        if (!deferred) {
-            complete()
-        }
-    }
-}
-
-data class DropRelease<T>(
-    val offer: Offer<T>,
-    val completion: DropCompletion,
-)
 
 interface DragTarget<T> {
     val offer: Offer<T>?
 
     fun registerDropTarget(target: DropTarget<T>)
     fun unregisterDropTarget(target: DropTarget<T>)
-    fun releaseFor(target: DropTarget<T>): DropRelease<T>?
     fun updateDropTargetBounds(target: DropTarget<T>, bounds: Rect)
 }
 
-interface DragSource<T> {
-    fun startOrUpdate(
-        pointerId: PointerId,
-        offset: Offset,
-        size: IntSize,
-        localOffset: Offset,
-        item: T,
-        from: Any,
+class Source<T>(
+    fromState: MutableState<Any>,
+    boundsState: MutableState<Rect>,
+    itemState: MutableState<T>,
+) {
+    var from by fromState
+    var bounds by boundsState
+    var item by itemState
+}
+
+@Composable
+fun <T> rememberSource(from: Any, item: T): Source<T> = remember {
+    Source(
+        mutableStateOf(from),
+        mutableStateOf(Rect.Zero), mutableStateOf(item)
     )
+}.also {
+    it.from = from
+    it.item = item
+}
+
+interface DragSource<T> {
+    fun registerDragSource(source: Source<T>)
+    fun unregisterDragSource(source: Source<T>)
 }
 
 class DragController<T> : DragTarget<T>, DragSource<T> {
-    private val offerState = mutableStateOf<Offer<T>?>(null)
+    var offerState: MutableState<MutableState<Offer<T>>?> = mutableStateOf(null)
     private var rootCoordinates: LayoutCoordinates? = null
-    private val dropTargets = mutableListOf<DropTarget<T>>()
-    private var hoveredDropTarget: DropTarget<T>? = null
-    private var releaseTarget: DropTarget<T>? = null
-    private var releaseCompletion: DropCompletion? = null
-    private var releaseDispatched = false
-
-    internal var activePointerId: PointerId? = null
-        private set
+    val dropTargets = mutableListOf<DropTarget<T>>()
+    val dragSources = mutableListOf<Source<T>>()
+    var hoveredDropTarget: DropTarget<T>? = null
 
     override val offer: Offer<T>?
-        get() = offerState.value
+        get() = offerState.value?.value
 
     internal fun setRootCoordinates(coordinates: LayoutCoordinates) {
         rootCoordinates = coordinates
     }
 
-    override fun startOrUpdate(
-        pointerId: PointerId,
-        offset: Offset,
-        size: IntSize,
-        localOffset: Offset,
-        item: T,
-        from: Any,
-    ) {
-        when (activePointerId) {
-            null -> {
-                activePointerId = pointerId
-                offerState.value = Offer(
-                    offset = offset,
-                    size = size,
-                    localOffset = localOffset,
-                    item = item,
-                    from = from,
-                )
-                dropTargets.forEach { it.callbacks.onStart() }
-                updateHoveredDropTarget(offset)
-            }
-
-            pointerId -> {
-                offerState.value = offerState.value?.copy(offset = offset)
-                updateHoveredDropTarget(offset)
-            }
-        }
-    }
-
-    internal fun update(pointerId: PointerId, offset: Offset) {
-        if (activePointerId == pointerId) {
-            offerState.value = offerState.value?.copy(offset = offset)
-            updateHoveredDropTarget(offset)
-        }
-    }
-
-    internal fun finish(pointerId: PointerId, offset: Offset) {
-        if (activePointerId == pointerId) {
-            offerState.value = offerState.value?.copy(offset = offset)
-            updateHoveredDropTarget(offset)
-            releaseTarget = hoveredDropTarget
-            releaseDispatched = false
-            releaseCompletion = releaseTarget?.let { target ->
-                lateinit var completion: DropCompletion
-                completion = DropCompletion {
-                    completeRelease(completion)
-                }
-                completion
-            }
-            activePointerId = null
-            offerState.value = offerState.value?.copy(released = true)
-        }
-    }
-
-    internal fun cancel(pointerId: PointerId? = null) {
-        if (pointerId != null && activePointerId != pointerId) return
-        clearHoveredDropTarget()
-        activePointerId = null
-        releaseTarget = null
-        releaseCompletion = null
-        releaseDispatched = false
-        offerState.value = null
-    }
-
-    internal fun clearReleased() {
-        if (offerState.value?.released == true) {
-            releaseTarget = null
-            releaseCompletion = null
-            releaseDispatched = false
-            offerState.value = null
-        }
-    }
-
-    internal fun hasReleaseTarget(): Boolean = releaseTarget != null
-
-    private fun completeRelease(completion: DropCompletion) {
-        if (offerState.value?.released == true && releaseCompletion === completion) {
-            releaseTarget = null
-            releaseCompletion = null
-            releaseDispatched = false
-            offerState.value = null
-        }
-    }
-
-    override fun releaseFor(target: DropTarget<T>): DropRelease<T>? {
-        if (
-            offerState.value?.released != true ||
-            releaseTarget !== target ||
-            releaseDispatched
-        ) {
-            return null
-        }
-
-        val offer = offerState.value ?: return null
-        val completion = releaseCompletion ?: return null
-        releaseDispatched = true
-        return DropRelease(
-            offer = offer,
-            completion = completion,
-        )
-    }
-
     override fun registerDropTarget(target: DropTarget<T>) {
-        if (target !in dropTargets) {
-            dropTargets += target
-            if (activePointerId != null) {
-                updateHoveredDropTarget(offerState.value?.offset)
-            }
-        }
+        dropTargets += target
+        offerState.value?.value?.offset?.let { updateHoveredDropTarget(it) }
     }
 
     override fun unregisterDropTarget(target: DropTarget<T>) {
-        if (hoveredDropTarget === target) {
-            target.callbacks.onExit()
-            target.callbacks.onEnd()
-            hoveredDropTarget = null
-        }
-        if (releaseTarget === target && !releaseDispatched) {
-            releaseTarget = null
-            releaseCompletion = null
-            releaseDispatched = false
-            offerState.value = null
-        }
         dropTargets.remove(target)
+        offerState.value?.value?.offset?.let { updateHoveredDropTarget(it) }
     }
 
     override fun updateDropTargetBounds(target: DropTarget<T>, bounds: Rect) {
         target.bounds = bounds
-        if (activePointerId != null) {
-            updateHoveredDropTarget(offerState.value?.offset)
-        }
+        offerState.value?.value?.offset?.let { updateHoveredDropTarget(it) }
     }
 
-    private fun updateHoveredDropTarget(offset: Offset?) {
-        val newTarget = offset?.let { position ->
-            dropTargets.asReversed().firstOrNull { target ->
-                target.bounds?.contains(position) == true
-            }
+    override fun registerDragSource(source: Source<T>) {
+        dragSources += source
+    }
+
+    override fun unregisterDragSource(source: Source<T>) {
+        dragSources.remove(source)
+    }
+
+    fun updateHoveredDropTarget(offset: Offset) {
+        val newTarget = dropTargets.firstOrNull { target ->
+            target.bounds?.contains(offset) == true
         }
         if (newTarget === hoveredDropTarget) return
 
@@ -261,127 +123,94 @@ class DragController<T> : DragTarget<T>, DragSource<T> {
         hoveredDropTarget = newTarget
         newTarget?.callbacks?.onEnter()
     }
-
-    private fun clearHoveredDropTarget() {
-        hoveredDropTarget?.callbacks?.onExit()
-        hoveredDropTarget?.callbacks?.onEnd()
-        hoveredDropTarget = null
-    }
-
-    internal fun toWindow(position: Offset): Offset =
-        rootCoordinates?.localToWindow(position) ?: position
 }
 
-@Composable
 fun <T> Modifier.dragSource(
     dragController: DragSource<T>,
     from: Any,
     item: T,
-    raceBefore: suspend context(PointerRacer) () -> Unit = { },
-): Modifier {
-    val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val currentItem = rememberUpdatedState(item)
-    val currentFrom = rememberUpdatedState(from)
-    val density = density
-    return onGloballyPositioned { layout.value = it }
-        .pointerInput(item, density) {
-            racing {
-                raceBefore()
-                sequence {
-                    val localToWindow = layout.value?.let { it::localToWindow } ?: { it }
-                    followDrag { change ->
-                        dragController.startOrUpdate(
-                            pointerId = change.id,
-                            offset = localToWindow(change.position),
-                            size = layout.value?.size ?: IntSize.Zero,
-                            localOffset = change.position,
-                            item = currentItem.value,
-                            from = currentFrom.value,
-                        )
-                    }
-                }
-            }
-        }
+): Modifier = composed {
+    val source = rememberSource(from, item)
+    DisposableEffect(dragController, source) {
+        dragController.registerDragSource(source)
+        onDispose { dragController.unregisterDragSource(source) }
+    }
+    onGloballyPositioned { source.bounds = it.boundsInWindow() }
 }
 
-fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier =
+fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = composed {
+    val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
     pointerInput(dragController) {
-        try {
-            awaitEachGesture {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val pointerId = dragController.activePointerId
-                    if (pointerId != null) {
-                        val change = event.changes.firstOrNull { it.id == pointerId }
-                        if (change == null) {
-                            dragController.cancel(pointerId)
-                            return@awaitEachGesture
-                        }
-
-                        if (!change.pressed) {
-                            dragController.finish(
-                                pointerId = pointerId,
-                                offset = dragController.toWindow(change.position),
-                            )
-                            if (!dragController.hasReleaseTarget()) {
-                                dragController.clearReleased()
-                            }
-                            return@awaitEachGesture
-                        }
-
+        racing {
+            sequence {
+                val localToWindow = layout.value?.let { it::localToWindow } ?: { it }
+                var started = false
+                try {
+                    val lastChange = followDrag { change ->
+                        println("change is $change")
                         change.consume()
-                        dragController.update(
-                            pointerId,
-                            dragController.toWindow(change.position),
-                        )
+                        val offset = localToWindow(change.position)
+                        if (!started) {
+                            started = true
+                            for (source in dragController.dragSources) {
+                                if (source.bounds.contains(offset)) {
+                                    dragController.offerState.value = mutableStateOf(
+                                        Offer(
+                                            offset = offset,
+                                            size = IntSize(
+                                                source.bounds.width.roundToInt(),
+                                                source.bounds.height.roundToInt()
+                                            ),
+                                            localOffset = change.position - source.bounds.topLeft,
+                                            item = source.item,
+                                            from = source.from,
+                                        )
+                                    )
+                                    dragController.dropTargets.forEach { it.callbacks.onStart() }
+                                    break
+                                }
+                            }
+                        } else {
+                            dragController.offerState.value?.modify { it.copy(offset = offset) }
+                        }
+                        dragController.updateHoveredDropTarget(offset)
                     }
-
-                    if (event.changes.all { !it.pressed }) {
-                        return@awaitEachGesture
+                    val lastOffset = localToWindow(lastChange.position)
+                    dragController.offerState.value?.modify { it.copy(offset = lastOffset) }
+                    dragController.updateHoveredDropTarget(lastOffset)
+                    dragController.offerState.value?.let { (offer, _) ->
+                        dragController.hoveredDropTarget?.callbacks?.onGiven(offer)
                     }
+                } finally {
+                    dragController.hoveredDropTarget?.callbacks?.onEnd()
+                    dragController.offerState.value = null
                 }
             }
-        } finally {
-            dragController.cancel()
         }
-    }
+    }.onGloballyPositioned { dragController.setRootCoordinates(it) }
+}
 
 fun <T> Modifier.dropTarget(
     dragController: DragTarget<T>,
     onStart: () -> Unit = {},
     onEnter: () -> Unit = {},
     onExit: () -> Unit = {},
-    onGiven: (Offer<T>, DropCompletion) -> Unit = { _, _ -> },
+    onGiven: (Offer<T>) -> Unit = { },
     onEnd: () -> Unit = {},
 ): Modifier = composed {
     val target = remember { DropTarget<T>() }
 
-    SideEffect {
-        target.callbacks = DropTargetCallbacks(
-            onStart = onStart,
-            onEnter = onEnter,
-            onExit = onExit,
-            onGiven = onGiven,
-            onEnd = onEnd,
-        )
-    }
+    target.callbacks = DropTargetCallbacks(
+        onStart = onStart,
+        onEnter = onEnter,
+        onExit = onExit,
+        onGiven = onGiven,
+        onEnd = onEnd,
+    )
 
     DisposableEffect(dragController, target) {
         dragController.registerDropTarget(target)
         onDispose { dragController.unregisterDropTarget(target) }
-    }
-
-    LaunchedEffect(dragController.offer?.released, target) {
-        if (dragController.offer?.released == true) {
-            withFrameNanos { }
-            val release = dragController.releaseFor(target) ?: return@LaunchedEffect
-            try {
-                target.callbacks.onGiven(release.offer, release.completion)
-            } finally {
-                target.callbacks.onEnd()
-                release.completion.completeIfNotDeferred()
-            }
-        }
     }
 
     this@composed.onGloballyPositioned {

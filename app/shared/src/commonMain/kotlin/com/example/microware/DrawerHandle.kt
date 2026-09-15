@@ -24,7 +24,7 @@ sealed interface DrawerHandleState<in T, out Data> {
 
     data class Dragging<T, Data>(
         val dragTarget: DragTarget<T>,
-        val onGiven: (Offer<T>, DropCompletion) -> Unit,
+        val onGiven: (Offer<T>) -> Unit,
         val onEnter: () -> Unit = {},
         val onExit: () -> Unit = {},
         val onEnd: () -> Unit = {},

@@ -55,9 +55,7 @@ internal fun ObjectOrderEditor(
     ) {
         GhostingLazyColumn(
             items = topFirstObjects,
-            itemKey = { it.id },
             dragController = state.dragController,
-            from = world,
             modifier = Modifier.fillMaxSize(),
             listModifier = Modifier
                 .fillMaxWidth()
