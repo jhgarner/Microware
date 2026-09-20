@@ -8,8 +8,8 @@ data class Game(
     val world: World,
     val logics: PersistentList<Logic>,
     @Transient
-    override val id: Int = nextId(),
+    override val id: Id = nextId(),
 ) : Identifiable<Game> {
     override val self = this
-    override fun newId(id: Int): Game = copy(id = id)
+    override fun newId(id: Id): Game = copy(id = id)
 }

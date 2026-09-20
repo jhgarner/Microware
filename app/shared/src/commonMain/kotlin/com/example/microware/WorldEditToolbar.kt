@@ -32,9 +32,9 @@ private sealed interface Expanded {
     companion object {
         fun fromEdge(edge: HandleEdge?): Expanded? = when (edge) {
             null -> null
-            HandleEdge.Left -> Expanded.Trash
-            HandleEdge.Bottom -> Expanded.Editor(Obj(20, 20))
-            HandleEdge.Right -> Expanded.Library
+            HandleEdge.Left -> Trash
+            HandleEdge.Bottom -> Editor(Obj(20, 20))
+            HandleEdge.Right -> Library
         }
     }
 }
@@ -83,7 +83,13 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         highlightForeground = Palette.Red,
         hiddenSlide = if (trash.garbage.isNotEmpty()) 16 else 500,
         buttonContent = { TrashControls(it) },
-        drawerContent = { ObjectTable(items = trash.garbage, dragSource = it) },
+        drawerContent = {
+            ObjectTable(
+                items = trash.garbage,
+                dragSource = it,
+                dragTarget = dragTarget
+            )
+        },
     )
 
     val createState = when {
@@ -164,6 +170,12 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         foreground = Palette.Forest,
         highlightForeground = Palette.Green,
         buttonContent = { LibraryTarget(it) },
-        drawerContent = { ObjectTable(items = library.items, dragSource = it) },
+        drawerContent = {
+            ObjectTable(
+                items = library.items,
+                dragSource = it,
+                dragTarget = dragTarget
+            )
+        },
     )
 }

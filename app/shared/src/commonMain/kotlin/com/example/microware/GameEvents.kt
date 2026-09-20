@@ -40,7 +40,7 @@ fun interface LogicsEvent : GameEvents {
 fun interface LogicEvent {
     fun modifyLogic(logic: Logic): Logic
 
-    fun forId(id: Int): LogicsEvent = LogicsEvent { logics ->
+    fun forId(id: Id): LogicsEvent = LogicsEvent { logics ->
         val i = logics.indexOfFirst { it.id == id }
         logics.replacingAt(i, modifyLogic(logics[i]))
     }

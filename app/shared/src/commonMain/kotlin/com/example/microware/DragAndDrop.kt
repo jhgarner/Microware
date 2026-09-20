@@ -37,13 +37,14 @@ data class DropTargetCallbacks<T>(
     val onEnd: () -> Unit = {},
 )
 
-class DropTarget<T> {
+class DropTarget<T>(val to: Any) {
     var bounds: Rect? = null
     var callbacks by mutableStateOf(DropTargetCallbacks<T>())
 }
 
 interface DragTarget<T> {
     val offer: Offer<T>?
+    val hoveredDropTarget: DropTarget<T>?
 
     fun registerDropTarget(target: DropTarget<T>)
     fun unregisterDropTarget(target: DropTarget<T>)
@@ -78,16 +79,16 @@ interface DragSource<T> {
 
 class DragController<T> : DragTarget<T>, DragSource<T> {
     var offerState: MutableState<MutableState<Offer<T>>?> = mutableStateOf(null)
-    private var rootCoordinates: LayoutCoordinates? = null
+    var rootCoordinates: MutableState<LayoutCoordinates?> = mutableStateOf(null)
     val dropTargets = mutableListOf<DropTarget<T>>()
     val dragSources = mutableListOf<Source<T>>()
-    var hoveredDropTarget: DropTarget<T>? = null
+    override var hoveredDropTarget: DropTarget<T>? = null
 
     override val offer: Offer<T>?
         get() = offerState.value?.value
 
     internal fun setRootCoordinates(coordinates: LayoutCoordinates) {
-        rootCoordinates = coordinates
+        rootCoordinates.value = coordinates
     }
 
     override fun registerDropTarget(target: DropTarget<T>) {
@@ -139,7 +140,7 @@ fun <T> Modifier.dragSource(
 }
 
 fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = composed {
-    val layout = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val layout = dragController.rootCoordinates
     pointerInput(dragController) {
         racing {
             sequence {
@@ -147,7 +148,6 @@ fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = com
                 var started = false
                 try {
                     val lastChange = followDrag { change ->
-                        println("change is $change")
                         change.consume()
                         val offset = localToWindow(change.position)
                         if (!started) {
@@ -161,7 +161,7 @@ fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = com
                                                 source.bounds.width.roundToInt(),
                                                 source.bounds.height.roundToInt()
                                             ),
-                                            localOffset = change.position - source.bounds.topLeft,
+                                            localOffset = offset - source.bounds.topLeft,
                                             item = source.item,
                                             from = source.from,
                                         )
@@ -182,7 +182,7 @@ fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = com
                         dragController.hoveredDropTarget?.callbacks?.onGiven(offer)
                     }
                 } finally {
-                    dragController.hoveredDropTarget?.callbacks?.onEnd()
+                    dragController.dropTargets.forEach { it.callbacks.onEnd() }
                     dragController.offerState.value = null
                 }
             }
@@ -192,13 +192,14 @@ fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = com
 
 fun <T> Modifier.dropTarget(
     dragController: DragTarget<T>,
+    to: Any = Unit,
     onStart: () -> Unit = {},
     onEnter: () -> Unit = {},
     onExit: () -> Unit = {},
     onGiven: (Offer<T>) -> Unit = { },
     onEnd: () -> Unit = {},
 ): Modifier = composed {
-    val target = remember { DropTarget<T>() }
+    val target = remember { DropTarget<T>(to) }
 
     target.callbacks = DropTargetCallbacks(
         onStart = onStart,

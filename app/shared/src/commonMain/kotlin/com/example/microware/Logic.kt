@@ -7,13 +7,11 @@ data class Logic(
     val trigger: Trigger,
     val actions: List<Action> = listOf(),
     @Transient
-    override val id: Int = nextId(),
+    override val id: Id = nextId(),
 ) : Identifiable<Logic> {
     override val self = this
-    override fun newId(id: Int): Logic = copy(id = id)
+    override fun newId(id: Id): Logic = copy(id = id)
 }
-
-fun List<Logic>.byId(id: Int): Logic? = firstOrNull { it.id == id }
 
 sealed interface Action {
     class Move(val mover: LogicTag, val target: Direction, val speed: Int) : Action

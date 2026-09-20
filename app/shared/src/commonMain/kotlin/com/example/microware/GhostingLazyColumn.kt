@@ -33,7 +33,7 @@ internal const val GhostListDragGhostAlpha = .7f
 private data class GhostListDrop<T : Any>(
     val request: Int,
     val item: T,
-    val itemKey: Int,
+    val itemKey: Id,
     val startTopLeftInWindow: Offset,
     val sourceBounds: Rect?,
 )
@@ -97,7 +97,7 @@ internal fun <T : Identifiable<T>> GhostingLazyColumn(
                 ) { index, item ->
                     val key = item.id
                     val itemModifier = Modifier
-                        .onGloballyPositioned { itemBounds[key] = it.boundsInWindow() }
+                        .onGloballyPositioned { itemBounds[key.value] = it.boundsInWindow() }
 
                     val animatedModifier = Modifier.animateItem(
                         fadeInSpec = null,

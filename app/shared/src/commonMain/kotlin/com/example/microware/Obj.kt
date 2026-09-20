@@ -6,7 +6,7 @@ import com.example.microware.Identifiable.Companion.nextId
 data class Obj(
     val offset: Offset,
     val sprite: Sprite,
-    override val id: Int = nextId(),
+    override val id: Id = nextId(),
 ) : Identifiable<Obj> {
     constructor(width: Int, height: Int, offset: Offset = Offset.Zero) : this(
         offset,
@@ -14,5 +14,5 @@ data class Obj(
     )
 
     override val self = this
-    override fun newId(id: Int): Obj = copy(id = id)
+    override fun newId(id: Id): Obj = copy(id = id)
 }

@@ -40,7 +40,7 @@ const val WorldHeight = MaxSpriteHeight
 internal class WorldEditorState {
     val dragController = DragController<Obj>()
     val mutableWillBeDeleted = mutableStateOf(false)
-    var worldOriginInParent by mutableStateOf(Offset.Zero)
+    var worldOriginInWindow by mutableStateOf(Offset.Zero)
     var worldScale by mutableStateOf(1f)
 }
 
@@ -50,17 +50,8 @@ internal fun rememberWorldEditorState(): WorldEditorState = remember { WorldEdit
 data class World(
     val background: Sprite,
     val objects: List<Obj>,
-    val logicTags: Map<LogicTag, Int> = emptyMap(),
+    val logicTags: BiMap<LogicTag, Id> = BiMap(),
 ) {
-    init {
-        require(logicTags.values.toSet().size == logicTags.size) {
-            "An object cannot have more than one logic tag"
-        }
-        require(logicTags.values.all { objectId -> objects.any { it.id == objectId } }) {
-            "Logic tags must refer to objects in the world"
-        }
-    }
-
     constructor() : this(Sprite.empty(WorldWidth, WorldHeight), emptyList())
 
     fun updateObject(newObj: Obj): World {
@@ -82,32 +73,22 @@ data class World(
         )
     }
 
-    fun addObject(obj: Obj): World = copy(objects = objects + obj.copy(id = nextId()))
+    fun addObject(obj: Obj): World = copy(objects = objects + obj.newId())
     fun upsertObject(obj: Obj): World {
         return objects.indexOfFirst { obj.id == it.id }.takeIf { it >= 0 }?.let {
             updateObject(obj)
         } ?: addObject(obj)
     }
 
-    fun nextId(): Int = (objects.maxOfOrNull { it.id } ?: 0) + 1
+    fun logicTagFor(objectId: Id): LogicTag? = logicTags.flip()[objectId]
 
-    fun logicTagFor(objectId: Int): LogicTag? {
-        return logicTags.entries.firstOrNull { it.value == objectId }?.key
-    }
-
-    fun assignLogicTag(objectId: Int, logicTag: LogicTag?): World {
-        if (objects.none { it.id == objectId }) return this
-
-        val newLogicTags = logicTags
-            .filterValues { it != objectId }
-            .toMutableMap()
-        if (logicTag == null) {
-            return copy(logicTags = newLogicTags)
-        }
-
-        newLogicTags[logicTag] = objectId
-        return copy(logicTags = newLogicTags)
-    }
+    fun assignLogicTag(objectId: Id, logicTag: LogicTag?): World =
+        copy(
+            logicTags = if (logicTag != null) logicTags.add(
+                logicTag,
+                objectId
+            ) else logicTags.remove(objectId)
+        )
 
     fun clamped(obj: Obj): Obj {
         val maxX = (background.width - obj.sprite.width).coerceAtLeast(0).toFloat()
@@ -120,30 +101,12 @@ data class World(
         )
     }
 
-    fun deleteObject(id: Int): World = copy(
+    fun deleteObject(id: Id): World = copy(
         objects = objects.filterNot { it.id == id },
-        logicTags = logicTags.filterValues { it != id },
+        logicTags = logicTags.remove(id),
     )
 
-    fun reorderObject(id: Int, targetIndex: Int): World {
-        val sourceIndex = objects.indexOfFirst { it.id == id }
-        if (sourceIndex < 0 || objects.size < 2) return this
-
-        val destinationIndex = if (targetIndex > sourceIndex) {
-            targetIndex - 1
-        } else {
-            targetIndex
-        }
-        val insertionIndex = destinationIndex.coerceIn(0, objects.lastIndex)
-        if (sourceIndex == insertionIndex) return this
-
-        val reordered = objects.toMutableList()
-        val obj = reordered.removeAt(sourceIndex)
-        reordered.add(insertionIndex, obj)
-        return copy(objects = reordered)
-    }
-
-    fun reorderObjectFromTop(id: Int, targetIndex: Int): World {
+    fun reorderObjectFromTop(id: Id, targetIndex: Int): World {
         val topFirst = objects.asReversed()
         val sourceIndex = topFirst.indexOfFirst { it.id == id }
         if (sourceIndex < 0 || topFirst.size < 2) return this
@@ -184,7 +147,7 @@ internal fun WorldEditorContent(
                     dragController = state.dragController,
                     onGiven = { offer ->
                         val localOffset =
-                            (offer.offset - state.worldOriginInParent - offer.localOffset) / state.worldScale
+                            (offer.offset - state.worldOriginInWindow - offer.localOffset) / state.worldScale
                         val obj = world.clamped(offer.obj.copy(offset = localOffset))
                         handler { world ->
                             if (offer.from is World) {
@@ -213,13 +176,13 @@ internal fun WorldEditorContent(
                     .requiredSize(worldWidth.toDp(), worldHeight.toDp())
                     .offset { IntOffset(worldLeft, worldTop) }
                     .onGloballyPositioned { coordinates ->
-                        state.worldOriginInParent = coordinates.positionInWindow()
+                        state.worldOriginInWindow = coordinates.positionInWindow()
                         state.worldScale = scale
                     }
                     .clipToBounds()
             ) {
                 WorldSprite(
-                    obj = Obj(id = 0, sprite = world.background, offset = Offset.Zero),
+                    obj = Obj(id = Id(-1), sprite = world.background, offset = Offset.Zero),
                     origin = IntOffset.Zero,
                     scale = scale,
                     from = Unit,
@@ -238,7 +201,7 @@ internal fun WorldEditorContent(
 
             offer?.apply {
                 WorldSprite(
-                    obj = obj.copy(offset = (offset - state.worldOriginInParent - localOffset) / state.worldScale),
+                    obj = obj.copy(offset = (offset - state.worldOriginInWindow - localOffset) / state.worldScale),
                     origin = IntOffset(worldLeft, worldTop),
                     scale = scale,
                     from = Unit,

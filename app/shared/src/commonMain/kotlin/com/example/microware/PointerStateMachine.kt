@@ -42,7 +42,6 @@ sealed class PointerScope {
     suspend fun expectFor(ids: Collection<PointerId>): PointerInputChange {
         val pointer = next()
         if (!ids.contains(pointer.id) || pointer.isConsumed) {
-            println("Failing in expectFor because $pointer")
             unexpected(pointer)
         }
         return pointer
@@ -64,15 +63,12 @@ sealed class PointerScope {
 
     suspend fun followDrag(chaser: (PointerInputChange) -> Unit): PointerInputChange {
         val initial = expectDown()
-        println("Starting with $initial")
         var dragging = false
         var traveled = 0f
         while (true) {
             val latest = expectFor(initial.id)
-            println("Latest is $latest")
             if (latest.changedToUp()) {
                 if (!dragging) {
-                    println("Exiting because not a drag")
                     unexpected(latest)
                 }
                 return latest

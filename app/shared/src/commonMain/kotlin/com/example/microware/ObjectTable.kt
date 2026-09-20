@@ -5,15 +5,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -27,6 +23,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -38,22 +35,22 @@ import kotlin.math.roundToInt
 fun ObjectTable(
     items: List<Obj>,
     dragSource: DragSource<Obj>,
+    dragTarget: DragTarget<Obj>,
     from: Any = Unit,
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 64.dp),
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        itemsIndexed(items, key = { _, obj -> obj.id }) { index, obj ->
-            ItemPreview(
-                obj = obj,
-                zIndex = -index.toFloat(),
-                dragSource = dragSource,
-                from = from
-            )
-        }
+    Grid(
+        items = items,
+        itemSize = DpSize(64.dp, 64.dp),
+        dragSource = dragSource,
+        dragTarget = dragTarget,
+        onMove = { _, _ -> }
+    ) { obj ->
+        ItemPreview(
+            obj = obj,
+            zIndex = 0f,
+            dragSource = dragSource,
+            from = from
+        )
     }
 }
 

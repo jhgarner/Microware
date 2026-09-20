@@ -46,21 +46,3 @@ internal class GameStore(
     private fun reduce(state: GameStoreState, event: GamesEvent): GameStoreState =
         state.copy(games = event.modifyGames(state.games))
 }
-
-private fun List<Game>.moveGame(gameId: Int, targetIndex: Int): List<Game> {
-    if (size < 2) return this
-    val sourceIndex = indexOfFirst { it.id == gameId }
-    if (sourceIndex < 0) return this
-
-    val destinationIndex = targetIndex.coerceIn(0, lastIndex)
-    if (sourceIndex == destinationIndex) return this
-
-    return toMutableList().apply {
-        val game = removeAt(sourceIndex)
-        add(destinationIndex.coerceIn(0, size), game)
-    }
-}
-
-internal class GameSession(private val store: GameStore) {
-
-}

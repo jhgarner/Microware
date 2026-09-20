@@ -25,21 +25,14 @@ internal data class StoredGame(
 internal data class GameStoredWorld(
     val background: StoredSprite,
     val objects: List<GameStoredObj> = emptyList(),
-    val logicTags: List<GameStoredLogicTag> = emptyList(),
-)
-
-@Serializable
-internal data class GameStoredLogicTag(
-    val tag: Int,
-    val objectId: Int,
 )
 
 @Serializable
 internal data class GameStoredObj(
-    val id: Int,
     val offsetX: Float,
     val offsetY: Float,
     val sprite: StoredSprite,
+    val tag: Int?,
 )
 
 @Serializable
@@ -109,32 +102,34 @@ private fun StoredGame.toGame(): Game = Game(
 
 private fun World.toStoredWorld(): GameStoredWorld = GameStoredWorld(
     background = SpriteCodec.encode(background),
-    objects = objects.map(Obj::toStoredObj),
-    logicTags = logicTags.map { (tag, objectId) ->
-        GameStoredLogicTag(tag = tag.tag, objectId = objectId)
-    },
+    objects = objects.map { it.toStoredObj(logicTags) },
 )
 
-private fun GameStoredWorld.toWorld(): World = World(
-    background = SpriteCodec.decode(background),
-    objects = objects.map(GameStoredObj::toObj),
-    logicTags = logicTags.associate { storedTag ->
-        LogicTag(storedTag.tag) to storedTag.objectId
-    },
-)
+private fun GameStoredWorld.toWorld(): World {
+    val logicTags = Mut(BiMap<LogicTag, Id>())
+    return World(
+        background = SpriteCodec.decode(background),
+        objects = objects.map { it.toObj(logicTags) },
+        logicTags = logicTags.value
+    )
+}
 
-private fun Obj.toStoredObj(): GameStoredObj = GameStoredObj(
-    id = id,
+private fun Obj.toStoredObj(tags: BiMap<LogicTag, Id>): GameStoredObj = GameStoredObj(
     offsetX = offset.x,
     offsetY = offset.y,
     sprite = SpriteCodec.encode(sprite),
+    tag = tags.flip()[id]?.tag
 )
 
-private fun GameStoredObj.toObj(): Obj = Obj(
-    id = id,
-    offset = Offset(offsetX, offsetY),
-    sprite = SpriteCodec.decode(sprite),
-)
+private fun GameStoredObj.toObj(tags: Mut<BiMap<LogicTag, Id>>): Obj {
+    val id = Identifiable.nextId()
+    tag?.let { tags[LogicTag(it)] = id }
+    return Obj(
+        id = id,
+        offset = Offset(offsetX, offsetY),
+        sprite = SpriteCodec.decode(sprite),
+    )
+}
 
 private fun Logic.toStoredLogic(): GameStoredLogic = GameStoredLogic(
     trigger = trigger.toStoredTrigger(),

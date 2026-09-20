@@ -34,7 +34,7 @@ fun App() {
                 )
             }
             val gameState by gameStore.state.collectAsState()
-            var selectedGameId by remember { mutableStateOf<Int?>(null) }
+            var selectedGameId by remember { mutableStateOf<Id?>(null) }
             CompositionLocalProvider(LocalInsets provides Insets.new()) {
                 val gameId = selectedGameId
                 val game = gameId?.let { id ->

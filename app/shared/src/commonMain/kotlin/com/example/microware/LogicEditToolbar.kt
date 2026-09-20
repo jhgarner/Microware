@@ -47,7 +47,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
         if (offer != null) value = null
     }
 
-    fun updateLogic(id: Int, logicEvent: LogicEvent) {
+    fun updateLogic(id: Id, logicEvent: LogicEvent) {
         handler { logics ->
             val oldLogic = logics.byId(id) ?: return@handler logics
             val newLogic = logicEvent.modifyLogic(oldLogic)
