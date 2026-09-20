@@ -105,25 +105,6 @@ data class World(
         objects = objects.filterNot { it.id == id },
         logicTags = logicTags.remove(id),
     )
-
-    fun reorderObjectFromTop(id: Id, targetIndex: Int): World {
-        val topFirst = objects.asReversed()
-        val sourceIndex = topFirst.indexOfFirst { it.id == id }
-        if (sourceIndex < 0 || topFirst.size < 2) return this
-
-        val destinationIndex = if (targetIndex > sourceIndex) {
-            targetIndex - 1
-        } else {
-            targetIndex
-        }
-        val insertionIndex = destinationIndex.coerceIn(0, topFirst.lastIndex)
-        if (sourceIndex == insertionIndex) return this
-
-        val reordered = topFirst.toMutableList()
-        val obj = reordered.removeAt(sourceIndex)
-        reordered.add(insertionIndex, obj)
-        return copy(objects = reordered.asReversed())
-    }
 }
 
 @Composable

@@ -74,7 +74,15 @@ internal fun ObjectOrderEditor(
                     dragSource = state.dragController,
                     dragTarget = state.dragController,
                     onMove = { id, targetIndex ->
-                        handler { world -> world.reorderObjectFromTop(id, targetIndex) }
+                        handler { world ->
+                            val topFirst = world.objects.asReversed()
+                            val sourceIndex = topFirst.indexOfFirst { it.id == id }
+                            val game = topFirst[sourceIndex]
+                            val mutTopFirst = topFirst.toMutableList()
+                            mutTopFirst.removeAt(sourceIndex)
+                            mutTopFirst.add(targetIndex, game)
+                            world.copy(objects = mutTopFirst.reversed())
+                        }
                     },
                 ) {
                     ObjectOrderCard(
