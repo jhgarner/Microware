@@ -44,7 +44,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -247,7 +246,6 @@ private fun GameDragGhost(
     offer: Offer<Game>,
     alpha: Float,
 ) {
-    val density = LocalDensity.current
     Box(
         modifier = Modifier
             .offset {
@@ -257,14 +255,11 @@ private fun GameDragGhost(
                 )
             }
             .size(
-                width = with(density) { offer.size.width.toDp() },
+                width = offer.size.width.toDp(),
                 height = offer.size.height.toDp(),
             )
             .alpha(alpha)
             .zIndex(2f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Palette.OffWhite.color)
-            .drawBorder(Palette.DarkGray.color),
     ) {
         GamePreview(game)
     }
@@ -272,7 +267,12 @@ private fun GameDragGhost(
 
 @Composable
 private fun GamePreview(game: Game) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    Canvas(
+        modifier = Modifier.fillMaxSize()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Palette.OffWhite.color)
+            .drawBorder(Palette.DarkGray.color)
+    ) {
         val world = game.world
         val scale = min(
             size.width / world.background.width,

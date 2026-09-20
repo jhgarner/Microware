@@ -2,7 +2,6 @@ package com.example.microware
 
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -102,7 +101,7 @@ fun <T : Identifiable<T>> Grid(
                     GridItem(
                         item = item,
                         offer = dragTarget.offer,
-                        modifier = Modifier.padding(8.dp).size(itemSize)
+                        modifier = Modifier.size(itemSize)
                             .offset { animatedOffset.value },
                         preview = preview,
                     )
@@ -110,7 +109,7 @@ fun <T : Identifiable<T>> Grid(
             }
         }
         Column(modifier = Modifier) {
-            val columns = (this@BoxWithConstraints.maxWidth / itemSize.width).toInt()
+            val columns = (this@BoxWithConstraints.maxWidth / (itemSize.width + 16.dp)).toInt()
             items.withIndex().chunked(columns).forEach { row ->
                 Row(
                     modifier = Modifier
@@ -157,8 +156,6 @@ private fun <T : Identifiable<T>> GridItem(
                 }
             )
             .clip(shape)
-            .background(Palette.OffWhite.color)
-            .drawBorder(Palette.DarkGray.color)
             .semantics { contentDescription = "Open game" },
     ) {
         preview(item)
