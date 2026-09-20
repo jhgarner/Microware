@@ -46,7 +46,7 @@ fun <Data> Drawer(
     if (scrimAlpha > 0f) {
         Box(
             modifier = Modifier
-                .zIndex(0.4f)
+                .zIndex(0.99f)
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = scrimAlpha))
                 .runMaybe(state?.onDismiss) {

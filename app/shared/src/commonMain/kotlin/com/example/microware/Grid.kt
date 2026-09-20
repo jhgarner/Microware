@@ -32,8 +32,10 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpSize
@@ -53,10 +55,11 @@ fun <T : Identifiable<T>> Grid(
     preview: @Composable (T) -> Unit,
 ) {
     val gameBounds = remember { mutableStateMapOf<Id, Rect>() }
+    val offsetInRoot = remember { mutableStateMapOf<Id, Offset>() }
     val slotBounds = items
         .mapNotNull { gameBounds[it.id] }
         .sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
-    var gridBounds by remember { mutableStateOf<Rect?>(null) }
+    var gridBounds by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     LaunchedEffect(
         dragTarget.offer?.item?.id,
@@ -83,28 +86,26 @@ fun <T : Identifiable<T>> Grid(
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
-            .onGloballyPositioned { gridBounds = it.boundsInWindow() }
+            .onGloballyPositioned { gridBounds = it }
             .dropTarget(
                 dragController = dragTarget,
                 to = GridDropTarget,
             )
     ) {
-        gridBounds?.let { root ->
-            for (item in items) {
-                key(item.id) {
-                    gameBounds[item.id]?.let { rect ->
-                        val animatedOffset = animateIntOffsetAsState(
-                            (rect.topLeft - root.topLeft).round(),
-                            animationSpec = tween(durationMillis = 180)
-                        )
-                        GridItem(
-                            item = item,
-                            offer = dragTarget.offer,
-                            modifier = Modifier.padding(8.dp).size(itemSize)
-                                .offset { animatedOffset.value },
-                            preview = preview,
-                        )
-                    }
+        for (item in items) {
+            key(item.id) {
+                offsetInRoot[item.id]?.let { offset ->
+                    val animatedOffset = animateIntOffsetAsState(
+                        offset.round(),
+                        animationSpec = tween(durationMillis = 180)
+                    )
+                    GridItem(
+                        item = item,
+                        offer = dragTarget.offer,
+                        modifier = Modifier.padding(8.dp).size(itemSize)
+                            .offset { animatedOffset.value },
+                        preview = preview,
+                    )
                 }
             }
         }
@@ -121,7 +122,13 @@ fun <T : Identifiable<T>> Grid(
                             modifier = Modifier.padding(8.dp)
                                 .size(itemSize)
                                 .dragSource(dragSource, GridDragSource(index), item)
-                                .onGloballyPositioned { gameBounds[item.id] = it.boundsInWindow() },
+                                .onGloballyPositioned { layout ->
+                                    gameBounds[item.id] = layout.boundsInWindow()
+                                    gridBounds?.let { root ->
+                                        offsetInRoot[item.id] =
+                                            root.windowToLocal(layout.positionInWindow())
+                                    }
+                                },
                         )
                     }
                 }
