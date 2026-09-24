@@ -38,7 +38,7 @@ data class DropTargetCallbacks<T>(
 )
 
 class DropTarget<T>(val to: Any) {
-    var bounds: Rect? = null
+    var bounds: Rect = Rect.Zero
     var callbacks by mutableStateOf(DropTargetCallbacks<T>())
 }
 
@@ -81,7 +81,7 @@ class DragController<T> : DragTarget<T>, DragSource<T> {
     var offerState: MutableState<MutableState<Offer<T>>?> = mutableStateOf(null)
     var rootCoordinates: MutableState<LayoutCoordinates?> = mutableStateOf(null)
     val dropTargets = mutableListOf<DropTarget<T>>()
-    val dragSources = mutableListOf<Source<T>>()
+    private val dragSources = mutableListOf<Source<T>>()
     override var hoveredDropTarget: DropTarget<T>? = null
 
     override val offer: Offer<T>?
@@ -110,14 +110,17 @@ class DragController<T> : DragTarget<T>, DragSource<T> {
         dragSources += source
     }
 
+    internal fun topmostDragSourceAt(offset: Offset): Source<T>? =
+        dragSources.lastOrNull { it.bounds.contains(offset) }
+
     override fun unregisterDragSource(source: Source<T>) {
         dragSources.remove(source)
     }
 
     fun updateHoveredDropTarget(offset: Offset) {
-        val newTarget = dropTargets.firstOrNull { target ->
-            target.bounds?.contains(offset) == true
-        }
+        val newTarget = dropTargets
+            .filter { it.bounds.contains(offset) }
+            .minByOrNull { it.bounds.width * it.bounds.height }
         if (newTarget === hoveredDropTarget) return
 
         hoveredDropTarget?.callbacks?.onExit()
@@ -152,23 +155,21 @@ fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = com
                         val offset = localToWindow(change.position)
                         if (!started) {
                             started = true
-                            for (source in dragController.dragSources) {
-                                if (source.bounds.contains(offset)) {
-                                    dragController.offerState.value = mutableStateOf(
-                                        Offer(
-                                            offset = offset,
-                                            size = IntSize(
-                                                source.bounds.width.roundToInt(),
-                                                source.bounds.height.roundToInt()
-                                            ),
-                                            localOffset = offset - source.bounds.topLeft,
-                                            item = source.item,
-                                            from = source.from,
-                                        )
+                            val source = dragController.topmostDragSourceAt(offset)
+                            if (source != null) {
+                                dragController.offerState.value = mutableStateOf(
+                                    Offer(
+                                        offset = offset,
+                                        size = IntSize(
+                                            source.bounds.width.roundToInt(),
+                                            source.bounds.height.roundToInt()
+                                        ),
+                                        localOffset = offset - source.bounds.topLeft,
+                                        item = source.item,
+                                        from = source.from,
                                     )
-                                    dragController.dropTargets.forEach { it.callbacks.onStart() }
-                                    break
-                                }
+                                )
+                                dragController.dropTargets.forEach { it.callbacks.onStart() }
                             }
                         } else {
                             dragController.offerState.value?.modify { it.copy(offset = offset) }

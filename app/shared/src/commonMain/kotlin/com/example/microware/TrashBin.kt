@@ -17,13 +17,10 @@ import kotlinx.collections.immutable.persistentListOf
 
 val TrashGap = 8.dp
 
-data class Trash(
-    val garbage: PersistentList<Obj> = persistentListOf(),
-    val logicGarbage: PersistentList<Logic> = persistentListOf(),
+data class Trash<T : Identifiable<T>>(
+    val garbage: PersistentList<T> = persistentListOf(),
 ) {
-    fun discard(obj: Obj): Trash = copy(garbage = garbage.upserting(obj))
-
-    fun discard(logic: Logic): Trash = copy(logicGarbage = logicGarbage.upserting(logic))
+    fun discard(t: T): Trash<T> = copy(garbage = garbage.upserting(t))
 }
 
 @Composable

@@ -81,8 +81,8 @@ fun GameEditor(
         )
     }
 
-    val settledPage = GameEditorPage.entries[pagerState.settledPage]
-    val toolbarPage = if (settledPage == GameEditorPage.Play) lastEditorPage else settledPage
+    val settledPage = GameEditorPage.entries[pagerState.targetPage]
+    val toolbarPage = settledPage
 
     EditorPage(
         page = page,
@@ -158,8 +158,9 @@ fun GameEditor(
             }
 
             when (toolbarPage) {
-                GameEditorPage.World, GameEditorPage.Objects -> WorldEditorToolbar(
-                    state = worldEditorState,
+                GameEditorPage.World, GameEditorPage.Objects -> WorldEditToolbar(
+                    dragTarget = worldEditorState.dragController,
+                    willBeDeleted = worldEditorState.mutableWillBeDeleted,
                     world = game.world,
                     handler = handler,
                     dragSource = when (toolbarPage) {
@@ -168,9 +169,10 @@ fun GameEditor(
                     },
                 )
 
-                GameEditorPage.Logic -> LogicEditorToolbar(
-                    state = logicEditorState,
-                    world = game.world,
+                GameEditorPage.Logic -> LogicEditToolbar(
+                    dragController = logicEditorState.dragController,
+                    willBeDeleted = logicEditorState.willBeDeleted,
+                    usedTags = game.world.logicTags.keys,
                     handler = handler,
                 )
 

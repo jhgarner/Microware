@@ -109,7 +109,7 @@ private fun GameStoredWorld.toWorld(): World {
     val logicTags = Mut(BiMap<LogicTag, Id>())
     return World(
         background = SpriteCodec.decode(background),
-        objects = objects.map { it.toObj(logicTags) },
+        objects = objects.map { it.toObj(logicTags) }.toPersistentList(),
         logicTags = logicTags.value
     )
 }

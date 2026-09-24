@@ -4,8 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,47 +17,44 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
 internal object LogicListDragSource
 internal object LogicTrashDragSource
 internal object LogicLibraryDragSource
 
+private val LogicCardHeight = 60.dp
+
 @Composable
 internal fun LogicTable(
     items: List<Logic>,
     dragController: DragController<Logic>,
-    from: Any,
+    sourceId: Any,
     modifier: Modifier = Modifier,
-    listModifier: Modifier = Modifier.fillMaxSize(),
     belowList: @Composable () -> Unit = {},
-    willBeDeleted: Boolean = false,
-    onDrop: (Offer<Logic>, Int) -> Logic,
-    scrollToTopRequest: Int = 0,
-    ghostWidth: Dp? = null,
+    onMove: (Id, Int) -> Unit = { _, _ -> },
+    onDrop: (Offer<Logic>, Int) -> Unit = { _, _ -> },
 ) {
-    GhostingLazyColumn(
-        items = items,
-        dragController = dragController,
-        modifier = modifier,
-        listModifier = listModifier,
-        belowList = belowList,
-        willBeDeleted = willBeDeleted,
-        onDrop = onDrop,
-        ghostWidth = ghostWidth,
-        ghostContent = { logic, itemModifier -> LogicCard(logic, itemModifier) },
-        itemContent = { logic, itemModifier ->
-            LogicCard(logic, itemModifier.fillMaxWidth())
-        },
-        draggedItemAlpha = { isBeingDeleted -> if (isBeingDeleted) .5f else 0f },
-        contentPadding = PaddingValues(
-            horizontal = 8.dp,
-            vertical = 4.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-        scrollToTopRequest = scrollToTopRequest,
-    )
+    Column(modifier = modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            Grid(
+                items = items,
+                itemSize = DpSize(
+                    width = maxWidth - 16.dp,
+                    height = LogicCardHeight,
+                ),
+                dragSource = dragController,
+                dragTarget = dragController,
+                sourceId = sourceId,
+                onMove = onMove,
+                onDrop = onDrop,
+            ) { logic ->
+                LogicCard(logic, Modifier.fillMaxSize())
+            }
+        }
+        belowList()
+    }
 }
 
 @Composable

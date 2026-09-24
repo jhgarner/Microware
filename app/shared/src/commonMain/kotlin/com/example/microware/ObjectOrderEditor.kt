@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import kotlinx.collections.immutable.toPersistentList
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -81,7 +82,7 @@ internal fun ObjectOrderEditor(
                             val mutTopFirst = topFirst.toMutableList()
                             mutTopFirst.removeAt(sourceIndex)
                             mutTopFirst.add(targetIndex, game)
-                            world.copy(objects = mutTopFirst.reversed())
+                            world.copy(objects = mutTopFirst.reversed().toPersistentList())
                         }
                     },
                 ) {

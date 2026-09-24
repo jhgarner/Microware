@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +29,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toPersistentList
 import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -49,10 +51,10 @@ internal fun rememberWorldEditorState(): WorldEditorState = remember { WorldEdit
 
 data class World(
     val background: Sprite,
-    val objects: List<Obj>,
+    val objects: PersistentList<Obj>,
     val logicTags: BiMap<LogicTag, Id> = BiMap(),
 ) {
-    constructor() : this(Sprite.empty(WorldWidth, WorldHeight), emptyList())
+    constructor() : this(Sprite.empty(WorldWidth, WorldHeight), persistentListOf())
 
     fun updateObject(newObj: Obj): World {
         return copy(
@@ -69,11 +71,11 @@ data class World(
                         )
                     )
                 }
-            }
+            }.toPersistentList()
         )
     }
 
-    fun addObject(obj: Obj): World = copy(objects = objects + obj.newId())
+    fun addObject(obj: Obj): World = copy(objects = objects.adding(obj.newId()))
     fun upsertObject(obj: Obj): World {
         return objects.indexOfFirst { obj.id == it.id }.takeIf { it >= 0 }?.let {
             updateObject(obj)
@@ -102,7 +104,7 @@ data class World(
     }
 
     fun deleteObject(id: Id): World = copy(
-        objects = objects.filterNot { it.id == id },
+        objects = objects.removingAll { it.id == id },
         logicTags = logicTags.remove(id),
     )
 }
@@ -192,22 +194,6 @@ internal fun WorldEditorContent(
         }
         Spacer(modifier = Modifier.height(toolbarHeight + insets.bottomDp()))
     }
-}
-
-@Composable
-internal fun BoxWithConstraintsScope.WorldEditorToolbar(
-    state: WorldEditorState,
-    dragSource: DragSource<Obj>?,
-    world: World,
-    handler: (WorldEvent) -> Unit,
-) {
-    WorldEditToolbar(
-        dragTarget = state.dragController,
-        dragSource = dragSource,
-        world = world,
-        handler = handler,
-        willBeDeleted = state.mutableWillBeDeleted,
-    )
 }
 
 @Composable

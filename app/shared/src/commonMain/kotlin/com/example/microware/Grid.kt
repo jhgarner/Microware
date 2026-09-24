@@ -35,14 +35,19 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 
-private data class GridDragSource(val index: Int)
-private object GridDropTarget
+private data class GridDragSource(
+    val sourceId: Any,
+    val index: Int,
+)
+
+private data class GridDropTarget(val sourceId: Any)
+
+internal fun Offer<*>.originatesFromGrid(sourceId: Any): Boolean =
+    (from as? GridDragSource)?.sourceId == sourceId
 
 @Composable
 fun <T : Identifiable<T>> Grid(
@@ -51,12 +56,15 @@ fun <T : Identifiable<T>> Grid(
     dragSource: DragSource<T>,
     dragTarget: DragTarget<T>,
     onMove: (Id, Int) -> Unit,
+    sourceId: Any = Unit,
+    onDrop: (Offer<T>, Int) -> Unit = { _, _ -> },
     preview: @Composable (T) -> Unit,
 ) {
-    val gameBounds = remember { mutableStateMapOf<Id, Rect>() }
-    val offsetInRoot = remember { mutableStateMapOf<Id, Offset>() }
+    val gridDropTarget = remember(sourceId) { GridDropTarget(sourceId) }
+    val itemBounds = remember { mutableStateMapOf<Id, Rect>() }
+    val itemOffsets = remember { mutableStateMapOf<Id, Offset>() }
     val slotBounds = items
-        .mapNotNull { gameBounds[it.id] }
+        .mapNotNull { itemBounds[it.id] }
         .sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
     var gridBounds by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
@@ -67,33 +75,41 @@ fun <T : Identifiable<T>> Grid(
         dragTarget.hoveredDropTarget?.to,
         items,
         slotBounds,
-        gridBounds,
+        gridDropTarget,
     ) {
         val offer = dragTarget.offer
-        val target = dragTarget.hoveredDropTarget?.to
-        val draggedGame = offer?.item ?: return@LaunchedEffect
+        val draggedItem = offer?.item ?: return@LaunchedEffect
         val from = offer.from as? GridDragSource ?: return@LaunchedEffect
-        if (target !is GridDropTarget) {
-            onMove(draggedGame.id, from.index)
-            return@LaunchedEffect
-        }
+        if (from.sourceId != sourceId) return@LaunchedEffect
 
-        val targetIndex = nearestGridSlot(slotBounds, offer.offset)
-            ?: return@LaunchedEffect
-        onMove(draggedGame.id, targetIndex)
+        val targetIndex = if (dragTarget.hoveredDropTarget?.to == gridDropTarget) {
+            nearestGridSlot(slotBounds, offer.offset) ?: return@LaunchedEffect
+        } else {
+            from.index
+        }
+        onMove(draggedItem.id, targetIndex)
     }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .onGloballyPositioned { gridBounds = it }
             .dropTarget(
                 dragController = dragTarget,
-                to = GridDropTarget,
+                to = gridDropTarget,
+                onGiven = { offer ->
+                    if (!offer.originatesFromGrid(sourceId)) {
+                        onDrop(
+                            offer,
+                            nearestGridInsertionIndex(slotBounds, offer.offset),
+                        )
+                    }
+                },
             )
     ) {
         for (item in items) {
             key(item.id) {
-                offsetInRoot[item.id]?.let { offset ->
+                itemOffsets[item.id]?.let { offset ->
                     val animatedOffset = animateIntOffsetAsState(
                         offset.round(),
                         animationSpec = tween(durationMillis = 180)
@@ -101,6 +117,7 @@ fun <T : Identifiable<T>> Grid(
                     GridItem(
                         item = item,
                         offer = dragTarget.offer,
+                        sourceId = sourceId,
                         modifier = Modifier.size(itemSize)
                             .offset { animatedOffset.value },
                         preview = preview,
@@ -108,8 +125,10 @@ fun <T : Identifiable<T>> Grid(
                 }
             }
         }
-        Column(modifier = Modifier) {
-            val columns = (this@BoxWithConstraints.maxWidth / (itemSize.width + 16.dp)).toInt()
+        Column {
+            val columns = (this@BoxWithConstraints.maxWidth / (itemSize.width + 16.dp))
+                .toInt()
+                .coerceAtLeast(1)
             items.withIndex().chunked(columns).forEach { row ->
                 Row(
                     modifier = Modifier
@@ -120,11 +139,11 @@ fun <T : Identifiable<T>> Grid(
                         Box(
                             modifier = Modifier.padding(8.dp)
                                 .size(itemSize)
-                                .dragSource(dragSource, GridDragSource(index), item)
+                                .dragSource(dragSource, GridDragSource(sourceId, index), item)
                                 .onGloballyPositioned { layout ->
-                                    gameBounds[item.id] = layout.boundsInWindow()
+                                    itemBounds[item.id] = layout.boundsInWindow()
                                     gridBounds?.let { root ->
-                                        offsetInRoot[item.id] =
+                                        itemOffsets[item.id] =
                                             root.windowToLocal(layout.positionInWindow())
                                     }
                                 },
@@ -140,23 +159,18 @@ fun <T : Identifiable<T>> Grid(
 private fun <T : Identifiable<T>> GridItem(
     item: T,
     offer: Offer<T>?,
+    sourceId: Any,
     modifier: Modifier,
     preview: @Composable (T) -> Unit,
 ) {
     val shape = RoundedCornerShape(8.dp)
+    val isDraggedItem = offer?.let {
+        it.item.id == item.id && it.originatesFromGrid(sourceId)
+    } == true
     Box(
         modifier = modifier
-            .alpha(
-                if (offer?.item != null &&
-                    offer.item.id == item.id
-                ) {
-                    0f
-                } else {
-                    1f
-                }
-            )
-            .clip(shape)
-            .semantics { contentDescription = "Open game" },
+            .alpha(if (isDraggedItem) 0f else 1f)
+            .clip(shape),
     ) {
         preview(item)
     }
@@ -182,4 +196,15 @@ private fun nearestGridSlot(
     val dx = center.x - pointer.x
     val dy = center.y - pointer.y
     dx * dx + dy * dy
+}
+
+private fun nearestGridInsertionIndex(
+    slotBounds: List<Rect>,
+    pointer: Offset,
+): Int {
+    val slotIndex = nearestGridSlot(slotBounds, pointer) ?: return 0
+    val slot = slotBounds[slotIndex]
+    val afterSlot = pointer.y > slot.center.y ||
+        (pointer.y == slot.center.y && pointer.x > slot.center.x)
+    return slotIndex + if (afterSlot) 1 else 0
 }
