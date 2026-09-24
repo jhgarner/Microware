@@ -81,15 +81,11 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
         else -> DrawerHandleState.Waiting()
     }
     DrawerWithHandle(
+        handleType = HandleType.Trash,
         state = trashState,
         setExpanded = { setExpanded(fromEdge(it, setExpanded)) },
-        side = HandleEdge.Left,
-        foreground = Palette.Maroon,
-        highlightForeground = Palette.Red,
         hiddenSlide = if (trash.garbage.isNotEmpty()) 16 else 500,
-        buttonContent = { TrashControls(it) },
-        drawerContent = { garbagePanel(it, trash.garbage) },
-    )
+    ) { garbagePanel(it, trash.garbage) }
 
     val createState = when {
         offer != null -> DrawerHandleState.Dragging(dragTarget, onGiven = { offer ->
@@ -105,17 +101,9 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
         else -> DrawerHandleState.Waiting()
     }
     DrawerWithHandle(
+        handleType = if (dragTarget.offer == null) HandleType.Create else HandleType.Edit,
         state = createState,
         setExpanded = { setExpanded(fromEdge(it, setExpanded)) },
-        side = HandleEdge.Bottom,
-        foreground = Palette.Navy,
-        highlightForeground = Palette.Cyan,
-        buttonContent = {
-            CreateTarget(
-                foreground = it,
-                isEditMode = dragTarget.offer != null,
-            )
-        },
     ) { Column(Modifier.fillMaxSize()) { editorPanel(it) } }
 
     val libraryState = when {
@@ -136,12 +124,8 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
         else -> DrawerHandleState.Waiting()
     }
     DrawerWithHandle(
+        handleType = HandleType.Library,
         state = libraryState,
         setExpanded = { setExpanded(fromEdge(it, setExpanded)) },
-        side = HandleEdge.Right,
-        foreground = Palette.Forest,
-        highlightForeground = Palette.Green,
-        buttonContent = { LibraryTarget(it) },
-        drawerContent = { libraryPanel(it) },
-    )
+    ) { libraryPanel(it) }
 }

@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.round
 
 sealed interface DrawerHandleState<in T, out Data> {
@@ -47,13 +46,10 @@ sealed interface DrawerHandleState<in T, out Data> {
 @Composable
 fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
     buttonModifier: Modifier = Modifier,
-    side: HandleEdge,
-    foreground: Palette,
-    highlightForeground: Palette,
+    handleType: HandleType,
     hiddenSlide: Int = 16,
     state: DrawerHandleState<T, Data>?,
     setExpanded: (HandleEdge?) -> Unit,
-    buttonContent: @Composable (Color) -> Unit,
     drawerContent: @Composable (Data) -> Unit,
 ) {
     val drawerState = when (state) {
@@ -67,11 +63,10 @@ fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
         is DrawerHandleState.Expanded -> DrawerButtonState.Waiting {}
         is DrawerHandleState.Waiting -> DrawerButtonState.Waiting {
             state.extraOnExpand()
-            setExpanded(side)
+            setExpanded(handleType.edge)
         }
     }
     var isHovered by remember { mutableStateOf(false) }
-    val foregroundColor = if (isHovered) highlightForeground else foreground
 
     val fleeingTarget = when ((state as? DrawerHandleState.Expanded)?.side) {
         HandleEdge.Right -> Offset(-maxWidth.toPx(), 0f)
@@ -85,7 +80,7 @@ fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
     )
 
     Drawer(
-        placement = side,
+        placement = handleType.edge,
         state = if (state is DrawerHandleState.Expanded && state.data != null) {
             DrawerState(state.data) {
                 setExpanded(null)
@@ -97,8 +92,8 @@ fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
     }
 
     ButtonHandle(
-        foreground = foregroundColor.color,
-        openEdge = side,
+        type = handleType,
+        highlight = isHovered,
         hiddenSlide = hiddenSlide,
         state = drawerState,
         modifier = buttonModifier
@@ -120,7 +115,5 @@ fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
                         it.onEnd()
                     })
             }
-    ) {
-        buttonContent(foregroundColor.color)
-    }
+    )
 }

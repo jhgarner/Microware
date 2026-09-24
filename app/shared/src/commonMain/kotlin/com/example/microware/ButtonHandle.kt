@@ -2,6 +2,8 @@ package com.example.microware
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector2D
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -17,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -31,16 +32,48 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
+import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 @Immutable
 enum class HandleEdge(val innerAlignment: Alignment) {
     Left(innerAlignment = Alignment.CenterEnd),
     Right(innerAlignment = Alignment.BottomStart),
     Bottom(innerAlignment = Alignment.TopCenter),
+}
+
+enum class HandleType(
+    val foreground: Palette,
+    val highlight: Palette,
+    val edge: HandleEdge,
+    val content: @Composable (Color) -> Unit,
+) {
+    Trash(
+        foreground = Palette.Maroon,
+        highlight = Palette.Red,
+        edge = HandleEdge.Left,
+        content = ::TrashControls
+    ),
+    Create(
+        foreground = Palette.Navy,
+        highlight = Palette.Cyan,
+        edge = HandleEdge.Bottom,
+        content = { CreateTarget(it, false) },
+    ),
+    Edit(
+        foreground = Palette.Navy,
+        highlight = Palette.Cyan,
+        edge = HandleEdge.Bottom,
+        content = { CreateTarget(it, true) },
+    ),
+    Library(
+        foreground = Palette.Forest,
+        highlight = Palette.Green,
+        edge = HandleEdge.Right,
+        content = ::LibraryTarget,
+    ),
 }
 
 @Composable
@@ -68,18 +101,20 @@ sealed interface DrawerButtonState {
     data class Expanded(override val onClick: () -> Unit) : DrawerButtonState
 }
 
+val positions = mutableMapOf<HandleEdge, Animatable<Offset, AnimationVector2D>>()
+
 @Composable
 fun BoxWithConstraintsScope.ButtonHandle(
-    foreground: Color,
-    openEdge: HandleEdge,
-    state: DrawerButtonState?,
+    type: HandleType,
+    highlight: Boolean = false,
+    state: DrawerButtonState? = null,
     hiddenSlide: Int = 16,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
 ) {
-    val shape = handleShape(openEdge)
+    val shape = handleShape(type.edge)
+    val foreground = if (highlight) type.highlight else type.foreground
     val insets = LocalInsets.current
-    val openSlide = when (openEdge) {
+    val openSlide = when (type.edge) {
         HandleEdge.Left ->
             IntOffset(
                 (maxWidth.toPx() - HandleSize.toPx() - insets.right() - insets.left()).toInt(),
@@ -98,7 +133,7 @@ fun BoxWithConstraintsScope.ButtonHandle(
                 (-maxHeight.toPx() + HandleSize.toPx() + insets.top() + insets.bottom()).toInt()
             )
     }
-    val hidingOffset = when (openEdge) {
+    val hidingOffset = when (type.edge) {
         HandleEdge.Left ->
             IntOffset(-hiddenSlide, 0)
 
@@ -107,43 +142,31 @@ fun BoxWithConstraintsScope.ButtonHandle(
 
         HandleEdge.Bottom -> IntOffset(0, hiddenSlide)
     }
-    val fullyHiddenOffset = when (openEdge) {
+    val fullyHiddenOffset = when (type.edge) {
         HandleEdge.Left -> IntOffset(-(HandleSize.toPx() + insets.left()).toInt(), 0)
         HandleEdge.Right -> IntOffset((HandleSize.toPx() + insets.right()).toInt(), 0)
         HandleEdge.Bottom -> IntOffset(0, (HandleSize.toPx() + insets.bottom()).toInt())
     }
-    val slideX = remember { Animatable(hidingOffset.x.toFloat()) }
-    val slideY = remember { Animatable(hidingOffset.y.toFloat()) }
+    val slide = positions.getOrPut(type.edge) {
+        Animatable(fullyHiddenOffset.toOffset(), Offset.VectorConverter)
+    }
     LaunchedEffect(state, hidingOffset, openSlide) {
         coroutineScope {
-            launch {
-                slideX.animateTo(
-                    targetValue = when (state) {
-                        null -> fullyHiddenOffset.x.toFloat()
-                        is DrawerButtonState.Expanded -> openSlide.x.toFloat()
-                        DrawerButtonState.Dragging -> 0f
-                        is DrawerButtonState.Waiting -> hidingOffset.x.toFloat()
-                    },
-                    animationSpec = tween(durationMillis = 180)
-                )
-            }
-            launch {
-                slideY.animateTo(
-                    targetValue = when (state) {
-                        null -> fullyHiddenOffset.y.toFloat()
-                        is DrawerButtonState.Expanded -> openSlide.y.toFloat()
-                        DrawerButtonState.Dragging -> 0f
-                        is DrawerButtonState.Waiting -> hidingOffset.y.toFloat()
-                    },
-                    animationSpec = tween(durationMillis = 180)
-                )
-            }
+            slide.animateTo(
+                targetValue = when (state) {
+                    null -> fullyHiddenOffset.toOffset()
+                    is DrawerButtonState.Expanded -> openSlide.toOffset()
+                    DrawerButtonState.Dragging -> Offset.Zero
+                    is DrawerButtonState.Waiting -> hidingOffset.toOffset()
+                },
+                animationSpec = tween(durationMillis = 180)
+            )
         }
     }
     var targetModifier = Modifier
         .zIndex(0.99f)
-        .then(restingModsForEdge(openEdge))
-        .offset { IntOffset(slideX.value.roundToInt(), slideY.value.roundToInt()) }
+        .then(restingModsForEdge(type.edge))
+        .offset { slide.value.round() }
         .then(modifier)
         .shadow(OverlayShadowElevation, shape)
         .background(Palette.OffWhite.color, shape)
@@ -153,17 +176,17 @@ fun BoxWithConstraintsScope.ButtonHandle(
     }
 
     Box(modifier = targetModifier) {
-        HandleBorder(openEdge = openEdge, color = foreground)
-        Box(modifier = Modifier.size(HandleSize).align(openEdge.innerAlignment)) {
+        HandleBorder(openEdge = type.edge, color = foreground.color)
+        Box(modifier = Modifier.size(HandleSize).align(type.edge.innerAlignment)) {
             Crossfade(
                 targetState = state is DrawerButtonState.Expanded,
                 animationSpec = tween(durationMillis = 180),
                 label = "handle icon"
             ) { expanded ->
                 if (expanded) {
-                    CloseChevron(edge = openEdge, color = foreground)
+                    CloseChevron(edge = type.edge, color = foreground.color)
                 } else {
-                    content()
+                    type.content(foreground.color)
                 }
             }
         }

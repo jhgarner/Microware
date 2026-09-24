@@ -176,7 +176,11 @@ fun GameEditor(
                     handler = handler,
                 )
 
-                GameEditorPage.Play -> Unit
+                GameEditorPage.Play -> {
+                    ButtonHandle(HandleType.Trash)
+                    ButtonHandle(HandleType.Create)
+                    ButtonHandle(HandleType.Library)
+                }
             }
         }
     }
