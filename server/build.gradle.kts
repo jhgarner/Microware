@@ -6,7 +6,7 @@ plugins {
 group = "com.example.microware"
 version = "1.0.0"
 application {
-    mainClass = "com.example.microware.ApplicationKt"
+    mainClass = "com.example.microware.server.ApplicationKt"
 }
 
 dependencies {
