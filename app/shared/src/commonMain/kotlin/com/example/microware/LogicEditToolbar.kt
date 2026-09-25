@@ -75,6 +75,7 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
         dragSource = dragController,
         willBeDeleted = { willBeDeleted.value = it },
         onLibraryDrop = { library = library.add(it); saveLogicLibrary(library) },
+        trashSourceId = LogicTrashDragSource,
         fromEdge = ::fromEdge,
         dropOnEditor = { logic, setExpanded ->
             Editor(LogicBuildHandler.Update(logic) { updateLogic(logic.id, it, setExpanded) })

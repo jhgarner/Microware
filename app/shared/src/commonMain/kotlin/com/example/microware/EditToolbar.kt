@@ -34,6 +34,7 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
     dragSource: DragSource<T>?,
     willBeDeleted: (Boolean) -> Unit,
     onLibraryDrop: (T) -> Unit,
+    trashSourceId: Any = Unit,
     fromEdge: (HandleEdge?, (Expanded) -> Unit) -> Expanded?,
     dropOnEditor: (T, (Expanded) -> Unit) -> Expanded,
     expandToEdge: (Expanded) -> ExpandedSide<Data>,
@@ -42,7 +43,6 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
     editorPanel: @Composable (Data) -> Unit,
     libraryPanel: @Composable (DragSource<T>) -> Unit,
 ) {
-    var trash by remember { mutableStateOf(Trash<T>()) }
     val offer = dragTarget.offer
 
     val (expanded, setExpanded) = remember { mutableStateOf<Expanded?>(null) }.apply {
@@ -50,42 +50,23 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
     }
     val expandedSide = expanded?.let { expandToEdge(it) }
 
-    val trashState = when {
-        offer != null -> DrawerHandleState.Dragging(
-            dragTarget,
-            onEnter = { willBeDeleted(true) },
-            onExit = { willBeDeleted(false) },
-            onEnd = { willBeDeleted(false) },
-            onGiven = { offer ->
-                handler { all ->
-                    val logic = offer.item
-                    if (!offer.originatesFromGrid(LogicTrashDragSource)) {
-                        trash = trash.discard(logic)
-                    }
-                    all.indexOfFirst { it.id == logic.id }
-                        .takeIf { it >= 0 }
-                        ?.let { all.removingAt(it) }
-                        ?: all
-                }
-            }
-        )
-
-        dragSource == null -> null
-
-        expandedSide is ExpandedSide.Trash -> DrawerHandleState.Expanded(
-            expandedSide.edge,
-            dragSource
-        )
-
-        expandedSide != null -> DrawerHandleState.Expanded(expandedSide.edge, null)
-        else -> DrawerHandleState.Waiting()
-    }
-    DrawerWithHandle(
-        handleType = HandleType.Trash,
-        state = trashState,
+    TrashHandle(
+        dragTarget = dragTarget,
+        dragSource = dragSource,
+        trashSourceId = trashSourceId,
+        activeEdge = expandedSide?.edge,
         setExpanded = { setExpanded(fromEdge(it, setExpanded)) },
-        hiddenSlide = if (trash.garbage.isNotEmpty()) 16 else 500,
-    ) { garbagePanel(it, trash.garbage) }
+        willBeDeleted = willBeDeleted,
+        onDelete = { item ->
+            handler { all ->
+                all.indexOfFirst { it.id == item.id }
+                    .takeIf { it >= 0 }
+                    ?.let { all.removingAt(it) }
+                    ?: all
+            }
+        },
+        garbagePanel = garbagePanel,
+    )
 
     val createState = when {
         offer != null -> DrawerHandleState.Dragging(dragTarget, onGiven = { offer ->
