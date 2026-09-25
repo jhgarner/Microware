@@ -2,40 +2,49 @@ package com.example.microware
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector2D
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.AnimationVector4D
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.coroutineScope
+import androidx.graphics.shapes.CornerRounding
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.RoundedPolygon
+import kotlin.math.roundToInt
 
 @Immutable
 enum class HandleEdge(val innerAlignment: Alignment) {
@@ -43,6 +52,13 @@ enum class HandleEdge(val innerAlignment: Alignment) {
     Right(innerAlignment = Alignment.BottomStart),
     Bottom(innerAlignment = Alignment.TopCenter),
 }
+
+enum class HandlePresentation {
+    EdgeAttached,
+    FloatingAction,
+}
+
+internal const val HandleMorphDurationMillis = 180
 
 enum class HandleType(
     val foreground: Palette,
@@ -76,21 +92,37 @@ enum class HandleType(
     ),
 }
 
-@Composable
-private fun BoxScope.restingModsForEdge(edge: HandleEdge): Modifier = when (edge) {
-    HandleEdge.Left -> Modifier
-        .padding(bottom = insets.bottomDp())
-        .size(DpSize(HandleSize + insets.leftDp(), HandleSize))
-        .align(Alignment.BottomStart)
+// Rect bounds are relative to the edge alignment, so they remain reusable across parent pages.
+private fun restingRectForEdge(
+    edge: HandleEdge,
+    floatingAction: Boolean,
+    insets: Insets,
+    handleSize: Float,
+): Rect {
+    val size = when (edge) {
+        HandleEdge.Left -> Size(handleSize + insets.left(), handleSize)
+        HandleEdge.Right -> Size(handleSize + insets.right(), handleSize)
+        HandleEdge.Bottom if floatingAction -> Size(handleSize, handleSize)
+        HandleEdge.Bottom -> Size(handleSize, handleSize + insets.bottom())
+    }
+    val topOffset = when {
+        edge != HandleEdge.Bottom -> -insets.bottom().toFloat()
+        floatingAction -> -insets.bottom().toFloat()
+        else -> 0f
+    }
+    return Rect(Offset(0f, topOffset), size)
+}
 
-    HandleEdge.Right -> Modifier
-        .padding(bottom = insets.bottomDp())
-        .size(DpSize(HandleSize + insets.rightDp(), HandleSize))
-        .align(Alignment.BottomEnd)
+private fun HandleEdge.alignment() = when (this) {
+    HandleEdge.Left -> Alignment.BottomStart
+    HandleEdge.Right -> Alignment.BottomEnd
+    HandleEdge.Bottom -> Alignment.BottomCenter
+}
 
-    HandleEdge.Bottom -> Modifier
-        .size(DpSize(HandleSize, HandleSize + insets.bottomDp()))
-        .align(Alignment.BottomCenter)
+private fun fullyHiddenRect(rect: Rect, edge: HandleEdge) = when (edge) {
+    HandleEdge.Left -> rect.translate(-rect.width, 0f)
+    HandleEdge.Right -> rect.translate(rect.width, 0f)
+    HandleEdge.Bottom -> Rect(0f, rect.height, rect.width, rect.height * 2f)
 }
 
 sealed interface DrawerButtonState {
@@ -101,7 +133,8 @@ sealed interface DrawerButtonState {
     data class Expanded(override val onClick: () -> Unit) : DrawerButtonState
 }
 
-val positions = mutableMapOf<HandleEdge, Animatable<Offset, AnimationVector2D>>()
+val morphProgression = mutableMapOf<HandleEdge, Animatable<Float, AnimationVector1D>>()
+val rectProgression = mutableMapOf<HandleEdge, Animatable<Rect, AnimationVector4D>>()
 
 @Composable
 fun BoxWithConstraintsScope.ButtonHandle(
@@ -110,63 +143,93 @@ fun BoxWithConstraintsScope.ButtonHandle(
     state: DrawerButtonState? = null,
     hiddenSlide: Int = 16,
     modifier: Modifier = Modifier,
+    presentation: HandlePresentation = HandlePresentation.EdgeAttached,
 ) {
-    val shape = handleShape(type.edge)
+    val isFloatingAction = presentation == HandlePresentation.FloatingAction
     val foreground = if (highlight) type.highlight else type.foreground
     val insets = LocalInsets.current
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val handleSizePx = with(density) { HandleSize.toPx() }
+    val restingRect = restingRectForEdge(
+        type.edge,
+        isFloatingAction,
+        insets,
+        handleSizePx,
+    )
     val openSlide = when (type.edge) {
-        HandleEdge.Left ->
-            IntOffset(
-                (maxWidth.toPx() - HandleSize.toPx() - insets.right() - insets.left()).toInt(),
-                0
-            )
+        HandleEdge.Left -> IntOffset(
+            (maxWidth.toPx() - HandleSize.toPx() - insets.right() - insets.left()).toInt(),
+            0,
+        )
 
-        HandleEdge.Right ->
-            IntOffset(
-                (-maxWidth.toPx() + HandleSize.toPx() + insets.left() + insets.right()).toInt(),
-                0
-            )
+        HandleEdge.Right -> IntOffset(
+            (-maxWidth.toPx() + HandleSize.toPx() + insets.left() + insets.right()).toInt(),
+            0,
+        )
 
-        HandleEdge.Bottom ->
-            IntOffset(
-                0,
-                (-maxHeight.toPx() + HandleSize.toPx() + insets.top() + insets.bottom()).toInt()
-            )
+        HandleEdge.Bottom -> IntOffset(
+            0,
+            (-maxHeight.toPx() + insets.top() + restingRect.height).toInt(),
+        )
     }
     val hidingOffset = when (type.edge) {
-        HandleEdge.Left ->
-            IntOffset(-hiddenSlide, 0)
-
-        HandleEdge.Right ->
-            IntOffset(hiddenSlide, 0)
-
+        HandleEdge.Left -> IntOffset(-hiddenSlide, 0)
+        HandleEdge.Right -> IntOffset(hiddenSlide, 0)
         HandleEdge.Bottom -> IntOffset(0, hiddenSlide)
     }
-    val fullyHiddenOffset = when (type.edge) {
-        HandleEdge.Left -> IntOffset(-(HandleSize.toPx() + insets.left()).toInt(), 0)
-        HandleEdge.Right -> IntOffset((HandleSize.toPx() + insets.right()).toInt(), 0)
-        HandleEdge.Bottom -> IntOffset(0, (HandleSize.toPx() + insets.bottom()).toInt())
+    val targetRect = when (state) {
+        null -> fullyHiddenRect(restingRect, type.edge)
+        is DrawerButtonState.Expanded -> restingRect.translate(openSlide.toOffset())
+        DrawerButtonState.Dragging -> restingRect
+        is DrawerButtonState.Waiting -> restingRect.translate(hidingOffset.toOffset())
     }
-    val slide = positions.getOrPut(type.edge) {
-        Animatable(fullyHiddenOffset.toOffset(), Offset.VectorConverter)
+    val rect = rectProgression.getOrPut(type.edge) {
+        Animatable(fullyHiddenRect(restingRect, type.edge), Rect.VectorConverter)
     }
-    LaunchedEffect(state, hidingOffset, openSlide) {
-        coroutineScope {
-            slide.animateTo(
-                targetValue = when (state) {
-                    null -> fullyHiddenOffset.toOffset()
-                    is DrawerButtonState.Expanded -> openSlide.toOffset()
-                    DrawerButtonState.Dragging -> Offset.Zero
-                    is DrawerButtonState.Waiting -> hidingOffset.toOffset()
-                },
-                animationSpec = tween(durationMillis = 180)
-            )
-        }
+    LaunchedEffect(targetRect) {
+        rect.animateTo(targetRect, tween(durationMillis = HandleMorphDurationMillis))
     }
+    val animatedRect = rect.value
+    val animatedSize = with(density) {
+        DpSize(animatedRect.width.toDp(), animatedRect.height.toDp())
+    }
+    val morph = remember(type.edge, animatedSize, density, layoutDirection) {
+        val cornerRadius = with(density) { 8.dp.toPx() }
+        Morph(
+            start = handlePolygon(
+                animatedRect.width,
+                animatedRect.height,
+                cornerRadius,
+                openEdge = null,
+                layoutDirection = layoutDirection,
+            ),
+            end = handlePolygon(
+                animatedRect.width,
+                animatedRect.height,
+                cornerRadius,
+                type.edge,
+                layoutDirection,
+            ),
+        )
+    }
+    val morphProgress = morphProgression.getOrPut(type.edge) {
+        Animatable(0f)
+    }
+    LaunchedEffect(isFloatingAction) {
+        morphProgress.animateTo(
+            if (isFloatingAction) 0f else 1f,
+            tween(durationMillis = HandleMorphDurationMillis),
+        )
+    }
+    val shape = MorphHandleShape(morph, morphProgress.value)
     var targetModifier = Modifier
         .zIndex(0.99f)
-        .then(restingModsForEdge(type.edge))
-        .offset { slide.value.round() }
+        .size(animatedSize)
+        .align(type.edge.alignment())
+        .offset {
+            IntOffset(animatedRect.left.roundToInt(), animatedRect.top.roundToInt())
+        }
         .then(modifier)
         .shadow(OverlayShadowElevation, shape)
         .background(Palette.OffWhite.color, shape)
@@ -176,7 +239,11 @@ fun BoxWithConstraintsScope.ButtonHandle(
     }
 
     Box(modifier = targetModifier) {
-        HandleBorder(openEdge = type.edge, color = foreground.color)
+        HandleBorder(
+            openEdge = type.edge,
+            color = foreground.color,
+            morphProgress = morphProgress.value,
+        )
         Box(modifier = Modifier.size(HandleSize).align(type.edge.innerAlignment)) {
             Crossfade(
                 targetState = state is DrawerButtonState.Expanded,
@@ -190,6 +257,91 @@ fun BoxWithConstraintsScope.ButtonHandle(
                 }
             }
         }
+    }
+}
+
+private fun handlePolygon(
+    width: Float,
+    height: Float,
+    cornerRadius: Float,
+    openEdge: HandleEdge?,
+    layoutDirection: LayoutDirection,
+) = RoundedPolygon(
+    vertices = floatArrayOf(
+        0f, 0f,
+        width, 0f,
+        width, height,
+        0f, height,
+    ),
+    perVertexRounding = when (openEdge) {
+        null -> List(4) { CornerRounding(cornerRadius) }
+        HandleEdge.Left -> if (layoutDirection == LayoutDirection.Ltr) {
+            listOf(
+                CornerRounding(0f),
+                CornerRounding(cornerRadius),
+                CornerRounding(cornerRadius),
+                CornerRounding(0f),
+            )
+        } else {
+            listOf(
+                CornerRounding(cornerRadius),
+                CornerRounding(0f),
+                CornerRounding(0f),
+                CornerRounding(cornerRadius),
+            )
+        }
+
+        HandleEdge.Right -> if (layoutDirection == LayoutDirection.Ltr) {
+            listOf(
+                CornerRounding(cornerRadius),
+                CornerRounding(0f),
+                CornerRounding(0f),
+                CornerRounding(cornerRadius),
+            )
+        } else {
+            listOf(
+                CornerRounding(0f),
+                CornerRounding(cornerRadius),
+                CornerRounding(cornerRadius),
+                CornerRounding(0f),
+            )
+        }
+
+        HandleEdge.Bottom -> listOf(
+            CornerRounding(cornerRadius),
+            CornerRounding(cornerRadius),
+            CornerRounding(0f),
+            CornerRounding(0f),
+        )
+    },
+)
+
+private class MorphHandleShape(
+    private val morph: Morph,
+    private val progress: Float,
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
+        val cubics = morph.asCubics(progress)
+        val first = cubics.first()
+        val path = Path().apply {
+            moveTo(first.anchor0X, first.anchor0Y)
+            cubics.forEach { cubic ->
+                cubicTo(
+                    cubic.control0X,
+                    cubic.control0Y,
+                    cubic.control1X,
+                    cubic.control1Y,
+                    cubic.anchor1X,
+                    cubic.anchor1Y,
+                )
+            }
+            close()
+        }
+        return Outline.Generic(path)
     }
 }
 
@@ -221,33 +373,12 @@ private fun CloseChevron(edge: HandleEdge, color: Color) {
     }
 }
 
-private fun handleShape(openEdge: HandleEdge?) = when (openEdge) {
-    HandleEdge.Left -> RoundedCornerShape(
-        topStart = 0.dp,
-        topEnd = 8.dp,
-        bottomEnd = 8.dp,
-        bottomStart = 0.dp
-    )
-
-    HandleEdge.Right -> RoundedCornerShape(
-        topStart = 8.dp,
-        topEnd = 0.dp,
-        bottomEnd = 0.dp,
-        bottomStart = 8.dp
-    )
-
-    HandleEdge.Bottom -> RoundedCornerShape(
-        topStart = 8.dp,
-        topEnd = 8.dp,
-        bottomEnd = 0.dp,
-        bottomStart = 0.dp
-    )
-
-    null -> RoundedCornerShape(8.dp)
-}
-
 @Composable
-private fun HandleBorder(openEdge: HandleEdge?, color: Color) {
+private fun HandleBorder(
+    openEdge: HandleEdge,
+    color: Color,
+    morphProgress: Float,
+) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val strokeWidth = 2.dp.toPx()
         val inset = strokeWidth / 2f
@@ -255,50 +386,48 @@ private fun HandleBorder(openEdge: HandleEdge?, color: Color) {
         val bottom = size.height - inset
         val radius = 8.dp.toPx().coerceAtMost(size.height / 2f)
 
-        if (openEdge == null) {
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(inset, inset),
-                size = Size(size.width - strokeWidth, size.height - strokeWidth),
-                cornerRadius = CornerRadius(radius, radius),
-                style = Stroke(strokeWidth)
-            )
-        } else {
-            val borderPath = Path().apply {
-                when (openEdge) {
-                    HandleEdge.Left -> {
-                        moveTo(0f, inset)
-                        lineTo(right - radius, inset)
-                        quadraticTo(right, inset, right, inset + radius)
-                        lineTo(right, bottom - radius)
-                        quadraticTo(right, bottom, right - radius, bottom)
-                        lineTo(0f, bottom)
-                    }
+        drawRoundRect(
+            color = color.copy(alpha = color.alpha * (1f - morphProgress)),
+            topLeft = Offset(inset, inset),
+            size = Size(size.width - strokeWidth, size.height - strokeWidth),
+            cornerRadius = CornerRadius(radius, radius),
+            style = Stroke(strokeWidth)
+        )
 
-                    HandleEdge.Right -> {
-                        moveTo(right, inset)
-                        lineTo(inset + radius, inset)
-                        quadraticTo(inset, inset, inset, inset + radius)
-                        lineTo(inset, bottom - radius)
-                        quadraticTo(inset, bottom, inset + radius, bottom)
-                        lineTo(right, bottom)
-                    }
+        val borderPath = Path().apply {
+            when (openEdge) {
+                HandleEdge.Left -> {
+                    moveTo(0f, inset)
+                    lineTo(right - radius, inset)
+                    quadraticTo(right, inset, right, inset + radius)
+                    lineTo(right, bottom - radius)
+                    quadraticTo(right, bottom, right - radius, bottom)
+                    lineTo(0f, bottom)
+                }
 
-                    HandleEdge.Bottom -> {
-                        moveTo(0f, bottom)
-                        lineTo(0f, inset + radius)
-                        quadraticTo(0f, inset, inset + radius, inset)
-                        lineTo(right - radius, inset)
-                        quadraticTo(right, inset, right, inset + radius)
-                        lineTo(right, bottom)
-                    }
+                HandleEdge.Right -> {
+                    moveTo(right, inset)
+                    lineTo(inset + radius, inset)
+                    quadraticTo(inset, inset, inset, inset + radius)
+                    lineTo(inset, bottom - radius)
+                    quadraticTo(inset, bottom, inset + radius, bottom)
+                    lineTo(right, bottom)
+                }
+
+                HandleEdge.Bottom -> {
+                    moveTo(0f, bottom)
+                    lineTo(0f, inset + radius)
+                    quadraticTo(0f, inset, inset + radius, inset)
+                    lineTo(right - radius, inset)
+                    quadraticTo(right, inset, right, inset + radius)
+                    lineTo(right, bottom)
                 }
             }
-            drawPath(
-                path = borderPath,
-                color = color,
-                style = Stroke(strokeWidth)
-            )
         }
+        drawPath(
+            path = borderPath,
+            color = color.copy(alpha = color.alpha * morphProgress),
+            style = Stroke(strokeWidth)
+        )
     }
 }

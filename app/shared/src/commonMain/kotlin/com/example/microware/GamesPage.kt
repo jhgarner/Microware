@@ -124,6 +124,8 @@ internal fun GamesPage(
             },
         )
 
+        ButtonHandle(HandleType.Library)
+
         val draggedGame = offered?.item
         if (draggedGame != null) {
             val alpha by animateFloatAsState(
@@ -163,6 +165,7 @@ private fun BoxWithConstraintsScope.GameEditorHandle(
             onExit = { isHovered = false },
             onEnd = { isHovered = false },
         ),
+        presentation = HandlePresentation.FloatingAction,
     )
 }
 
@@ -202,7 +205,7 @@ private fun GameDragGhost(
                 height = offer.size.height.toDp(),
             )
             .alpha(alpha)
-            .zIndex(2f)
+            .zIndex(0.5f)
     ) {
         GamePreview(game)
     }

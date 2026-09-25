@@ -1,28 +1,32 @@
 package com.example.microware
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+
+private val morphProgress = Animatable(0f)
 
 @Composable
 fun CreateTarget(
     foreground: Color,
-    isEditMode: Boolean,
+    closed: Boolean,
 ) {
-    val morphProgress by animateFloatAsState(
-        targetValue = if (isEditMode) 1f else 0f,
-        animationSpec = tween(durationMillis = 220),
-        label = "createEditMorph"
-    )
+    LaunchedEffect(closed) {
+        val target = if (closed) 1f else 0f
+        coroutineScope {
+            morphProgress.animateTo(target, tween(durationMillis = 180))
+        }
+    }
     Canvas(modifier = Modifier.fillMaxSize().padding(14.dp)) {
         val strokeWidth = 2.dp.toPx()
         val w = size.width
@@ -54,7 +58,7 @@ fun CreateTarget(
             a.y + (b.y - a.y) * t
         )
 
-        val t = morphProgress
+        val t = morphProgress.value
         val hStart = lerp(plusHStart, tip, t)
         val hEnd = lerp(plusHEnd, p3, t)
         val vStart = lerp(plusVStart, tip, t)
