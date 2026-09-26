@@ -1,9 +1,4 @@
 package com.example.microware.ui.components
-import com.example.microware.ui.gestures.DragTarget
-import com.example.microware.ui.gestures.Offer
-import com.example.microware.ui.gestures.dropTarget
-import com.example.microware.util.runMaybe
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.tween
@@ -17,6 +12,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.round
+import com.example.microware.ui.gestures.DragTarget
+import com.example.microware.ui.gestures.Offer
+import com.example.microware.ui.gestures.dropTarget
+import com.example.microware.util.runMaybe
+import com.example.microware.util.toPx
 
 sealed interface DrawerHandleState<in T, out Data> {
     val data: Data? get() = null
@@ -37,13 +37,9 @@ sealed interface DrawerHandleState<in T, out Data> {
     data class Expanded<Data>(
         val side: HandleEdge,
         override val data: Data?,
-        val extraOnDismiss: () -> Unit = {},
     ) : DrawerHandleState<Any, Data> {
         companion object {
-            operator fun invoke(
-                side: HandleEdge,
-                extraOnDismiss: () -> Unit = {},
-            ): Expanded<Unit> = Expanded(side, Unit, extraOnDismiss)
+            operator fun invoke(side: HandleEdge): Expanded<Unit> = Expanded(side, Unit)
         }
     }
 }
@@ -60,7 +56,6 @@ fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
     val drawerState = when (state) {
         null -> null
         is DrawerHandleState.Expanded if state.data != null -> DrawerButtonState.Expanded {
-            state.extraOnDismiss()
             setExpanded(null)
         }
 
@@ -87,10 +82,7 @@ fun <T, Data> BoxWithConstraintsScope.DrawerWithHandle(
     Drawer(
         placement = handleType.edge,
         state = if (state is DrawerHandleState.Expanded && state.data != null) {
-            DrawerState(state.data) {
-                setExpanded(null)
-                state.extraOnDismiss()
-            }
+            DrawerState(state.data)
         } else null,
     ) {
         drawerContent(it)

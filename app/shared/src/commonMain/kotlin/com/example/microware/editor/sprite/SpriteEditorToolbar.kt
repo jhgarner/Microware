@@ -1,10 +1,4 @@
 package com.example.microware.editor.sprite
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.scaled
-import com.example.microware.game.sprite.tiled
-import com.example.microware.game.sprite.transparent
-import com.example.microware.util.roundToPx
-import com.example.microware.util.toPx
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -33,10 +27,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.example.microware.game.sprite.Palette
+import com.example.microware.game.sprite.scaled
+import com.example.microware.game.sprite.tiled
+import com.example.microware.game.sprite.transparent
 
 enum class SpriteEditorTool {
     Pen,
     Resize,
+    Position,
 }
 
 private const val TransparentTileSizeDp = 16
@@ -45,6 +44,7 @@ private const val TransparentTileSizeDp = 16
 fun SpriteToolPicker(
     selectedTool: SpriteEditorTool,
     onSelectTool: (SpriteEditorTool) -> Unit,
+    showPositionTool: Boolean = false,
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         ToolButton(
@@ -86,6 +86,39 @@ fun SpriteToolPicker(
                     Offset(size.width * 0.2f, size.height * 0.8f),
                     Offset(size.width * 0.8f, size.height * 0.8f),
                 ).forEach { drawCircle(Color.Black, handleRadius, it) }
+            }
+        }
+        if (showPositionTool) {
+            ToolButton(
+                description = "Position tool",
+                selected = selectedTool == SpriteEditorTool.Position,
+                onClick = { onSelectTool(SpriteEditorTool.Position) },
+            ) {
+                Canvas(Modifier.fillMaxSize().padding(10.dp)) {
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val radius = size.minDimension * .42f
+                    val directions = listOf(
+                        Offset(0f, -1f),
+                        Offset(1f, 0f),
+                        Offset(0f, 1f),
+                        Offset(-1f, 0f),
+                    )
+                    val corners = directions.map { center + it * radius }
+                    val headLength = .40f
+                    val stroke = 2.dp.toPx()
+
+                    corners.forEachIndexed { index, corner ->
+                        val previousCorner = corners[(index - 1 + corners.size) % corners.size]
+                        val nextCorner = corners[(index + 1) % corners.size]
+                        val leftHead = corner + (previousCorner - corner) * headLength
+                        val rightHead = corner + (nextCorner - corner) * headLength
+
+                        drawLine(Color.Black, center, corner, stroke)
+                        drawLine(Color.Black, leftHead, corner, stroke)
+                        drawLine(Color.Black, rightHead, corner, stroke)
+                    }
+                    drawCircle(Color.Black, 1.5.dp.toPx(), center)
+                }
             }
         }
     }

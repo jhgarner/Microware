@@ -1,29 +1,4 @@
 package com.example.microware.editor
-import com.example.microware.platform.SystemBackHandler
-import com.example.microware.editor.logic.LogicEditToolbar
-import com.example.microware.editor.logic.LogicEditorContent
-import com.example.microware.editor.logic.LogicEditorPage
-import com.example.microware.editor.logic.rememberLogicEditorState
-import com.example.microware.editor.world.ObjectOrderEditor
-import com.example.microware.editor.world.WorldEditToolbar
-import com.example.microware.editor.world.WorldEditorContent
-import com.example.microware.editor.world.drawObjectOrderIcon
-import com.example.microware.editor.world.rememberWorldEditorState
-import com.example.microware.game.events.GameEvents
-import com.example.microware.game.model.Game
-import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
-import com.example.microware.game.model.World
-import com.example.microware.game.runtime.Player
-import com.example.microware.game.sprite.Palette
-import com.example.microware.library.Library
-import com.example.microware.ui.components.ButtonHandle
-import com.example.microware.ui.components.HandleType
-import com.example.microware.ui.components.Trash
-import com.example.microware.ui.gestures.dragObserver
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -34,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -66,11 +42,31 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.microware.editor.logic.LogicEditToolbar
+import com.example.microware.editor.logic.LogicEditorContent
+import com.example.microware.editor.logic.LogicEditorPage
+import com.example.microware.editor.logic.rememberLogicEditorState
+import com.example.microware.editor.world.ObjectOrderEditor
+import com.example.microware.editor.world.WorldEditToolbar
+import com.example.microware.editor.world.WorldEditorContent
+import com.example.microware.editor.world.drawObjectOrderIcon
+import com.example.microware.editor.world.rememberWorldEditorState
+import com.example.microware.game.events.GameEvents
+import com.example.microware.game.model.Game
+import com.example.microware.game.model.LogicTag
+import com.example.microware.game.runtime.Player
+import com.example.microware.game.sprite.Palette
+import com.example.microware.platform.SystemBackHandler
+import com.example.microware.ui.components.ButtonHandle
+import com.example.microware.ui.components.HandleType
+import com.example.microware.ui.components.Scrim
+import com.example.microware.ui.gestures.dragObserver
+import com.example.microware.ui.layout.insets
 
 private enum class GameEditorPage { World, Objects, Logic, Play }
 
 @Composable
-fun GameEditor(
+fun BoxWithConstraintsScope.GameEditor(
     game: Game,
     handler: (GameEvents) -> Unit,
     onBack: () -> Unit = {},
@@ -106,122 +102,27 @@ fun GameEditor(
         )
     }
 
-    val settledPage = GameEditorPage.entries[pagerState.targetPage]
-    val toolbarPage = settledPage
+    val toolbarPage = GameEditorPage.entries[pagerState.targetPage]
 
-    EditorPage(
-        page = page,
-        logicEnabled = logicEnabled,
-        onPageChange = { selectedPage ->
-            if (selectedPage != GameEditorPage.Logic || logicEnabled) {
-                if (selectedPage == GameEditorPage.World) {
-                    logicPage = LogicEditorPage.List
-                }
-                if (selectedPage == GameEditorPage.Play && page != GameEditorPage.Play) {
-                    playSession++
-                }
-                page = selectedPage
-            }
-        },
-        onBack = {
-            if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
+    val onPageChange1 = { selectedPage: GameEditorPage ->
+        if (selectedPage != GameEditorPage.Logic || logicEnabled) {
+            if (selectedPage == GameEditorPage.World) {
                 logicPage = LogicEditorPage.List
-            } else {
-                onBack()
             }
-        },
-        backDescription = if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
-            "Back to logic list"
-        } else {
-            "Back from game editor"
-        },
-    ) {
-        val activeDragController = when (settledPage) {
-            GameEditorPage.World,
-            GameEditorPage.Objects,
-                -> worldEditorState.dragController
-
-            GameEditorPage.Logic -> logicEditorState.dragController
-            GameEditorPage.Play -> null
-        }
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .onGloballyPositioned {
-                    activeDragController?.setRootCoordinates(it)
-                }
-                .then(activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier),
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = false,
-            ) { pageIndex ->
-                when (GameEditorPage.entries[pageIndex]) {
-                    GameEditorPage.World -> WorldEditorContent(
-                        world = game.world,
-                        handler = handler,
-                        state = worldEditorState,
-                    )
-
-                    GameEditorPage.Objects -> ObjectOrderEditor(
-                        world = game.world,
-                        handler = handler,
-                        state = worldEditorState,
-                    )
-
-                    GameEditorPage.Logic -> LogicEditorContent(
-                        logics = game.logics,
-                        handler = handler,
-                        state = logicEditorState,
-                        page = logicPage,
-                        onPageChange = { logicPage = it },
-                    )
-
-                    GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
-                }
+            if (selectedPage == GameEditorPage.Play && page != GameEditorPage.Play) {
+                playSession++
             }
-
-            when (toolbarPage) {
-                GameEditorPage.World, GameEditorPage.Objects -> WorldEditToolbar(
-                    dragTarget = worldEditorState.dragController,
-                    willBeDeleted = worldEditorState.mutableWillBeDeleted,
-                    world = game.world,
-                    handler = handler,
-                    dragSource = when (toolbarPage) {
-                        GameEditorPage.World -> worldEditorState.dragController
-                        GameEditorPage.Objects -> null
-                    },
-                )
-
-                GameEditorPage.Logic -> LogicEditToolbar(
-                    dragController = logicEditorState.dragController,
-                    willBeDeleted = logicEditorState.willBeDeleted,
-                    usedTags = game.world.logicTags.keys,
-                    handler = handler,
-                )
-
-                GameEditorPage.Play -> {
-                    ButtonHandle(HandleType.Trash)
-                    ButtonHandle(HandleType.Create)
-                    ButtonHandle(HandleType.Library)
-                }
-            }
+            page = selectedPage
         }
     }
-}
-
-@Composable
-private fun EditorPage(
-    page: GameEditorPage,
-    logicEnabled: Boolean,
-    onPageChange: (GameEditorPage) -> Unit,
-    onBack: () -> Unit,
-    backDescription: String,
-    content: @Composable () -> Unit,
-) {
-    SystemBackHandler(onBack = onBack)
-
+    val onBack1 = {
+        if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
+            logicPage = LogicEditorPage.List
+        } else {
+            onBack()
+        }
+    }
+    SystemBackHandler(onBack = onBack1)
     Column(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -230,9 +131,13 @@ private fun EditorPage(
                 .padding(start = insets.leftDp(), top = insets.topDp(), end = insets.rightDp()),
         ) {
             IconButton(
-                description = backDescription,
+                description = if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
+                    "Back to logic list"
+                } else {
+                    "Back from game editor"
+                },
                 modifier = Modifier.align(Alignment.CenterStart),
-                onClick = onBack,
+                onClick = onBack1,
             ) { _ -> drawBackIcon() }
             Row(
                 modifier = Modifier.align(Alignment.Center),
@@ -241,27 +146,101 @@ private fun EditorPage(
                 EditorTabButton(
                     description = "Edit world",
                     selected = page == GameEditorPage.World,
-                    onClick = { onPageChange(GameEditorPage.World) },
+                    onClick = { onPageChange1(GameEditorPage.World) },
                 ) { _ -> drawWorldIcon() }
                 EditorTabButton(
                     description = "Order objects",
                     selected = page == GameEditorPage.Objects,
-                    onClick = { onPageChange(GameEditorPage.Objects) },
+                    onClick = { onPageChange1(GameEditorPage.Objects) },
                 ) { _ -> drawObjectOrderIcon() }
                 EditorTabButton(
                     description = "Edit logic",
                     selected = page == GameEditorPage.Logic,
                     enabled = logicEnabled,
-                    onClick = { onPageChange(GameEditorPage.Logic) },
-                ) { _ -> drawLogicIcon(logicEnabled) }
+                    onClick = { onPageChange1(GameEditorPage.Logic) },
+                ) { _ -> drawLogicIcon(enabled = logicEnabled) }
                 EditorTabButton(
                     description = "Play game",
                     selected = page == GameEditorPage.Play,
-                    onClick = { onPageChange(GameEditorPage.Play) },
+                    onClick = { onPageChange1(GameEditorPage.Play) },
                 ) { _ -> drawPlayIcon() }
             }
         }
-        Box(Modifier.weight(1f)) { content() }
+        Box(Modifier.weight(1f)) {
+            val activeDragController1 = when (toolbarPage) {
+                GameEditorPage.World,
+                GameEditorPage.Objects,
+                    -> worldEditorState.dragController
+
+                GameEditorPage.Logic -> logicEditorState.dragController
+                GameEditorPage.Play -> null
+            }
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned {
+                        activeDragController1?.setRootCoordinates(it)
+                    }
+                    .then(activeDragController1?.let { Modifier.dragObserver(it) } ?: Modifier),
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    userScrollEnabled = false,
+                ) { pageIndex ->
+                    when (GameEditorPage.entries[pageIndex]) {
+                        GameEditorPage.World -> WorldEditorContent(
+                            world = game.world,
+                            handler = handler,
+                            state = worldEditorState,
+                        )
+
+                        GameEditorPage.Objects -> ObjectOrderEditor(
+                            world = game.world,
+                            handler = handler,
+                            state = worldEditorState,
+                        )
+
+                        GameEditorPage.Logic -> LogicEditorContent(
+                            logics = game.logics,
+                            handler = handler,
+                            state = logicEditorState,
+                            page = logicPage,
+                            onPageChange = { logicPage = it },
+                        )
+
+                        GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
+                    }
+                }
+
+            }
+        }
+    }
+    Scrim()
+    when (toolbarPage) {
+        GameEditorPage.World, GameEditorPage.Objects -> WorldEditToolbar(
+            dragTarget = worldEditorState.dragController,
+            willBeDeleted = worldEditorState.mutableWillBeDeleted,
+            world = game.world,
+            handler = handler,
+            dragSource = when (toolbarPage) {
+                GameEditorPage.World -> worldEditorState.dragController
+                GameEditorPage.Objects -> null
+            },
+        )
+
+        GameEditorPage.Logic -> LogicEditToolbar(
+            dragController = logicEditorState.dragController,
+            willBeDeleted = logicEditorState.willBeDeleted,
+            usedTags = game.world.logicTags.keys,
+            handler = handler,
+        )
+
+        GameEditorPage.Play -> {
+            ButtonHandle(HandleType.Trash)
+            ButtonHandle(HandleType.Create)
+            ButtonHandle(HandleType.Library)
+        }
     }
 }
 

@@ -1,15 +1,8 @@
 package com.example.microware.ui.components
-import com.example.microware.game.sprite.Palette
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.runMaybe
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,18 +18,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
+import com.example.microware.game.sprite.Palette
+import com.example.microware.ui.layout.insets
+import com.example.microware.util.toPx
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 val HandleSize = 56.dp
 val OverlayShadowElevation = 8.dp
 
-data class DrawerState<Data>(val data: Data, val onDismiss: () -> Unit)
+internal const val DrawerHandleZIndex = 0.99f
+internal const val DrawerScrimZIndex = 0.98f
+internal const val DrawerPanelZIndex = 1f
+
+data class DrawerState<Data>(val data: Data)
 
 @Composable
 fun <Data> Drawer(
@@ -45,24 +44,8 @@ fun <Data> Drawer(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.(Data) -> Unit,
 ) {
-    val fraction = animateFloatAsState(if (state != null) 1f else 0f, tween(durationMillis = 180))
-    val scrimAlpha = fraction.value * 0.32f
-    if (scrimAlpha > 0f) {
-        Box(
-            modifier = Modifier
-                .zIndex(0.99f)
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
-                .runMaybe(state?.onDismiss) {
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = it
-                    )
-                }
-        )
-    }
-    BoxWithConstraints(modifier = modifier.fillMaxSize().zIndex(1f)) {
+    if (state != null) showScrim() else hideScrim()
+    BoxWithConstraints(modifier = modifier.fillMaxSize().zIndex(DrawerPanelZIndex)) {
         val handleInset = when (placement) {
             HandleEdge.Left -> insets.rightDp()
             HandleEdge.Right -> insets.leftDp()

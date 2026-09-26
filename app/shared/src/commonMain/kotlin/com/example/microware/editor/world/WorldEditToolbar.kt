@@ -96,6 +96,17 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                     setExpanded(Expanded.Editor(world.clamped(newObj), setExpanded))
                     handler { world -> world.updateObject(newObj) }
                 },
+                positionEditor = {
+                    ObjectPositionEditor(world, obj) { position ->
+                        val newObj = world.clamped(
+                            obj.copy(
+                                offset = Offset(position.x.toFloat(), position.y.toFloat()),
+                            )
+                        )
+                        setExpanded(Expanded.Editor(newObj, setExpanded))
+                        handler { world -> world.upsertObject(newObj) }
+                    }
+                },
                 logicTag = world.logicTagFor(obj.id),
                 onLogicTagChange = { logicTag ->
                     handler { world -> world.assignLogicTag(obj.id, logicTag) }

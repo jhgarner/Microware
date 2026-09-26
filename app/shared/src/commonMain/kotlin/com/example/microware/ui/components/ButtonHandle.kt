@@ -1,14 +1,4 @@
 package com.example.microware.ui.components
-import com.example.microware.editor.world.CreateTarget
-import com.example.microware.game.sprite.Palette
-import com.example.microware.library.Library
-import com.example.microware.library.LibraryTarget
-import com.example.microware.ui.layout.Insets
-import com.example.microware.ui.layout.LocalInsets
-import com.example.microware.ui.layout.density
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.toDp
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
@@ -54,6 +44,12 @@ import androidx.compose.ui.zIndex
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
+import com.example.microware.editor.world.CreateTarget
+import com.example.microware.game.sprite.Palette
+import com.example.microware.library.LibraryTarget
+import com.example.microware.ui.layout.Insets
+import com.example.microware.ui.layout.LocalInsets
+import com.example.microware.util.toPx
 import kotlin.math.roundToInt
 
 @Immutable
@@ -234,7 +230,7 @@ fun BoxWithConstraintsScope.ButtonHandle(
     }
     val shape = MorphHandleShape(morph, morphProgress.value)
     var targetModifier = Modifier
-        .zIndex(0.99f)
+        .zIndex(DrawerHandleZIndex)
         .size(animatedSize)
         .align(type.edge.alignment())
         .offset {

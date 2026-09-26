@@ -93,6 +93,7 @@ fun EditableCanvas(
     editorKey: Any = Unit,
     logicTag: LogicTag? = null,
     onLogicTagChange: (LogicTag?) -> Unit = {},
+    positionEditor: (@Composable () -> Unit)? = null,
 ) {
     var selectedTool by remember(editorKey) { mutableStateOf(SpriteEditorTool.Pen) }
     var penColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
@@ -107,7 +108,11 @@ fun EditableCanvas(
 
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            SpriteToolPicker(selectedTool) { selectedTool = it }
+            SpriteToolPicker(
+                selectedTool = selectedTool,
+                onSelectTool = { selectedTool = it },
+                showPositionTool = positionEditor != null,
+            )
             LogicTagPicker(
                 selectedTag = logicTag,
                 onSelectTag = onLogicTagChange,
@@ -137,18 +142,21 @@ fun EditableCanvas(
                     )
                 },
             )
+            SpriteEditorTool.Position -> positionEditor?.invoke()
         }
-        Content(
-            selectedTool = selectedTool,
-            penColor = penColor,
-            sprite = sprite,
-            draft = draft,
-            boundsState = boundsState,
-            panState = panState,
-            zoomState = zoomState,
-            viewportSizeState = viewportSizeState,
-            commit = commit,
-        )
+        if (selectedTool != SpriteEditorTool.Position) {
+            Content(
+                selectedTool = selectedTool,
+                penColor = penColor,
+                sprite = sprite,
+                draft = draft,
+                boundsState = boundsState,
+                panState = panState,
+                zoomState = zoomState,
+                viewportSizeState = viewportSizeState,
+                commit = commit,
+            )
+        }
     }
 }
 
@@ -189,6 +197,7 @@ private fun Content(
                 panState,
                 zoomState,
             )
+            SpriteEditorTool.Position -> Unit
         }
     }
 }

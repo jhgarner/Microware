@@ -52,6 +52,8 @@ private val IncrementButtonHeight = 48.dp
 enum class IntegerSliderDimension {
     Width,
     Height,
+    X,
+    Y,
     Speed,
 }
 
@@ -65,12 +67,13 @@ fun IntegerSliderControl(
     activeColor: Palette = Palette.Navy,
     inactiveColor: Palette = Palette.LightGray,
     allowInfinity: Boolean = false,
+    minValue: Int = 1,
 ) {
-    require(maxValue >= 1) { "maxValue must be at least 1" }
+    require(maxValue >= minValue) { "maxValue must be at least minValue" }
     require(allowInfinity || value != null) { "value cannot be infinity for this slider" }
-    val finiteValue = value?.coerceIn(1, maxValue)
+    val finiteValue = value?.coerceIn(minValue, maxValue)
     val latestOnValueChange = rememberUpdatedState(onValueChange)
-    val hasPreviousValue = value == null || finiteValue != 1
+    val hasPreviousValue = value == null || finiteValue != minValue
     val hasNextValue = value != null && (finiteValue!! < maxValue || allowInfinity)
 
     Row(
@@ -90,7 +93,7 @@ fun IntegerSliderControl(
                 buttonSize = null,
                 onClick = {
                     onValueChange(
-                        if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(1)
+                        if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(minValue)
                     )
                 },
                 enabled = hasPreviousValue,
@@ -106,6 +109,7 @@ fun IntegerSliderControl(
             activeColor = activeColor,
             inactiveColor = inactiveColor,
             allowInfinity = allowInfinity,
+            minValue = minValue,
             modifier = Modifier.weight(1f),
         )
         IconButton(
@@ -142,7 +146,7 @@ private fun RowScope.DimensionIcon(
         val center = size.minDimension / 2f
         val arrowSize = size.minDimension * 0.18f
 
-        if (dimension == IntegerSliderDimension.Width) {
+        if (dimension == IntegerSliderDimension.Width || dimension == IntegerSliderDimension.X) {
             drawLine(
                 color = color,
                 start = Offset(inset, center),
@@ -178,7 +182,7 @@ private fun RowScope.DimensionIcon(
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round,
             )
-        } else if (dimension == IntegerSliderDimension.Height) {
+        } else if (dimension == IntegerSliderDimension.Height || dimension == IntegerSliderDimension.Y) {
             drawLine(
                 color = color,
                 start = Offset(center, inset),
@@ -292,6 +296,7 @@ private fun IntegerSlider(
     activeColor: Palette,
     inactiveColor: Palette,
     allowInfinity: Boolean,
+    minValue: Int,
     modifier: Modifier = Modifier,
 ) {
     val horizontalPaddingPx = SliderHorizontalPadding.toPx()
@@ -301,17 +306,17 @@ private fun IntegerSlider(
         modifier = modifier
             .fillMaxWidth()
             .height(SliderHeight)
-            .pointerInput(maxValue) {
+            .pointerInput(minValue, maxValue) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     fun updateFromPosition(position: Offset) {
                         val usableWidth = size.width - horizontalPaddingPx * 2f
                         val fraction = ((position.x - horizontalPaddingPx) / usableWidth)
                             .coerceIn(0f, 1f)
-                        val lastIndex = maxValue - 1 + if (allowInfinity) 1 else 0
+                        val lastIndex = maxValue - minValue + if (allowInfinity) 1 else 0
                         val index = (fraction * lastIndex).roundToInt().coerceIn(0, lastIndex)
                         latestOnValueChange.value(
-                            if (allowInfinity && index == lastIndex) null else index + 1
+                            if (allowInfinity && index == lastIndex) null else index + minValue
                         )
                     }
 
@@ -336,8 +341,8 @@ private fun IntegerSlider(
         val bubbleHeightPx = ValueIndicatorHeight.toPx()
         val trackStart = horizontalPaddingPx
         val trackEnd = maxWidth.toPx() - horizontalPaddingPx
-        val lastIndex = maxValue - 1 + if (allowInfinity) 1 else 0
-        val selectedIndex = if (value == null) lastIndex else value - 1
+        val lastIndex = maxValue - minValue + if (allowInfinity) 1 else 0
+        val selectedIndex = if (value == null) lastIndex else value - minValue
         val fraction = if (lastIndex == 0) 0f else selectedIndex.toFloat() / lastIndex
         val thumbX = trackStart + (trackEnd - trackStart) * fraction
         val trackY = SliderTrackY.toPx()

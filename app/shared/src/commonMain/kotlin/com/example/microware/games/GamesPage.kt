@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +39,7 @@ import com.example.microware.ui.components.HandleEdge
 import com.example.microware.ui.components.HandlePresentation
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
+import com.example.microware.ui.components.Scrim
 import com.example.microware.ui.components.TrashGap
 import com.example.microware.ui.components.TrashHandle
 import com.example.microware.ui.components.drawBorder
@@ -60,7 +60,7 @@ import kotlin.math.roundToInt
 private object GamesTrashDragSource
 
 @Composable
-internal fun GamesPage(
+internal fun BoxWithConstraintsScope.GamesPage(
     games: List<Game>,
     selectGame: (Id) -> Unit,
     handler: (GamesEvent) -> Unit,
@@ -72,7 +72,7 @@ internal fun GamesPage(
         if (offered != null) value = false
     }
 
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .dragObserver(dragController),
@@ -110,7 +110,9 @@ internal fun GamesPage(
             Spacer(Modifier.height(HandleSize + TrashGap))
         }
 
-        TrashHandle(
+        Scrim()
+
+        this@GamesPage.TrashHandle(
             dragTarget = dragController,
             dragSource = dragController,
             trashSourceId = GamesTrashDragSource,
@@ -131,7 +133,7 @@ internal fun GamesPage(
                 )
             },
         )
-        GameEditorHandle(
+        this@GamesPage.GameEditorHandle(
             dragController = dragController,
             onCreate = {
                 val game = Game(World(), persistentListOf())
@@ -148,7 +150,7 @@ internal fun GamesPage(
             },
         )
 
-        ButtonHandle(HandleType.Library)
+        this@GamesPage.ButtonHandle(HandleType.Library)
 
         val draggedGame = offered?.item
         if (draggedGame != null) {

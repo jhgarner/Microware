@@ -1,25 +1,5 @@
 package com.example.microware.editor.world
-import com.example.microware.ui.gestures.obj
-import com.example.microware.game.events.WorldEvent
-import com.example.microware.game.model.Obj
-import com.example.microware.game.model.World
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.scaled
-import com.example.microware.ui.components.HandleSize
-import com.example.microware.ui.components.TrashGap
-import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.ui.gestures.dropTarget
-import com.example.microware.ui.layout.density
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.Id
-import com.example.microware.util.roundToPx
-import com.example.microware.util.toDp
-import com.example.microware.util.toPx
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -36,19 +16,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import kotlinx.collections.immutable.PersistentList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toPersistentList
+import com.example.microware.game.events.WorldEvent
+import com.example.microware.game.model.Obj
+import com.example.microware.game.model.World
+import com.example.microware.ui.components.HandleSize
+import com.example.microware.ui.components.TrashGap
+import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.gestures.dropTarget
+import com.example.microware.ui.gestures.obj
+import com.example.microware.ui.layout.insets
+import com.example.microware.util.Id
+import com.example.microware.util.roundToPx
+import com.example.microware.util.toDp
 import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -147,53 +132,5 @@ internal fun WorldEditorContent(
             }
         }
         Spacer(modifier = Modifier.height(toolbarHeight + insets.bottomDp()))
-    }
-}
-
-@Composable
-private fun WorldSprite(
-    obj: Obj,
-    scale: Float,
-    origin: IntOffset = IntOffset.Zero,
-    opacity: Float = 1f,
-    from: Any,
-    dragController: DragController<Obj>? = null,
-) {
-    val density = LocalDensity.current
-    val animatedOpacity by animateFloatAsState(
-        targetValue = opacity,
-        animationSpec = tween(durationMillis = 120),
-        label = "sprite opacity"
-    )
-    val image = remember(obj.sprite, scale) {
-        scaled(
-            obj.sprite.bitmap,
-            (obj.sprite.width * scale).roundToInt().coerceAtLeast(1),
-            (obj.sprite.height * scale).roundToInt().coerceAtLeast(1)
-        )
-    }
-    val isFullyTransparent = obj.sprite.isFullyTransparent()
-    val modifier = Modifier
-        .requiredSize(
-            with(density) { image.width.toDp() },
-            with(density) { image.height.toDp() }
-        )
-        .offset {
-            IntOffset(
-                origin.x + (obj.offset.x * scale).roundToInt(),
-                origin.y + (obj.offset.y * scale).roundToInt()
-            )
-        }
-        .alpha(animatedOpacity)
-        .then(dragController?.let { Modifier.dragSource(it, from, obj) } ?: Modifier)
-
-    Canvas(modifier) {
-        drawImage(image)
-        if (isFullyTransparent) {
-            drawRect(
-                color = Palette.Black.color,
-                style = Stroke(width = 1.dp.toPx())
-            )
-        }
     }
 }
