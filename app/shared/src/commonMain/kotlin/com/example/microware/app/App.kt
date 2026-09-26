@@ -1,12 +1,4 @@
 package com.example.microware.app
-import com.example.microware.editor.GameEditor
-import com.example.microware.game.sprite.Palette
-import com.example.microware.games.GamesPage
-import com.example.microware.games.store.AppGameRepository
-import com.example.microware.games.store.GameStore
-import com.example.microware.ui.layout.Insets
-import com.example.microware.ui.layout.LocalInsets
-import com.example.microware.util.Id
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -22,7 +14,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.microware.editor.GameEditor
 import com.example.microware.game.events.GamesEvent.Companion.forGame
+import com.example.microware.game.sprite.Palette
+import com.example.microware.games.GamesPage
+import com.example.microware.games.store.AppGameRepository
+import com.example.microware.games.store.GameStore
+import com.example.microware.ui.components.Overlay
+import com.example.microware.ui.layout.Insets
+import com.example.microware.ui.layout.LocalInsets
+import com.example.microware.util.Id
 
 @Composable
 fun App() {
@@ -66,5 +67,6 @@ fun App() {
                 }
             }
         }
+        Overlay()
     }
 }

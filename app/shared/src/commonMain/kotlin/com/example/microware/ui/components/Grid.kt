@@ -1,12 +1,4 @@
 package com.example.microware.ui.components
-import com.example.microware.ui.gestures.DragSource
-import com.example.microware.ui.gestures.DragTarget
-import com.example.microware.ui.gestures.Offer
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.ui.gestures.dropTarget
-import com.example.microware.util.Id
-import com.example.microware.util.Identifiable
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.tween
@@ -46,6 +38,13 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import com.example.microware.ui.gestures.DragSource
+import com.example.microware.ui.gestures.DragTarget
+import com.example.microware.ui.gestures.Offer
+import com.example.microware.ui.gestures.dragSource
+import com.example.microware.ui.gestures.dropTarget
+import com.example.microware.util.Id
+import com.example.microware.util.Identifiable
 
 private data class GridDragSource(
     val sourceId: Any,
@@ -148,6 +147,7 @@ fun <T : Identifiable<T>> Grid(
                             modifier = Modifier.padding(8.dp)
                                 .size(itemSize)
                                 .dragSource(dragSource, GridDragSource(sourceId, index), item)
+                                .suggestDrag()
                                 .onGloballyPositioned { layout ->
                                     itemBounds[item.id] = layout.boundsInWindow()
                                     gridBounds?.let { root ->
@@ -213,6 +213,6 @@ private fun nearestGridInsertionIndex(
     val slotIndex = nearestGridSlot(slotBounds, pointer) ?: return 0
     val slot = slotBounds[slotIndex]
     val afterSlot = pointer.y > slot.center.y ||
-        (pointer.y == slot.center.y && pointer.x > slot.center.x)
+            (pointer.y == slot.center.y && pointer.x > slot.center.x)
     return slotIndex + if (afterSlot) 1 else 0
 }

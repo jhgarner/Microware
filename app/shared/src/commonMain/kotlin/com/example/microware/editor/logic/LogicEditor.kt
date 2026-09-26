@@ -1,23 +1,4 @@
 package com.example.microware.editor.logic
-import com.example.microware.editor.IconButton
-import com.example.microware.game.events.LogicEvent
-import com.example.microware.game.events.LogicsEvent
-import com.example.microware.game.model.Action
-import com.example.microware.game.model.Direction
-import com.example.microware.game.model.Game
-import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
-import com.example.microware.game.model.Trigger
-import com.example.microware.game.sprite.Palette
-import com.example.microware.ui.components.HandleSize
-import com.example.microware.ui.components.IntegerSliderControl
-import com.example.microware.ui.components.IntegerSliderDimension
-import com.example.microware.ui.components.TrashGap
-import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.Id
-import com.example.microware.util.toDp
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -67,6 +48,24 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.util.lerp
+import com.example.microware.editor.IconButton
+import com.example.microware.game.events.LogicEvent
+import com.example.microware.game.events.LogicsEvent
+import com.example.microware.game.model.Action
+import com.example.microware.game.model.Direction
+import com.example.microware.game.model.Logic
+import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Trigger
+import com.example.microware.game.sprite.Palette
+import com.example.microware.ui.components.HandleSize
+import com.example.microware.ui.components.IntegerSliderControl
+import com.example.microware.ui.components.IntegerSliderDimension
+import com.example.microware.ui.components.TrashGap
+import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.icons.drawTapIcon
+import com.example.microware.ui.layout.insets
+import com.example.microware.util.Id
+import com.example.microware.util.toDp
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -735,52 +734,6 @@ private fun DrawScope.drawStartIcon(t: Float = 0f) {
     }
     drawPath(path, Palette.Green.color)
     drawPath(path, Color.Black, style = Stroke(2.dp.toPx()))
-}
-
-private fun DrawScope.drawTapIcon(t: Float = 0f) {
-    val touchPoint = Offset(size.width * .5f, size.height * .2f)
-    val radScale = animate(t, 1.0f) {
-        anim(1.0f, .3f)
-        anim(1.4f, .2f)
-        anim(1.0f, .2f)
-    }
-    drawCircle(
-        Palette.Cyan.color,
-        size.minDimension * .18f * radScale,
-        touchPoint,
-        style = Stroke(2.dp.toPx())
-    )
-    val fingerMove = animate(t) {
-        anim(0f, .2f)
-        anim(.1f, .1f)
-        anim(.1f, .3f)
-        anim(0f, .2f)
-    }
-    val finger = androidx.compose.ui.graphics.Path().apply {
-        moveTo(size.width * .5f, size.height * .82f)
-        lineTo(size.width * .34f, size.height * .62f)
-        lineTo(size.width * .34f, size.height * .5f)
-        quadraticTo(size.width * .34f, size.height * .43f, size.width * .42f, size.height * .5f)
-        lineTo(size.width * .42f, size.height * (.22f + fingerMove))
-        quadraticTo(
-            size.width * .42f,
-            size.height * (.12f + fingerMove),
-            size.width * .5f,
-            size.height * (.12f + fingerMove)
-        )
-        quadraticTo(
-            size.width * .58f,
-            size.height * (.12f + fingerMove),
-            size.width * .58f,
-            size.height * (.22f + fingerMove)
-        )
-        lineTo(size.width * .58f, size.height * .48f)
-        quadraticTo(size.width * .82f, size.height * .43f, size.width * .82f, size.height * .62f)
-        lineTo(size.width * .72f, size.height * .82f)
-        close()
-    }
-    drawPath(finger, Palette.OffWhite.color)
-    drawPath(finger, Color.Black, style = Stroke(2.dp.toPx()))
 }
 
 private fun DrawScope.drawCollisionIcon() {
