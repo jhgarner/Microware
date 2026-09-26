@@ -1,15 +1,5 @@
 package com.example.microware.editor.world
-import com.example.microware.game.model.Obj
-import com.example.microware.ui.components.Grid
-import com.example.microware.ui.gestures.DragSource
-import com.example.microware.ui.gestures.DragTarget
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.ui.gestures.racing
-import com.example.microware.ui.gestures.sequence
-import com.example.microware.util.toPx
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,21 +11,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import com.example.microware.game.model.Obj
+import com.example.microware.ui.components.Grid
+import com.example.microware.ui.gestures.DragSource
+import com.example.microware.ui.gestures.DragTarget
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -44,7 +29,6 @@ fun ObjectTable(
     items: List<Obj>,
     dragSource: DragSource<Obj>,
     dragTarget: DragTarget<Obj>,
-    from: Any = Unit,
 ) {
     Grid(
         items = items,
@@ -52,55 +36,21 @@ fun ObjectTable(
         dragSource = dragSource,
         dragTarget = dragTarget,
         onMove = { _, _ -> }
-    ) { obj ->
-        ItemPreview(
-            obj = obj,
-            zIndex = 0f,
-            dragSource = dragSource,
-            from = from
-        )
+    ) {
+        ItemPreview(obj = it)
     }
 }
 
 @Composable
-private fun ItemPreview(
-    obj: Obj,
-    dragSource: DragSource<Obj>,
-    from: Any,
-    zIndex: Float,
-) {
-    var wiggleCount by remember { mutableStateOf(0) }
-    val wiggle = remember { Animatable(0f) }
-    val wiggleDistance = with(LocalDensity.current) { 32.dp.toPx() }
-    LaunchedEffect(wiggleCount) {
-        if (wiggleCount == 0) return@LaunchedEffect
-        wiggle.snapTo(0f)
-        wiggle.animateTo(wiggleDistance, tween(durationMillis = 70))
-        wiggle.animateTo(0f, tween(durationMillis = 70))
-        wiggle.animateTo(wiggleDistance / 2f, tween(durationMillis = 70))
-        wiggle.animateTo(0f, tween(durationMillis = 70))
-    }
+private fun ItemPreview(obj: Obj) {
     val shape = RoundedCornerShape(4.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .zIndex(zIndex)
-            .graphicsLayer {
-                translationX = wiggle.value
-            }
             .background(MaterialTheme.colorScheme.surfaceVariant, shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .padding(4.dp)
-            .dragSource(dragSource, from, obj)
-            .pointerInput(Unit) {
-                racing {
-                    sequence {
-                        expectTap()
-                        wiggleCount += 1
-                    }
-                }
-            }
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val scale = min(

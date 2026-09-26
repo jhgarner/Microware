@@ -1,30 +1,26 @@
 package com.example.microware.editor.logic
-import com.example.microware.editor.ExpandedSide
-import com.example.microware.editor.Toolbar
-import com.example.microware.game.events.LogicEvent
-import com.example.microware.game.events.LogicsEvent
-import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
-import com.example.microware.library.Library
-import com.example.microware.library.loadLogicLibrary
-import com.example.microware.library.saveLogicLibrary
-import com.example.microware.ui.components.HandleEdge
-import com.example.microware.ui.components.Trash
-import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.util.Id
-import com.example.microware.util.byId
-import com.example.microware.util.upserting
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
+import com.example.microware.editor.ExpandedSide
+import com.example.microware.editor.Toolbar
 import com.example.microware.editor.logic.ExpandedLogic.Editor
+import com.example.microware.game.events.LogicEvent
+import com.example.microware.game.events.LogicsEvent
+import com.example.microware.game.model.Logic
+import com.example.microware.game.model.LogicTag
+import com.example.microware.library.loadLogicLibrary
+import com.example.microware.library.saveLogicLibrary
+import com.example.microware.ui.components.HandleEdge
+import com.example.microware.ui.gestures.DragController
+import com.example.microware.util.Id
+import com.example.microware.util.byId
+import com.example.microware.util.upserting
 
 private var library by mutableStateOf(loadLogicLibrary())
 
@@ -99,12 +95,13 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
         expandToEdge = { it.edge() },
         handler = { action -> handler { logics -> action(logics) } },
         garbagePanel = { _, garbage ->
-            LogicTable(
-                items = garbage,
-                dragController = dragController,
-                sourceId = LogicTrashDragSource,
-                modifier = Modifier.fillMaxSize(),
-            )
+            BoxWithConstraints {
+                LogicTable(
+                    items = garbage,
+                    dragController = dragController,
+                    sourceId = LogicTrashDragSource,
+                )
+            }
         },
         editorPanel = {
             LogicBuilder(
@@ -113,12 +110,13 @@ internal fun BoxWithConstraintsScope.LogicEditToolbar(
             )
         },
         libraryPanel = {
-            LogicTable(
-                items = library.items,
-                dragController = dragController,
-                sourceId = LogicLibraryDragSource,
-                modifier = Modifier.fillMaxSize(),
-            )
+            BoxWithConstraints {
+                LogicTable(
+                    items = library.items,
+                    dragController = dragController,
+                    sourceId = LogicLibraryDragSource,
+                )
+            }
         },
     )
 }

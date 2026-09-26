@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -123,123 +122,119 @@ fun BoxWithConstraintsScope.GameEditor(
         }
     }
     SystemBackHandler(onBack = onBack1)
-    Column(Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Palette.OffWhite.color)
-                .padding(start = insets.leftDp(), top = insets.topDp(), end = insets.rightDp()),
-        ) {
-            IconButton(
-                description = if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
-                    "Back to logic list"
-                } else {
-                    "Back from game editor"
-                },
-                modifier = Modifier.align(Alignment.CenterStart),
-                onClick = onBack1,
-            ) { _ -> drawBackIcon() }
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
-            ) {
-                EditorTabButton(
-                    description = "Edit world",
-                    selected = page == GameEditorPage.World,
-                    onClick = { onPageChange1(GameEditorPage.World) },
-                ) { _ -> drawWorldIcon() }
-                EditorTabButton(
-                    description = "Order objects",
-                    selected = page == GameEditorPage.Objects,
-                    onClick = { onPageChange1(GameEditorPage.Objects) },
-                ) { _ -> drawObjectOrderIcon() }
-                EditorTabButton(
-                    description = "Edit logic",
-                    selected = page == GameEditorPage.Logic,
-                    enabled = logicEnabled,
-                    onClick = { onPageChange1(GameEditorPage.Logic) },
-                ) { _ -> drawLogicIcon(enabled = logicEnabled) }
-                EditorTabButton(
-                    description = "Play game",
-                    selected = page == GameEditorPage.Play,
-                    onClick = { onPageChange1(GameEditorPage.Play) },
-                ) { _ -> drawPlayIcon() }
-            }
-        }
-        Box(Modifier.weight(1f)) {
-            val activeDragController1 = when (toolbarPage) {
-                GameEditorPage.World,
-                GameEditorPage.Objects,
-                    -> worldEditorState.dragController
+    val activeDragController = when (toolbarPage) {
+        GameEditorPage.World,
+        GameEditorPage.Objects,
+            -> worldEditorState.dragController
 
-                GameEditorPage.Logic -> logicEditorState.dragController
-                GameEditorPage.Play -> null
-            }
-            BoxWithConstraints(
+        GameEditorPage.Logic -> logicEditorState.dragController
+        GameEditorPage.Play -> null
+    }
+    Box(
+        modifier = activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .onGloballyPositioned {
-                        activeDragController1?.setRootCoordinates(it)
-                    }
-                    .then(activeDragController1?.let { Modifier.dragObserver(it) } ?: Modifier),
+                    .fillMaxWidth()
+                    .background(Palette.OffWhite.color)
+                    .padding(start = insets.leftDp(), top = insets.topDp(), end = insets.rightDp()),
             ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    userScrollEnabled = false,
-                ) { pageIndex ->
-                    when (GameEditorPage.entries[pageIndex]) {
-                        GameEditorPage.World -> WorldEditorContent(
-                            world = game.world,
-                            handler = handler,
-                            state = worldEditorState,
-                        )
+                IconButton(
+                    description = if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
+                        "Back to logic list"
+                    } else {
+                        "Back from game editor"
+                    },
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    onClick = onBack1,
+                ) { _ -> drawBackIcon() }
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    EditorTabButton(
+                        description = "Edit world",
+                        selected = page == GameEditorPage.World,
+                        onClick = { onPageChange1(GameEditorPage.World) },
+                    ) { _ -> drawWorldIcon() }
+                    EditorTabButton(
+                        description = "Order objects",
+                        selected = page == GameEditorPage.Objects,
+                        onClick = { onPageChange1(GameEditorPage.Objects) },
+                    ) { _ -> drawObjectOrderIcon() }
+                    EditorTabButton(
+                        description = "Edit logic",
+                        selected = page == GameEditorPage.Logic,
+                        enabled = logicEnabled,
+                        onClick = { onPageChange1(GameEditorPage.Logic) },
+                    ) { _ -> drawLogicIcon(enabled = logicEnabled) }
+                    EditorTabButton(
+                        description = "Play game",
+                        selected = page == GameEditorPage.Play,
+                        onClick = { onPageChange1(GameEditorPage.Play) },
+                    ) { _ -> drawPlayIcon() }
+                }
+            }
+            Box(Modifier.weight(1f)) {
+                BoxWithConstraints() {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = false,
+                    ) { pageIndex ->
+                        when (GameEditorPage.entries[pageIndex]) {
+                            GameEditorPage.World -> WorldEditorContent(
+                                world = game.world,
+                                handler = handler,
+                                state = worldEditorState,
+                            )
 
-                        GameEditorPage.Objects -> ObjectOrderEditor(
-                            world = game.world,
-                            handler = handler,
-                            state = worldEditorState,
-                        )
+                            GameEditorPage.Objects -> ObjectOrderEditor(
+                                world = game.world,
+                                handler = handler,
+                                state = worldEditorState,
+                            )
 
-                        GameEditorPage.Logic -> LogicEditorContent(
-                            logics = game.logics,
-                            handler = handler,
-                            state = logicEditorState,
-                            page = logicPage,
-                            onPageChange = { logicPage = it },
-                        )
+                            GameEditorPage.Logic -> LogicEditorContent(
+                                logics = game.logics,
+                                handler = handler,
+                                state = logicEditorState,
+                                page = logicPage,
+                                onPageChange = { logicPage = it },
+                            )
 
-                        GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
+                            GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
+                        }
                     }
                 }
-
             }
         }
-    }
-    Scrim()
-    when (toolbarPage) {
-        GameEditorPage.World, GameEditorPage.Objects -> WorldEditToolbar(
-            dragTarget = worldEditorState.dragController,
-            willBeDeleted = worldEditorState.mutableWillBeDeleted,
-            world = game.world,
-            handler = handler,
-            dragSource = when (toolbarPage) {
-                GameEditorPage.World -> worldEditorState.dragController
-                GameEditorPage.Objects -> null
-            },
-        )
+        Scrim()
+        when (toolbarPage) {
+            GameEditorPage.World, GameEditorPage.Objects -> this@GameEditor.WorldEditToolbar(
+                dragTarget = worldEditorState.dragController,
+                willBeDeleted = worldEditorState.mutableWillBeDeleted,
+                world = game.world,
+                handler = handler,
+                dragSource = when (toolbarPage) {
+                    GameEditorPage.World -> worldEditorState.dragController
+                    GameEditorPage.Objects -> null
+                },
+            )
 
-        GameEditorPage.Logic -> LogicEditToolbar(
-            dragController = logicEditorState.dragController,
-            willBeDeleted = logicEditorState.willBeDeleted,
-            usedTags = game.world.logicTags.keys,
-            handler = handler,
-        )
+            GameEditorPage.Logic -> this@GameEditor.LogicEditToolbar(
+                dragController = logicEditorState.dragController,
+                willBeDeleted = logicEditorState.willBeDeleted,
+                usedTags = game.world.logicTags.keys,
+                handler = handler,
+            )
 
-        GameEditorPage.Play -> {
-            ButtonHandle(HandleType.Trash)
-            ButtonHandle(HandleType.Create)
-            ButtonHandle(HandleType.Library)
+            GameEditorPage.Play -> {
+                this@GameEditor.ButtonHandle(HandleType.Trash)
+                this@GameEditor.ButtonHandle(HandleType.Create)
+                this@GameEditor.ButtonHandle(HandleType.Library)
+            }
         }
     }
 }

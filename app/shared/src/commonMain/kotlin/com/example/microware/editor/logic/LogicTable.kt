@@ -1,21 +1,13 @@
 package com.example.microware.editor.logic
-import com.example.microware.game.model.Logic
-import com.example.microware.game.sprite.Palette
-import com.example.microware.ui.components.Grid
-import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.gestures.Offer
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.util.Id
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +18,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.game.model.Logic
+import com.example.microware.game.sprite.Palette
+import com.example.microware.ui.components.Grid
+import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.gestures.Offer
+import com.example.microware.util.Id
 
 internal object LogicListDragSource
 internal object LogicTrashDragSource
@@ -34,33 +32,26 @@ internal object LogicLibraryDragSource
 private val LogicCardHeight = 60.dp
 
 @Composable
-internal fun LogicTable(
+internal fun BoxWithConstraintsScope.LogicTable(
     items: List<Logic>,
     dragController: DragController<Logic>,
     sourceId: Any,
-    modifier: Modifier = Modifier,
-    belowList: @Composable () -> Unit = {},
     onMove: (Id, Int) -> Unit = { _, _ -> },
     onDrop: (Offer<Logic>, Int) -> Unit = { _, _ -> },
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            Grid(
-                items = items,
-                itemSize = DpSize(
-                    width = maxWidth - 16.dp,
-                    height = LogicCardHeight,
-                ),
-                dragSource = dragController,
-                dragTarget = dragController,
-                sourceId = sourceId,
-                onMove = onMove,
-                onDrop = onDrop,
-            ) { logic ->
-                LogicCard(logic, Modifier.fillMaxSize())
-            }
-        }
-        belowList()
+    Grid(
+        items = items,
+        itemSize = DpSize(
+            width = maxWidth - 16.dp,
+            height = LogicCardHeight,
+        ),
+        dragSource = dragController,
+        dragTarget = dragController,
+        sourceId = sourceId,
+        onMove = onMove,
+        onDrop = onDrop,
+    ) { logic ->
+        LogicCard(logic, Modifier.fillMaxSize())
     }
 }
 

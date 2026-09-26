@@ -1,14 +1,4 @@
 package com.example.microware.editor.sprite
-import com.example.microware.editor.logic.LogicTagPicker
-import com.example.microware.game.model.LogicTag
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.Sprite
-import com.example.microware.game.sprite.SpriteBounds
-import com.example.microware.game.sprite.scaled
-import com.example.microware.game.sprite.tiled
-import com.example.microware.game.sprite.transparent
-import com.example.microware.ui.gestures.racing
-import com.example.microware.ui.gestures.sequence
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -22,20 +12,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -44,9 +33,19 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.editor.logic.LogicTagPicker
+import com.example.microware.game.model.LogicTag
+import com.example.microware.game.sprite.Palette
+import com.example.microware.game.sprite.Sprite
+import com.example.microware.game.sprite.SpriteBounds
+import com.example.microware.game.sprite.scaled
+import com.example.microware.game.sprite.tiled
+import com.example.microware.game.sprite.transparent
+import com.example.microware.ui.gestures.racing
+import com.example.microware.ui.gestures.sequence
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
@@ -93,7 +92,7 @@ fun EditableCanvas(
     editorKey: Any = Unit,
     logicTag: LogicTag? = null,
     onLogicTagChange: (LogicTag?) -> Unit = {},
-    positionEditor: (@Composable () -> Unit)? = null,
+    positionEditor: @Composable () -> Unit,
 ) {
     var selectedTool by remember(editorKey) { mutableStateOf(SpriteEditorTool.Pen) }
     var penColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
@@ -111,7 +110,6 @@ fun EditableCanvas(
             SpriteToolPicker(
                 selectedTool = selectedTool,
                 onSelectTool = { selectedTool = it },
-                showPositionTool = positionEditor != null,
             )
             LogicTagPicker(
                 selectedTag = logicTag,
@@ -142,7 +140,8 @@ fun EditableCanvas(
                     )
                 },
             )
-            SpriteEditorTool.Position -> positionEditor?.invoke()
+
+            SpriteEditorTool.Position -> positionEditor()
         }
         if (selectedTool != SpriteEditorTool.Position) {
             Content(
@@ -191,12 +190,14 @@ private fun Content(
                 panState = panState,
                 zoomState = zoomState,
             )
+
             SpriteEditorTool.Resize -> SpriteResizeCanvas(
                 sprite,
                 boundsState,
                 panState,
                 zoomState,
             )
+
             SpriteEditorTool.Position -> Unit
         }
     }
@@ -330,7 +331,7 @@ private fun SpriteCanvas(
     draft: MutableSpriteDraft,
     commit: (Sprite) -> Unit,
     panState: MutableState<Offset>,
-    zoomState: MutableState<Float>
+    zoomState: MutableState<Float>,
 ) {
     var pan by panState
     var zoom by zoomState
@@ -409,7 +410,7 @@ private fun SpriteCanvas(
                             val zoomFactor = size / lastSiz
                             // Anchor zoom at focal point: keep content under fingers stationary
                             panState.value += (offset - lastOff) +
-                                (panState.value + spriteOrigin - lastOff) * (zoomFactor - 1)
+                                    (panState.value + spriteOrigin - lastOff) * (zoomFactor - 1)
                             zoomState.value *= zoomFactor
                             lastOffset = offset
                             lastSize = size
@@ -437,13 +438,13 @@ private fun SpriteCanvas(
         drawIntoCanvas { canvas ->
             canvas.drawImageRect(
                 image = frame.bitmap,
-                srcOffset = androidx.compose.ui.unit.IntOffset.Zero,
-                srcSize = androidx.compose.ui.unit.IntSize(frame.width, frame.height),
-                dstOffset = androidx.compose.ui.unit.IntOffset(
+                srcOffset = IntOffset.Zero,
+                srcSize = IntSize(frame.width, frame.height),
+                dstOffset = IntOffset(
                     left.toInt(),
                     top.toInt(),
                 ),
-                dstSize = androidx.compose.ui.unit.IntSize(
+                dstSize = IntSize(
                     (right - left).toInt().coerceAtLeast(1),
                     (bottom - top).toInt().coerceAtLeast(1),
                 ),
@@ -451,11 +452,4 @@ private fun SpriteCanvas(
             )
         }
     }
-}
-
-@Preview(widthDp = 400, heightDp = 400)
-@Composable
-private fun TestCanvas() {
-    val sprite by remember { mutableStateOf(Sprite.empty(20, 20)) }
-    EditableCanvas(sprite, {}, {})
 }

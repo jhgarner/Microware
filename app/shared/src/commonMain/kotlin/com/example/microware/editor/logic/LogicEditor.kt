@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -42,7 +41,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -156,7 +154,7 @@ internal fun LogicEditorContent(
 ) {
     val dragController = state.dragController
     val editingIndex = (page as? LogicEditorPage.Editing)?.index
-    var rootBounds by remember { mutableStateOf(Rect.Zero) }
+    var rootBounds by remember { mutableStateOf<(Offset) -> Offset>({ it }) }
 
     fun applyLogicsChange(updatedLogics: List<Logic>) {
         handler { updatedLogics.toPersistentList() }
@@ -186,31 +184,34 @@ internal fun LogicEditorContent(
     }
 
     Box(
-        modifier = modifier.onGloballyPositioned { rootBounds = it.boundsInWindow() },
+        modifier = modifier.onGloballyPositioned { rootBounds = it::windowToLocal },
     ) {
-        LogicTable(
-            items = logics,
-            dragController = dragController,
-            sourceId = LogicListDragSource,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    start = insets.leftDp(),
-                    end = insets.rightDp(),
-                    top = insets.topDp(),
-                ),
-            belowList = {
-                Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
-            },
-            onMove = ::handleLogicMove,
-            onDrop = { offer, targetIndex -> handleLogicDrop(offer.item, targetIndex) },
-        )
+        Column {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(
+                        start = insets.leftDp(),
+                        end = insets.rightDp(),
+                    ),
+            ) {
+                LogicTable(
+                    items = logics,
+                    dragController = dragController,
+                    sourceId = LogicListDragSource,
+                    onMove = ::handleLogicMove,
+                    onDrop = { offer, targetIndex -> handleLogicDrop(offer.item, targetIndex) },
+                )
+            }
+            Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
+        }
         dragController.offer?.let { offer ->
             Box(
                 modifier = Modifier
                     .size(offer.size.width.toDp(), offer.size.height.toDp())
                     .offset {
-                        (offer.offset - rootBounds.topLeft - offer.localOffset).round()
+                        (rootBounds(offer.offset) - offer.localOffset).round()
                     },
             ) {
                 LogicCard(offer.item, Modifier.fillMaxSize())

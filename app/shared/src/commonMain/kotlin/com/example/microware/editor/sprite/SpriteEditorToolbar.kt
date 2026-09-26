@@ -44,7 +44,6 @@ private const val TransparentTileSizeDp = 16
 fun SpriteToolPicker(
     selectedTool: SpriteEditorTool,
     onSelectTool: (SpriteEditorTool) -> Unit,
-    showPositionTool: Boolean = false,
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         ToolButton(
@@ -88,37 +87,35 @@ fun SpriteToolPicker(
                 ).forEach { drawCircle(Color.Black, handleRadius, it) }
             }
         }
-        if (showPositionTool) {
-            ToolButton(
-                description = "Position tool",
-                selected = selectedTool == SpriteEditorTool.Position,
-                onClick = { onSelectTool(SpriteEditorTool.Position) },
-            ) {
-                Canvas(Modifier.fillMaxSize().padding(10.dp)) {
-                    val center = Offset(size.width / 2f, size.height / 2f)
-                    val radius = size.minDimension * .42f
-                    val directions = listOf(
-                        Offset(0f, -1f),
-                        Offset(1f, 0f),
-                        Offset(0f, 1f),
-                        Offset(-1f, 0f),
-                    )
-                    val corners = directions.map { center + it * radius }
-                    val headLength = .40f
-                    val stroke = 2.dp.toPx()
+        ToolButton(
+            description = "Position tool",
+            selected = selectedTool == SpriteEditorTool.Position,
+            onClick = { onSelectTool(SpriteEditorTool.Position) },
+        ) {
+            Canvas(Modifier.fillMaxSize().padding(10.dp)) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val radius = size.minDimension * .42f
+                val directions = listOf(
+                    Offset(0f, -1f),
+                    Offset(1f, 0f),
+                    Offset(0f, 1f),
+                    Offset(-1f, 0f),
+                )
+                val corners = directions.map { center + it * radius }
+                val headLength = .40f
+                val stroke = 2.dp.toPx()
 
-                    corners.forEachIndexed { index, corner ->
-                        val previousCorner = corners[(index - 1 + corners.size) % corners.size]
-                        val nextCorner = corners[(index + 1) % corners.size]
-                        val leftHead = corner + (previousCorner - corner) * headLength
-                        val rightHead = corner + (nextCorner - corner) * headLength
+                corners.forEachIndexed { index, corner ->
+                    val previousCorner = corners[(index - 1 + corners.size) % corners.size]
+                    val nextCorner = corners[(index + 1) % corners.size]
+                    val leftHead = corner + (previousCorner - corner) * headLength
+                    val rightHead = corner + (nextCorner - corner) * headLength
 
-                        drawLine(Color.Black, center, corner, stroke)
-                        drawLine(Color.Black, leftHead, corner, stroke)
-                        drawLine(Color.Black, rightHead, corner, stroke)
-                    }
-                    drawCircle(Color.Black, 1.5.dp.toPx(), center)
+                    drawLine(Color.Black, center, corner, stroke)
+                    drawLine(Color.Black, leftHead, corner, stroke)
+                    drawLine(Color.Black, rightHead, corner, stroke)
                 }
+                drawCircle(Color.Black, 1.5.dp.toPx(), center)
             }
         }
     }
