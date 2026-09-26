@@ -31,6 +31,8 @@ import androidx.compose.ui.zIndex
 import com.example.microware.game.events.GamesEvent
 import com.example.microware.game.model.Game
 import com.example.microware.game.model.World
+import com.example.microware.game.model.WorldHeight
+import com.example.microware.game.model.WorldWidth
 import com.example.microware.game.sprite.Palette
 import com.example.microware.ui.components.ButtonHandle
 import com.example.microware.ui.components.DrawerButtonState
@@ -247,21 +249,16 @@ private fun GamePreview(game: Game) {
     ) {
         val world = game.world
         val scale = min(
-            size.width / world.background.width,
-            size.height / world.background.height,
+            size.width / WorldWidth,
+            size.height / WorldHeight,
         )
-        val worldWidth = (world.background.width * scale).roundToInt().coerceAtLeast(1)
-        val worldHeight = (world.background.height * scale).roundToInt().coerceAtLeast(1)
+        val worldWidth = (WorldWidth * scale).roundToInt().coerceAtLeast(1)
+        val worldHeight = (WorldHeight * scale).roundToInt().coerceAtLeast(1)
         val origin = Offset(
             (size.width - worldWidth) / 2f,
             (size.height - worldHeight) / 2f,
         )
 
-        drawImage(
-            image = world.background.bitmap,
-            dstOffset = IntOffset(origin.x.roundToInt(), origin.y.roundToInt()),
-            dstSize = IntSize(worldWidth, worldHeight),
-        )
         world.objects.forEach { obj ->
             val objectWidth = (obj.sprite.width * scale).roundToInt().coerceAtLeast(1)
             val objectHeight = (obj.sprite.height * scale).roundToInt().coerceAtLeast(1)

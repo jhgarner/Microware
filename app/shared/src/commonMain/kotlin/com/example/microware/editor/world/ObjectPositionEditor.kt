@@ -1,10 +1,5 @@
 package com.example.microware.editor.world
 
-import com.example.microware.game.model.Obj
-import com.example.microware.game.model.World
-import com.example.microware.ui.components.IntegerSliderControl
-import com.example.microware.ui.components.IntegerSliderDimension
-
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +11,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
+import com.example.microware.game.model.Obj
+import com.example.microware.game.model.World
+import com.example.microware.game.model.WorldHeight
+import com.example.microware.game.model.WorldWidth
+import com.example.microware.ui.components.IntegerSliderControl
+import com.example.microware.ui.components.IntegerSliderDimension
 import kotlin.math.roundToInt
 
 @Composable
@@ -24,8 +25,8 @@ internal fun ObjectPositionEditor(
     obj: Obj,
     onPositionChange: (IntOffset) -> Unit,
 ) {
-    val maxX = (world.background.width - obj.sprite.width).coerceAtLeast(0)
-    val maxY = (world.background.height - obj.sprite.height).coerceAtLeast(0)
+    val maxX = (WorldWidth - obj.sprite.width).coerceAtLeast(0)
+    val maxY = (WorldHeight - obj.sprite.height).coerceAtLeast(0)
     var position by remember(obj.id) {
         mutableStateOf(obj.positionWithin(maxX, maxY))
     }

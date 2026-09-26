@@ -1,5 +1,6 @@
 package com.example.microware.games.store
-import com.example.microware.util.set
+
+import androidx.compose.ui.geometry.Offset
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Game
@@ -15,8 +16,7 @@ import com.example.microware.util.BiMap
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 import com.example.microware.util.Mut
-
-import androidx.compose.ui.geometry.Offset
+import com.example.microware.util.set
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.serialization.Serializable
@@ -39,7 +39,6 @@ internal data class StoredGame(
 
 @Serializable
 internal data class GameStoredWorld(
-    val background: StoredSprite,
     val objects: List<GameStoredObj> = emptyList(),
 )
 
@@ -117,14 +116,12 @@ private fun StoredGame.toGame(): Game = Game(
 )
 
 private fun World.toStoredWorld(): GameStoredWorld = GameStoredWorld(
-    background = SpriteCodec.encode(background),
     objects = objects.map { it.toStoredObj(logicTags) },
 )
 
 private fun GameStoredWorld.toWorld(): World {
     val logicTags = Mut(BiMap<LogicTag, Id>())
     return World(
-        background = SpriteCodec.decode(background),
         objects = objects.map { it.toObj(logicTags) }.toPersistentList(),
         logicTags = logicTags.value
     )

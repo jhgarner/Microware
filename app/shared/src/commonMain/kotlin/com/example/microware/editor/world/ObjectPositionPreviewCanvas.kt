@@ -1,13 +1,8 @@
 package com.example.microware.editor.world
 
-import com.example.microware.game.model.Obj
-import com.example.microware.game.model.World
-import com.example.microware.game.sprite.Palette
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -16,8 +11,14 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.microware.game.model.Obj
+import com.example.microware.game.model.World
+import com.example.microware.game.model.WorldHeight
+import com.example.microware.game.model.WorldWidth
+import com.example.microware.game.sprite.Palette
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -50,13 +51,6 @@ internal fun ObjectPositionPreviewCanvas(
         )
         val worldOrigin = Offset(size.width / 2f, size.height / 2f) - focusedCenter * pixelSize
 
-        drawWorldSprite(
-            sprite = world.background,
-            origin = worldOrigin,
-            pixelSize = pixelSize,
-            paint = imagePaint,
-        )
-
         var selectedObjectDrawn = false
         world.objects.forEach { worldObject ->
             val displayedObject = if (worldObject.id == selectedObject.id) {
@@ -85,7 +79,7 @@ internal fun ObjectPositionPreviewCanvas(
             )
         }
 
-        drawPixelGrid(world, worldOrigin, pixelSize)
+        drawPixelGrid(worldOrigin, pixelSize)
 
         val objectOrigin = worldOrigin + Offset(position.x * pixelSize, position.y * pixelSize)
         val left = floor(objectOrigin.x)
@@ -110,28 +104,27 @@ internal fun ObjectPositionPreviewCanvas(
 }
 
 private fun DrawScope.drawPixelGrid(
-    world: World,
     worldOrigin: Offset,
     pixelSize: Float,
 ) {
     val gridColor = Palette.Navy.color.copy(alpha = .2f)
     val worldTop = max(0f, worldOrigin.y)
     val worldLeft = max(0f, worldOrigin.x)
-    val worldBottom = min(size.height, worldOrigin.y + world.background.height * pixelSize)
-    val worldRight = min(size.width, worldOrigin.x + world.background.width * pixelSize)
+    val worldBottom = min(size.height, worldOrigin.y + WorldHeight * pixelSize)
+    val worldRight = min(size.width, worldOrigin.x + WorldWidth * pixelSize)
     val firstColumn = ceil(-worldOrigin.x / pixelSize).toInt()
     val lastColumn = floor((size.width - worldOrigin.x) / pixelSize).toInt()
     val firstRow = ceil(-worldOrigin.y / pixelSize).toInt()
     val lastRow = floor((size.height - worldOrigin.y) / pixelSize).toInt()
 
     for (column in firstColumn..lastColumn) {
-        if (column in 0..world.background.width) {
+        if (column in 0..WorldWidth) {
             val x = floor(worldOrigin.x + column * pixelSize)
             drawLine(gridColor, Offset(x, worldTop), Offset(x, worldBottom), 1.dp.toPx())
         }
     }
     for (row in firstRow..lastRow) {
-        if (row in 0..world.background.height) {
+        if (row in 0..WorldHeight) {
             val y = floor(worldOrigin.y + row * pixelSize)
             drawLine(gridColor, Offset(worldLeft, y), Offset(worldRight, y), 1.dp.toPx())
         }

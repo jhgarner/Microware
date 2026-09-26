@@ -1,15 +1,4 @@
 package com.example.microware.game.runtime
-import com.example.microware.game.model.Action
-import com.example.microware.game.model.Direction
-import com.example.microware.game.model.Game
-import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
-import com.example.microware.game.model.Trigger
-import com.example.microware.game.model.World
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.scaled
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.toPx
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -36,10 +25,21 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.game.model.Action
+import com.example.microware.game.model.Direction
+import com.example.microware.game.model.Game
+import com.example.microware.game.model.Logic
+import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Trigger
+import com.example.microware.game.model.World
+import com.example.microware.game.model.WorldHeight
+import com.example.microware.game.model.WorldWidth
+import com.example.microware.game.sprite.Palette
+import com.example.microware.game.sprite.scaled
+import com.example.microware.ui.layout.insets
 import kotlin.math.min
 
 data class Player(
-    val background: ImageBitmap,
     val logics: List<Logic>,
     val objects: MutableMap<LogicTag, ObjectState> = mutableMapOf(),
     val scenery: List<ObjectState> = emptyList(),
@@ -53,7 +53,6 @@ data class Player(
     private val cachedScenery = mutableListOf<CachedBitmap>()
 
     constructor(game: Game) : this(
-        background = game.world.background.bitmap,
         logics = game.logics,
         objects = worldObj(game.world),
         scenery = worldScenery(game.world),
@@ -206,16 +205,15 @@ data class Player(
             val elapsed = if (frameTime >= 0L) timeMs else 0L
             draw()
             drawTimerBorder(
-                player = this@Player,
                 progress = (elapsed.toFloat() / GameDurationMillis).coerceIn(0f, 1f),
-                color = when {
-                    winState == WinState.Playing && timeMs >= GameDurationMillis -> {
+                color = when (winState) {
+                    WinState.Playing if timeMs >= GameDurationMillis -> {
                         Palette.Red.color
                     }
 
-                    winState == WinState.Playing -> Palette.Yellow.color
-                    winState == WinState.Won -> Palette.Green.color
-                    else -> Palette.Red.color
+                    WinState.Playing -> Palette.Yellow.color
+                    WinState.Won -> Palette.Green.color
+                    WinState.Lost -> Palette.Red.color
                 },
             )
         }
@@ -261,7 +259,6 @@ data class Player(
     private fun updateBitmapCache(scale: Float) {
         if (cachedScale != scale) {
             cachedScale = scale
-            cachedBackground = scaledBitmap(background, scale)
             cachedObjects.clear()
             cachedScenery.clear()
         }
@@ -332,12 +329,12 @@ private data class GameFrame(
     val rect: Rect get() = Rect(origin, size)
 }
 
-private fun Player.gameFrame(canvasSize: Size): GameFrame {
+private fun gameFrame(canvasSize: Size): GameFrame {
     val scale = min(
-        canvasSize.width / background.width,
-        canvasSize.height / background.height,
+        canvasSize.width / WorldWidth,
+        canvasSize.height / WorldHeight,
     )
-    val renderedSize = Size(background.width * scale, background.height * scale)
+    val renderedSize = Size(WorldWidth * scale, WorldHeight * scale)
     return GameFrame(
         origin = Offset(
             (canvasSize.width - renderedSize.width) / 2f,
@@ -348,8 +345,8 @@ private fun Player.gameFrame(canvasSize: Size): GameFrame {
     )
 }
 
-private fun DrawScope.drawTimerBorder(player: Player, progress: Float, color: Color) {
-    val frame = player.gameFrame(size)
+private fun DrawScope.drawTimerBorder(progress: Float, color: Color) {
+    val frame = gameFrame(size)
     if (frame.scale <= 0f) return
 
     val strokeWidth = 4.dp.toPx()

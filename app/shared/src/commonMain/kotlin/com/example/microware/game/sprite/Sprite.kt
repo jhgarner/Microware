@@ -1,5 +1,4 @@
 package com.example.microware.game.sprite
-import com.example.microware.editor.sprite.MutableSpriteDraft
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.offset
@@ -12,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.unit.dp
+import com.example.microware.editor.sprite.MutableSpriteDraft
 
 private class PackedPixels private constructor(
     private val bytes: ByteArray,
@@ -46,8 +46,8 @@ private class PackedPixels private constructor(
                 bytes[byteIndex] = (bytes[byteIndex].toInt() or packed).toByte()
                 if (bitShift > 3) {
                     bytes[byteIndex + 1] = (
-                        bytes[byteIndex + 1].toInt() or (packed ushr 8)
-                    ).toByte()
+                            bytes[byteIndex + 1].toInt() or (packed ushr 8)
+                            ).toByte()
                 }
             }
             return PackedPixels(bytes)
@@ -74,8 +74,8 @@ class Sprite private constructor(
     private val pixels: PackedPixels,
 ) {
     init {
-        require(width > 0 && width <= MaxSpriteWidth)
-        require(height > 0 && height <= MaxSpriteHeight)
+        require(width in 1..MaxSpriteWidth)
+        require(height in 1..MaxSpriteHeight)
     }
 
     fun get(row: Int, col: Int): Palette = Palette.fromCode(pixels.get(row * width + col))
