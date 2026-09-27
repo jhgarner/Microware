@@ -24,7 +24,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -34,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.microware.game.sprite.Palette
+import com.example.microware.ui.icons.drawDecrementIcon
+import com.example.microware.ui.icons.drawIncrementIcon
 import com.example.microware.util.toPx
 import kotlin.math.roundToInt
 
@@ -259,36 +260,6 @@ private fun RowScope.DimensionIcon(
             }
         }
     }
-}
-
-private fun DrawScope.drawDecrementIcon() {
-    val side = size.minDimension
-    val center = Offset(size.width / 2f, size.height / 2f)
-    val halfLength = side * .35f
-    drawLine(
-        Color.Black,
-        Offset(center.x - halfLength, center.y),
-        Offset(center.x + halfLength, center.y),
-        3.dp.toPx(),
-    )
-}
-
-private fun DrawScope.drawIncrementIcon() {
-    val side = size.minDimension
-    val center = Offset(size.width / 2f, size.height / 2f)
-    val halfLength = side * .35f
-    drawLine(
-        Color.Black,
-        Offset(center.x, center.y - halfLength),
-        Offset(center.x, center.y + halfLength),
-        3.dp.toPx(),
-    )
-    drawLine(
-        Color.Black,
-        Offset(center.x - halfLength, center.y),
-        Offset(center.x + halfLength, center.y),
-        3.dp.toPx(),
-    )
 }
 
 @Composable

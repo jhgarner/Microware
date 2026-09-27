@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.example.microware.game.sprite.Palette
+import com.example.microware.ui.icons.drawGridNavigationArrow
 
 internal enum class GridPageDirection(val pageDelta: Int) {
     Previous(-1),
@@ -48,46 +49,9 @@ internal fun GridNavigationButton(
             size = Size(size.width - strokeWidth, size.height - strokeWidth),
             style = Stroke(strokeWidth),
         )
-        drawArrow(direction, arrowColor)
+        drawGridNavigationArrow(direction == GridPageDirection.Next, arrowColor)
         if (enabled) drawProgressBorder(progress, Palette.Yellow.color)
     }
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrow(
-    direction: GridPageDirection,
-    color: Color,
-) {
-    val centerX = size.width / 2f
-    val centerY = size.height / 2f
-    val strokeWidth = 4.dp.toPx()
-    val shaftStart: Offset
-    val shaftEnd: Offset
-    val arrowHeadStart: Offset
-    val arrowHeadEnd: Offset
-
-    when (direction) {
-        GridPageDirection.Previous -> {
-            shaftStart = Offset(centerX, centerY + 9.dp.toPx())
-            shaftEnd = Offset(centerX, centerY - 5.dp.toPx())
-            arrowHeadStart = Offset(centerX - 8.dp.toPx(), centerY + 3.dp.toPx())
-            arrowHeadEnd = Offset(centerX, centerY - 5.dp.toPx())
-        }
-
-        GridPageDirection.Next -> {
-            shaftStart = Offset(centerX, centerY - 9.dp.toPx())
-            shaftEnd = Offset(centerX, centerY + 5.dp.toPx())
-            arrowHeadStart = Offset(centerX - 8.dp.toPx(), centerY - 3.dp.toPx())
-            arrowHeadEnd = Offset(centerX, centerY + 5.dp.toPx())
-        }
-    }
-
-    drawLine(color, shaftStart, shaftEnd, strokeWidth, StrokeCap.Round)
-    drawLine(color, arrowHeadStart, arrowHeadEnd, strokeWidth, StrokeCap.Round)
-    val secondHeadStart = Offset(
-        x = centerX + (centerX - arrowHeadStart.x),
-        y = arrowHeadStart.y,
-    )
-    drawLine(color, arrowHeadEnd, secondHeadStart, strokeWidth, StrokeCap.Round)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawProgressBorder(

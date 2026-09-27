@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.sprite.Palette
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.icons.drawLogicTag
+import com.example.microware.ui.icons.drawLogicTagAt
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -110,7 +112,7 @@ fun LogicTagPicker(
                 ScrollingLogicTagBackground(Modifier.fillMaxSize())
             } else {
                 Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
-                    with(selectedTag) { draw() }
+                    drawLogicTag(selectedTag)
                 }
             }
         }
@@ -208,7 +210,7 @@ private fun ScrollingLogicTagBackground(modifier: Modifier) {
                     x = column * horizontalStep + tagSize / 2f - horizontalOffset,
                     y = row * verticalStep + tagSize / 2f - verticalOffset,
                 )
-                with(tag) { drawAt(center, tagSize) }
+                drawLogicTagAt(tag, center, tagSize)
             }
         }
     }
@@ -287,7 +289,7 @@ private fun LogicTagOption(
             }
         } else {
             Canvas(Modifier.fillMaxSize().padding(6.dp)) {
-                with(tag) { draw() }
+                drawLogicTag(tag)
             }
         }
     }

@@ -22,13 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.example.microware.editor.logic.LogicEditToolbar
 import com.example.microware.editor.logic.LogicEditorContent
@@ -37,11 +31,9 @@ import com.example.microware.editor.logic.rememberLogicEditorState
 import com.example.microware.editor.world.ObjectOrderEditor
 import com.example.microware.editor.world.WorldEditToolbar
 import com.example.microware.editor.world.WorldEditorContent
-import com.example.microware.editor.world.drawObjectOrderIcon
 import com.example.microware.editor.world.rememberWorldEditorState
 import com.example.microware.game.events.GameEvents
 import com.example.microware.game.model.Game
-import com.example.microware.game.model.LogicTag
 import com.example.microware.game.runtime.Player
 import com.example.microware.game.sprite.Palette
 import com.example.microware.platform.SystemBackHandler
@@ -50,6 +42,11 @@ import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.Scrim
 import com.example.microware.ui.gestures.dragObserver
+import com.example.microware.ui.icons.drawBackIcon
+import com.example.microware.ui.icons.drawLogicIcon
+import com.example.microware.ui.icons.drawObjectOrderIcon
+import com.example.microware.ui.icons.drawPlayIcon
+import com.example.microware.ui.icons.drawWorldIcon
 import com.example.microware.ui.layout.insets
 
 private enum class GameEditorPage { World, Objects, Logic, Play }
@@ -246,175 +243,4 @@ private fun EditorTabButton(
         onClick = onClick,
         icon = icon,
     )
-}
-
-internal fun DrawScope.drawBackIcon() {
-    val stroke = 3.dp.toPx()
-    val tip = Offset(size.width * .15f, size.height * .5f)
-    drawLine(
-        Color.Black,
-        tip,
-        Offset(size.width * .85f, size.height * .5f),
-        stroke,
-        StrokeCap.Round
-    )
-    drawLine(
-        Color.Black,
-        tip,
-        Offset(size.width * .45f, size.height * .2f),
-        stroke,
-        StrokeCap.Round
-    )
-    drawLine(
-        Color.Black,
-        tip,
-        Offset(size.width * .45f, size.height * .8f),
-        stroke,
-        StrokeCap.Round
-    )
-}
-
-internal fun DrawScope.drawPlayIcon() {
-    val path = Path().apply {
-        moveTo(size.width * .34f, size.height * .2f)
-        lineTo(size.width * .76f, size.height * .5f)
-        lineTo(size.width * .34f, size.height * .8f)
-        close()
-    }
-    drawPath(path, Palette.Green.color)
-    drawPath(path, Color.Black, style = Stroke(2.dp.toPx()))
-}
-
-internal fun DrawScope.drawWorldIcon() {
-    val stroke = 2.dp.toPx()
-    fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
-    fun Float.x(): Float = size.width * this
-    fun Float.y(): Float = size.width * this
-
-    val mountain = Path().apply {
-        moveTo(.08f.x(), .68f.y())
-        lineTo(.3f.x(), .23f.y())
-        lineTo(.43f.x(), .46f.y())
-        lineTo(.61f.x(), .16f.y())
-        lineTo(.92f.x(), .68f.y())
-        close()
-    }
-    drawPath(mountain, Palette.Navy.color)
-    drawPath(mountain, Color.Black, style = Stroke(stroke))
-
-    val snow = Path().apply {
-        moveTo(.3f.x(), .23f.y())
-        lineTo(.22f.x(), .39f.y())
-        lineTo(.3f.x(), .35f.y())
-        lineTo(.39f.x(), .39f.y())
-        close()
-    }
-    drawPath(snow, Palette.OffWhite.color)
-    drawPath(snow, Color.Black, style = Stroke(stroke))
-
-    val snow2 = Path().apply {
-        moveTo(.61f.x(), .16f.y())
-        lineTo(.51f.x(), .33f.y())
-        lineTo(.61f.x(), .28f.y())
-        lineTo(.712f.x(), .33f.y())
-        close()
-    }
-    drawPath(snow2, Palette.OffWhite.color)
-    drawPath(snow2, Color.Black, style = Stroke(stroke))
-
-    val house = Path().apply {
-        moveTo(.25f.x(), .53f.y())
-        lineTo(.45f.x(), .38f.y())
-        lineTo(.65f.x(), .53f.y())
-        lineTo(.62f.x(), .53f.y())
-        lineTo(.62f.x(), .83f.y())
-        lineTo(.29f.x(), .83f.y())
-        lineTo(.29f.x(), .53f.y())
-        close()
-    }
-    drawPath(house, Palette.Orange.color)
-    drawPath(house, Color.Black, style = Stroke(stroke))
-
-    drawRect(
-        color = Palette.Navy.color,
-        topLeft = point(.40f, .70f),
-        size = Size(size.width * .10f, size.height * .13f),
-    )
-    drawRect(
-        color = Color.Black,
-        topLeft = point(.40f, .70f),
-        size = Size(size.width * .10f, size.height * .13f),
-        style = Stroke(stroke / 1.5f),
-    )
-    drawRect(
-        color = Palette.Cyan.color,
-        topLeft = point(.35f, .56f),
-        size = Size(size.width * .07f, size.height * .07f),
-    )
-    drawRect(
-        color = Color.Black,
-        topLeft = point(.35f, .56f),
-        size = Size(size.width * .07f, size.height * .07f),
-        style = Stroke(stroke / 1.5f),
-    )
-
-    drawRect(
-        color = Palette.Cyan.color,
-        topLeft = point(.48f, .56f),
-        size = Size(size.width * .07f, size.height * .07f),
-    )
-    drawRect(
-        color = Color.Black,
-        topLeft = point(.48f, .56f),
-        size = Size(size.width * .07f, size.height * .07f),
-        style = Stroke(stroke / 1.5f),
-    )
-}
-
-internal fun DrawScope.drawLogicIcon(enabled: Boolean = true) {
-    val pageStroke = 2.dp.toPx()
-    val textStroke = 1.5.dp.toPx()
-    val pageColor = if (enabled) Palette.Tan.color else Palette.OffWhite.color
-    val outlineColor = if (enabled) Color.Black else Palette.DarkGray.color
-    val tagColor = if (enabled) null else Palette.DarkGray.color
-    fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
-    fun Float.x(): Float = size.width * this
-    fun Float.y(): Float = size.width * this
-
-    val leftPage = Path().apply {
-        moveTo(.5f.x(), .23f.y())
-        lineTo(.34f.x(), .2f.y())
-        lineTo(.17f.x(), .21f.y())
-        lineTo(.17f.x(), .73f.y())
-        lineTo(.34f.x(), .72f.y())
-        lineTo(.5f.x(), .75f.y())
-        close()
-    }
-    val rightPage = Path().apply {
-        moveTo(.5f.x(), .23f.y())
-        lineTo(.66f.x(), .2f.y())
-        lineTo(.83f.x(), .21f.y())
-        lineTo(.83f.x(), .73f.y())
-        lineTo(.66f.x(), .72f.y())
-        lineTo(.5f.x(), .75f.y())
-        close()
-    }
-
-    drawPath(leftPage, pageColor)
-    drawPath(rightPage, pageColor)
-    drawPath(leftPage, outlineColor, style = Stroke(pageStroke))
-    drawPath(rightPage, outlineColor, style = Stroke(pageStroke))
-    drawLine(outlineColor, point(.5f, .23f), point(.5f, .75f), pageStroke)
-
-    drawLine(Palette.DarkGray.color, point(.23f, .34f), point(.43f, .34f), textStroke)
-    drawLine(Palette.DarkGray.color, point(.23f, .63f), point(.43f, .63f), textStroke)
-    drawLine(Palette.DarkGray.color, point(.57f, .34f), point(.77f, .34f), textStroke)
-    drawLine(Palette.DarkGray.color, point(.57f, .63f), point(.77f, .63f), textStroke)
-
-    with(LogicTag(58)) {
-        drawAt(point(.33f, .49f), size.minDimension * .17f, color = tagColor)
-    }
-    with(LogicTag(29)) {
-        drawAt(point(.67f, .49f), size.minDimension * .17f, color = tagColor)
-    }
 }

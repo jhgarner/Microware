@@ -8,9 +8,9 @@ import com.example.microware.ui.components.Grid
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.TrashGap
 import com.example.microware.ui.gestures.dragSource
+import com.example.microware.ui.icons.drawLogicTag
 import com.example.microware.ui.layout.insets
 import com.example.microware.util.toDp
-import com.example.microware.util.toPx
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -37,10 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.contentDescription
@@ -152,7 +150,7 @@ private fun ObjectOrderCard(
         ) {
             world.logicTagFor(obj.id)?.let { tag ->
                 Canvas(Modifier.fillMaxSize().padding(4.dp)) {
-                    with(tag) { draw() }
+                    drawLogicTag(tag)
                 }
             }
         }
@@ -178,28 +176,4 @@ private fun DrawScope.drawSpriteFit(sprite: Sprite) {
         dstSize = IntSize(width, height),
         filterQuality = FilterQuality.None,
     )
-}
-
-internal fun DrawScope.drawObjectOrderIcon() {
-    val stroke = 2.dp.toPx()
-    val layers = listOf(
-        Palette.Cyan.color to .24f,
-        Palette.Orange.color to .44f,
-        Palette.Green.color to .64f,
-    )
-    layers.forEach { (color, top) ->
-        drawRoundRect(
-            color = color,
-            topLeft = Offset(size.width * .2f, size.height * top),
-            size = androidx.compose.ui.geometry.Size(size.width * .6f, size.height * .16f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke * 2f),
-        )
-        drawRoundRect(
-            color = Color.Black,
-            topLeft = Offset(size.width * .2f, size.height * top),
-            size = androidx.compose.ui.geometry.Size(size.width * .6f, size.height * .16f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke * 2f),
-            style = Stroke(stroke),
-        )
-    }
 }

@@ -1,17 +1,12 @@
 package com.example.microware.ui.icons
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import com.example.microware.editor.logic.animate
 import com.example.microware.game.sprite.Palette
 
 const val TAP_START = 0f
@@ -85,3 +80,14 @@ fun TapOfHand() = Icon { drawTapHand(TAP_DOWN) }
 @Composable
 fun FullTapAnimation() = Animated { drawTapIcon(it) }
 
+@Preview
+@Composable
+fun TapIconPreview() = Icon { drawTapIcon(TAP_START) }
+
+@Preview
+@Composable
+fun TapCirclePreview() = Icon { drawTapCircle(TAP_START) }
+
+@Preview
+@Composable
+fun TapCircleAnimationPreview() = Animated { drawTapCircle(it) }
