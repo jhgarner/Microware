@@ -80,7 +80,9 @@ internal fun ObjectOrderEditor(
                     end = insets.rightDp(),
                 ),
         ) {
-            BoxWithConstraints {
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) {
                 Grid(
                     items = topFirstObjects,
                     itemSize = DpSize(maxWidth - 16.dp, 72.dp + 16.dp),

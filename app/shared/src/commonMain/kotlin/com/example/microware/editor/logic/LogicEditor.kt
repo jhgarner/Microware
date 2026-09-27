@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.util.lerp
-import com.example.microware.editor.IconButton
 import com.example.microware.game.events.LogicEvent
 import com.example.microware.game.events.LogicsEvent
 import com.example.microware.game.model.Action
@@ -56,11 +55,13 @@ import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.sprite.Palette
 import com.example.microware.ui.components.HandleSize
+import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.IntegerSliderControl
 import com.example.microware.ui.components.IntegerSliderDimension
 import com.example.microware.ui.components.TrashGap
 import com.example.microware.ui.gestures.DragController
 import com.example.microware.ui.icons.drawTapIcon
+import com.example.microware.ui.icons.drawWinIcon
 import com.example.microware.ui.layout.insets
 import com.example.microware.util.Id
 import com.example.microware.util.toDp
@@ -111,28 +112,6 @@ private val trainSteamPuffs = listOf(
     TrainSteamPuff(.59f, .27f, -.08f, -.15f, .055f, .0f),
     TrainSteamPuff(.62f, .28f, .09f, -.2f, .05f, .18f),
     TrainSteamPuff(.57f, .28f, -.14f, -.24f, .045f, .34f),
-)
-
-private data class ConfettiPiece(
-    val startX: Float,
-    val startY: Float,
-    val driftX: Float,
-    val driftY: Float,
-    val length: Float,
-    val thickness: Float,
-    val rotation: Float,
-    val color: Color,
-    val delay: Float,
-)
-
-private val winConfetti = listOf(
-    ConfettiPiece(.3f, .2f, -.3f, -.48f, .09f, .035f, -25f, Palette.Red.color, .02f),
-    ConfettiPiece(.4f, .18f, -.16f, -.66f, .07f, .03f, 20f, Palette.Cyan.color, .08f),
-    ConfettiPiece(.5f, .16f, .02f, -.78f, .08f, .035f, 75f, Palette.Orange.color, .04f),
-    ConfettiPiece(.6f, .18f, .2f, -.6f, .07f, .03f, -45f, Palette.Purple.color, .1f),
-    ConfettiPiece(.7f, .2f, .34f, -.43f, .09f, .035f, 35f, Palette.Green.color, .06f),
-    ConfettiPiece(.35f, .21f, -.5f, -.3f, .06f, .03f, 60f, Palette.Pink.color, .14f),
-    ConfettiPiece(.65f, .21f, .48f, -.28f, .06f, .03f, -70f, Palette.Yellow.color, .12f),
 )
 
 internal class LogicEditorState {
@@ -342,7 +321,7 @@ internal fun LogicBuilder(
                     trigger?.let { selectedTrigger ->
                         TriggerParameters(
                             selectedTrigger,
-                            usedTags
+                            usedTags,
                         ) { updateTrigger(it) }
                         Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
                     }
@@ -360,14 +339,14 @@ internal fun LogicBuilder(
                                     updateActions(
                                         actions.mapIndexed { candidateIndex, current ->
                                             if (candidateIndex == index) changed else current
-                                        }
+                                        },
                                     )
                                 },
                                 onDelete = {
                                     updateActions(
                                         actions.filterIndexed { candidateIndex, _ ->
                                             candidateIndex != index
-                                        }
+                                        },
                                     )
                                 },
                             )
@@ -375,15 +354,15 @@ internal fun LogicBuilder(
                         item {
                             Row(
                                 Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center
+                                horizontalArrangement = Arrangement.Center,
                             ) {
                                 ActionButton(ActionChoice.Move) {
                                     updateActions(
                                         actions + Action.Move(
                                             defaultTag,
                                             Direction.E,
-                                            50
-                                        )
+                                            50,
+                                        ),
                                     )
                                 }
                                 ActionButton(ActionChoice.MoveTo) {
@@ -391,8 +370,8 @@ internal fun LogicBuilder(
                                         actions + Action.MoveTo(
                                             defaultTag,
                                             defaultTag,
-                                            50
-                                        )
+                                            50,
+                                        ),
                                     )
                                 }
                                 ActionButton(ActionChoice.Win) {
@@ -427,7 +406,7 @@ private fun TriggerButtons(
             modifier = modifier,
             horizontalArrangement = Arrangement.spacedBy(
                 buttonSpacing,
-                Alignment.CenterHorizontally
+                Alignment.CenterHorizontally,
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -435,21 +414,18 @@ private fun TriggerButtons(
                 description = "Game start trigger",
                 selected = trigger is Trigger.Start,
                 modifier = Modifier.size(buttonWidth, buttonHeight),
-                buttonSize = null,
                 onClick = onStartSelected,
             )
             TriggerButton(
                 description = "Tap trigger",
                 selected = trigger is Trigger.Tap,
                 modifier = Modifier.size(buttonWidth, buttonHeight),
-                buttonSize = null,
                 onClick = onTapSelected,
             )
             TriggerButton(
                 description = "Collision trigger",
                 selected = trigger is Trigger.Collision,
                 modifier = Modifier.size(buttonWidth, buttonHeight),
-                buttonSize = null,
                 onClick = onCollisionSelected,
             )
         }
@@ -458,7 +434,7 @@ private fun TriggerButtons(
             modifier = modifier,
             horizontalArrangement = Arrangement.spacedBy(
                 buttonSpacing,
-                Alignment.CenterHorizontally
+                Alignment.CenterHorizontally,
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -467,7 +443,7 @@ private fun TriggerButtons(
             TriggerButton(
                 "Collision trigger",
                 trigger is Trigger.Collision,
-                onClick = onCollisionSelected
+                onClick = onCollisionSelected,
             )
         }
     }
@@ -477,15 +453,13 @@ private fun TriggerButtons(
 private fun TriggerButton(
     description: String,
     selected: Boolean,
-    modifier: Modifier = Modifier,
-    buttonSize: Dp? = 48.dp,
+    modifier: Modifier = Modifier.size(48.dp),
     onClick: () -> Unit,
 ) {
     IconButton(
         description = description,
         modifier = modifier,
         selected = selected,
-        buttonSize = buttonSize,
         onClick = onClick,
     ) { time ->
         when {
@@ -567,7 +541,7 @@ private fun EditableActionCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(
                         6.dp,
-                        Alignment.CenterHorizontally
+                        Alignment.CenterHorizontally,
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -579,20 +553,24 @@ private fun EditableActionCard(
                                     Action.Move(
                                         tag,
                                         action.target,
-                                        action.speed
-                                    )
+                                        action.speed,
+                                    ),
                                 )
                             }
                         },
                         usedTags = usedTags,
                         allowClear = false,
                     )
-                    IconButton("Change direction", onClick = {
-                        val directions = listOf(Direction.N, Direction.E, Direction.S, Direction.W)
-                        val nextDirection =
-                            directions[(directions.indexOf(action.target) + 1) % directions.size]
-                        onChange(Action.Move(action.mover, nextDirection, action.speed))
-                    }) { time -> drawDirectionIcon(action.target, time) }
+                    IconButton(
+                        "Change direction",
+                        onClick = {
+                            val directions =
+                                listOf(Direction.N, Direction.E, Direction.S, Direction.W)
+                            val nextDirection =
+                                directions[(directions.indexOf(action.target) + 1) % directions.size]
+                            onChange(Action.Move(action.mover, nextDirection, action.speed))
+                        },
+                    ) { time -> drawDirectionIcon(action.target, time) }
                 }
                 SpeedControl(action.speed) {
                     it?.let { speed ->
@@ -610,7 +588,7 @@ private fun EditableActionCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(
                         6.dp,
-                        Alignment.CenterHorizontally
+                        Alignment.CenterHorizontally,
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -622,8 +600,8 @@ private fun EditableActionCard(
                                     Action.MoveTo(
                                         tag,
                                         action.target,
-                                        action.speed
-                                    )
+                                        action.speed,
+                                    ),
                                 )
                             }
                         },
@@ -639,8 +617,8 @@ private fun EditableActionCard(
                                     Action.MoveTo(
                                         action.mover,
                                         tag,
-                                        action.speed
-                                    )
+                                        action.speed,
+                                    ),
                                 )
                             }
                         },
@@ -717,7 +695,7 @@ private fun DrawScope.drawStartIcon(t: Float = 0f) {
             Palette.Orange,
             Offset(shineStart * endX, shineStart * endY),
             Offset(shineEnd * endX, shineEnd * endY),
-            10f
+            10f,
         )
     }
     val compress = animate(t) {
@@ -840,7 +818,7 @@ private fun DrawScope.drawDirectionIcon(direction: Direction, t: Float = 0f) {
             Offset(size.width * .5f, size.height * .12f),
             listOf(
                 Offset(size.width * .25f, size.height * .38f),
-                Offset(size.width * .75f, size.height * .38f)
+                Offset(size.width * .75f, size.height * .38f),
             ),
         )
 
@@ -849,7 +827,7 @@ private fun DrawScope.drawDirectionIcon(direction: Direction, t: Float = 0f) {
             Offset(size.width * .5f, size.height * .88f),
             listOf(
                 Offset(size.width * .25f, size.height * .62f),
-                Offset(size.width * .75f, size.height * .62f)
+                Offset(size.width * .75f, size.height * .62f),
             ),
         )
 
@@ -858,7 +836,7 @@ private fun DrawScope.drawDirectionIcon(direction: Direction, t: Float = 0f) {
             Offset(size.width * .88f, size.height * .5f),
             listOf(
                 Offset(size.width * .62f, size.height * .25f),
-                Offset(size.width * .62f, size.height * .75f)
+                Offset(size.width * .62f, size.height * .75f),
             ),
         )
 
@@ -867,7 +845,7 @@ private fun DrawScope.drawDirectionIcon(direction: Direction, t: Float = 0f) {
             Offset(size.width * .12f, size.height * .5f),
             listOf(
                 Offset(size.width * .38f, size.height * .25f),
-                Offset(size.width * .38f, size.height * .75f)
+                Offset(size.width * .38f, size.height * .75f),
             ),
         )
     }
@@ -1010,7 +988,7 @@ private fun DrawScope.drawTrainIcon(t: Float = 0f) {
         Color.Black,
         size.minDimension * .045f,
         point(.78f, .43f),
-        style = Stroke(strokeWidth / 1.5f)
+        style = Stroke(strokeWidth / 1.5f),
     )
 
     trainSteamPuffs.forEach { puff ->
@@ -1143,7 +1121,7 @@ private fun DrawScope.drawMoveToIcon() {
     drawCircle(
         Palette.Cyan.color,
         size.minDimension * .18f,
-        Offset(size.width * .2f, size.height * .5f)
+        Offset(size.width * .2f, size.height * .5f),
     )
     val arrowEnd = Offset(size.width * .68f, size.height * .5f)
     drawLine(Color.Black, Offset(size.width * .38f, size.height * .5f), arrowEnd, 2.dp.toPx())
@@ -1152,99 +1130,8 @@ private fun DrawScope.drawMoveToIcon() {
     drawRect(
         Palette.Red.color,
         Offset(size.width * .7f, size.height * .32f),
-        Size(size.width * .28f, size.height * .36f)
+        Size(size.width * .28f, size.height * .36f),
     )
-}
-
-private fun DrawScope.drawWinIcon(t: Float = 0f) {
-    val strokeWidth = 2.dp.toPx()
-    val left = size.width * .27f
-    val right = size.width * .73f
-    val top = size.height * .2f
-    val bottom = size.height * .6f
-
-    val leftHandle = Path().apply {
-        moveTo(left + strokeWidth, size.height * .28f)
-        quadraticTo(size.width * .1f, size.height * .23f, size.width * .14f, size.height * .42f)
-        quadraticTo(size.width * .17f, size.height * .53f, left + strokeWidth, size.height * .48f)
-    }
-    val rightHandle = Path().apply {
-        moveTo(right - strokeWidth, size.height * .28f)
-        quadraticTo(size.width * .9f, size.height * .23f, size.width * .86f, size.height * .42f)
-        quadraticTo(size.width * .83f, size.height * .53f, right - strokeWidth, size.height * .48f)
-    }
-    drawPath(leftHandle, Color.Black, style = Stroke(strokeWidth))
-    drawPath(rightHandle, Color.Black, style = Stroke(strokeWidth))
-
-    val cup = Path().apply {
-        moveTo(left, top)
-        lineTo(right, top)
-        lineTo(size.width * .69f, size.height * .4f)
-        quadraticTo(size.width * .66f, bottom, size.width * .5f, bottom)
-        quadraticTo(size.width * .34f, bottom, size.width * .31f, size.height * .4f)
-        close()
-    }
-    drawPath(cup, Palette.Yellow.color)
-    drawPath(cup, Color.Black, style = Stroke(strokeWidth))
-    drawLine(
-        Color.Black,
-        Offset(size.width * .5f, bottom),
-        Offset(size.width * .5f, size.height * .76f),
-        strokeWidth,
-        StrokeCap.Round,
-    )
-    drawRoundRect(
-        color = Palette.Yellow.color,
-        topLeft = Offset(size.width * .32f, size.height * .74f),
-        size = Size(size.width * .36f, size.height * .1f),
-        cornerRadius = CornerRadius(strokeWidth),
-    )
-    drawRoundRect(
-        color = Color.Black,
-        topLeft = Offset(size.width * .32f, size.height * .74f),
-        size = Size(size.width * .36f, size.height * .1f),
-        cornerRadius = CornerRadius(strokeWidth),
-        style = Stroke(strokeWidth),
-    )
-
-    winConfetti.forEach { piece ->
-        val localTime = t - piece.delay
-        val alpha = animate(localTime) {
-            anim(0f, .08f)
-            anim(1f, .12f)
-            anim(1f, .44f)
-            anim(0f, .16f)
-        }
-        if (alpha <= 0f) return@forEach
-
-        val travel = animate(localTime) {
-            anim(0f, .12f)
-            anim(1f, .62f)
-            anim(1.1f, .16f)
-        }
-        val rotation = animate(localTime, piece.rotation) {
-            anim(piece.rotation + 180f, .28f)
-            anim(piece.rotation + 360f, .62f)
-        }
-        val confettiCenter = Offset(
-            size.width * (piece.startX + piece.driftX * travel),
-            size.height * (piece.startY + piece.driftY * travel),
-        )
-        rotate(rotation, pivot = confettiCenter) {
-            drawRoundRect(
-                color = piece.color.copy(alpha = alpha),
-                topLeft = Offset(
-                    confettiCenter.x - size.width * piece.length / 2f,
-                    confettiCenter.y - size.height * piece.thickness / 2f,
-                ),
-                size = Size(
-                    size.width * piece.length,
-                    size.height * piece.thickness,
-                ),
-                cornerRadius = CornerRadius(size.height * piece.thickness / 2f),
-            )
-        }
-    }
 }
 
 private fun DrawScope.drawLoseIcon() {
@@ -1264,14 +1151,14 @@ private fun DrawScope.drawDownArrowIcon() {
         Offset(centerX - size.height * .22f, size.height * .62f),
         end,
         strokeWidth,
-        StrokeCap.Round
+        StrokeCap.Round,
     )
     drawLine(
         Color.Black,
         Offset(centerX + size.height * .22f, size.height * .62f),
         end,
         strokeWidth,
-        StrokeCap.Round
+        StrokeCap.Round,
     )
 }
 
@@ -1299,13 +1186,13 @@ private fun DrawScope.drawPlusIcon() {
         Color.Black,
         Offset(size.width * .5f, size.height * .15f),
         Offset(size.width * .5f, size.height * .85f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .15f, size.height * .5f),
         Offset(size.width * .85f, size.height * .5f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
 }
 
@@ -1314,7 +1201,7 @@ private fun DrawScope.drawMinusIcon() {
         Color.Black,
         Offset(size.width * .15f, size.height * .5f),
         Offset(size.width * .85f, size.height * .5f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
 }
 
@@ -1323,13 +1210,13 @@ private fun DrawScope.drawCloseIcon() {
         Color.Black,
         Offset(size.width * .2f, size.height * .2f),
         Offset(size.width * .8f, size.height * .8f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .8f, size.height * .2f),
         Offset(size.width * .2f, size.height * .8f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
 }
 
@@ -1338,13 +1225,13 @@ private fun DrawScope.drawCheckIcon() {
         Color.Black,
         Offset(size.width * .15f, size.height * .52f),
         Offset(size.width * .42f, size.height * .78f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .42f, size.height * .78f),
         Offset(size.width * .88f, size.height * .2f),
-        3.dp.toPx()
+        3.dp.toPx(),
     )
 }
 
@@ -1353,31 +1240,31 @@ private fun DrawScope.drawTrashIcon() {
         Color.Black,
         Offset(size.width * .25f, size.height * .3f),
         Size(size.width * .5f, size.height * .55f),
-        style = Stroke(2.dp.toPx())
+        style = Stroke(2.dp.toPx()),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .15f, size.height * .25f),
         Offset(size.width * .85f, size.height * .25f),
-        2.dp.toPx()
+        2.dp.toPx(),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .4f, size.height * .15f),
         Offset(size.width * .6f, size.height * .15f),
-        2.dp.toPx()
+        2.dp.toPx(),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .4f, size.height * .4f),
         Offset(size.width * .4f, size.height * .75f),
-        1.dp.toPx()
+        1.dp.toPx(),
     )
     drawLine(
         Color.Black,
         Offset(size.width * .6f, size.height * .4f),
         Offset(size.width * .6f, size.height * .75f),
-        1.dp.toPx()
+        1.dp.toPx(),
     )
 }
 
@@ -1393,7 +1280,7 @@ data class AnimBuilder(val initial: Float, val actions: MutableList<Frame>) {
                 return lerp(
                     action.start,
                     action.stop,
-                    action.ease.transform(remaining / action.duration)
+                    action.ease.transform(remaining / action.duration),
                 )
             }
             remaining -= action.duration
@@ -1419,6 +1306,6 @@ fun DrawScope.lineCenter(color: Palette, start: Offset, end: Offset, width: Floa
         color.color,
         Offset(start.x * size.width, start.y * size.height) * .5f + halfSize,
         Offset(end.x * size.width, end.y * size.height) * .5f + halfSize,
-        width
+        width,
     )
 }

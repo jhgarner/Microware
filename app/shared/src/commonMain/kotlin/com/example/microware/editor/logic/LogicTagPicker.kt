@@ -1,9 +1,4 @@
 package com.example.microware.editor.logic
-import com.example.microware.editor.IconButton
-import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
-import com.example.microware.game.sprite.Palette
-import com.example.microware.util.toPx
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -46,6 +41,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.example.microware.game.model.LogicTag
+import com.example.microware.game.sprite.Palette
+import com.example.microware.ui.components.IconButton
 import kotlin.math.ceil
 import kotlin.math.floor
 

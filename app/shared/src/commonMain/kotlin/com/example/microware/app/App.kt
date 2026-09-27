@@ -13,10 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.microware.editor.GameEditor
-import com.example.microware.game.events.GamesEvent.Companion.forGame
 import com.example.microware.game.sprite.Palette
-import com.example.microware.games.GamesPage
 import com.example.microware.games.store.AppGameRepository
 import com.example.microware.games.store.GameStore
 import com.example.microware.ui.components.Overlay
@@ -50,19 +47,20 @@ fun App() {
                 val gameIndex = gameId?.let { id ->
                     gameState.games.indexOfFirst { it.id == id }
                 }
-                if (game == null || gameIndex == null) {
-                    GamesPage(
-                        games = gameState.games,
-                        selectGame = { selectedGameId = it },
-                        handler = gameStore::dispatch
-                    )
-                } else {
-                    GameEditor(
-                        game = game,
-                        handler = { event -> gameStore.dispatch(event.forGame(gameIndex)) },
-                        onBack = { selectedGameId = null },
-                    )
-                }
+                Home {}
+//                if (game == null || gameIndex == null) {
+//                    GamesPage(
+//                        games = gameState.games,
+//                        selectGame = { selectedGameId = it },
+//                        handler = gameStore::dispatch
+//                    )
+//                } else {
+//                    GameEditor(
+//                        game = game,
+//                        handler = { event -> gameStore.dispatch(event.forGame(gameIndex)) },
+//                        onBack = { selectedGameId = null },
+//                    )
+//                }
             }
         }
         Overlay()

@@ -1,7 +1,4 @@
 package com.example.microware.ui.components
-import com.example.microware.editor.IconButton
-import com.example.microware.game.sprite.Palette
-import com.example.microware.util.toPx
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -36,6 +33,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.microware.game.sprite.Palette
+import com.example.microware.util.toPx
 import kotlin.math.roundToInt
 
 private val SliderHeight = 72.dp
@@ -90,7 +89,6 @@ fun IntegerSliderControl(
             )
             IconButton(
                 description = "Decrease ${dimension.name.lowercase()}",
-                buttonSize = null,
                 onClick = {
                     onValueChange(
                         if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(minValue)
@@ -114,7 +112,6 @@ fun IntegerSliderControl(
         )
         IconButton(
             description = "Increase ${dimension.name.lowercase()}",
-            buttonSize = null,
             onClick = {
                 onValueChange(
                     if (finiteValue!! < maxValue) finiteValue + 1 else null
@@ -146,114 +143,120 @@ private fun RowScope.DimensionIcon(
         val center = size.minDimension / 2f
         val arrowSize = size.minDimension * 0.18f
 
-        if (dimension == IntegerSliderDimension.Width || dimension == IntegerSliderDimension.X) {
-            drawLine(
-                color = color,
-                start = Offset(inset, center),
-                end = Offset(size.width - inset, center),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(inset, center),
-                end = Offset(inset + arrowSize, center - arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(inset, center),
-                end = Offset(inset + arrowSize, center + arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(size.width - inset, center),
-                end = Offset(size.width - inset - arrowSize, center - arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(size.width - inset, center),
-                end = Offset(size.width - inset - arrowSize, center + arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-        } else if (dimension == IntegerSliderDimension.Height || dimension == IntegerSliderDimension.Y) {
-            drawLine(
-                color = color,
-                start = Offset(center, inset),
-                end = Offset(center, size.height - inset),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(center, inset),
-                end = Offset(center - arrowSize, inset + arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(center, inset),
-                end = Offset(center + arrowSize, inset + arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(center, size.height - inset),
-                end = Offset(center - arrowSize, size.height - inset - arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(center, size.height - inset),
-                end = Offset(center + arrowSize, size.height - inset - arrowSize),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-        } else {
-            drawLine(
-                color = color,
-                start = Offset(size.width * .15f, size.height * .3f),
-                end = Offset(size.width * .38f, size.height * .3f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(size.width * .15f, size.height * .7f),
-                end = Offset(size.width * .28f, size.height * .7f),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(size.width * .3f, center),
-                end = Offset(size.width * .85f, center),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(size.width * .67f, center - arrowSize),
-                end = Offset(size.width * .85f, center),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = color,
-                start = Offset(size.width * .67f, center + arrowSize),
-                end = Offset(size.width * .85f, center),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round,
-            )
+        when (dimension) {
+            IntegerSliderDimension.Width, IntegerSliderDimension.X -> {
+                drawLine(
+                    color = color,
+                    start = Offset(inset, center),
+                    end = Offset(size.width - inset, center),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(inset, center),
+                    end = Offset(inset + arrowSize, center - arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(inset, center),
+                    end = Offset(inset + arrowSize, center + arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(size.width - inset, center),
+                    end = Offset(size.width - inset - arrowSize, center - arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(size.width - inset, center),
+                    end = Offset(size.width - inset - arrowSize, center + arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            IntegerSliderDimension.Height, IntegerSliderDimension.Y -> {
+                drawLine(
+                    color = color,
+                    start = Offset(center, inset),
+                    end = Offset(center, size.height - inset),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(center, inset),
+                    end = Offset(center - arrowSize, inset + arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(center, inset),
+                    end = Offset(center + arrowSize, inset + arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(center, size.height - inset),
+                    end = Offset(center - arrowSize, size.height - inset - arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(center, size.height - inset),
+                    end = Offset(center + arrowSize, size.height - inset - arrowSize),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            else -> {
+                drawLine(
+                    color = color,
+                    start = Offset(size.width * .15f, size.height * .3f),
+                    end = Offset(size.width * .38f, size.height * .3f),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(size.width * .15f, size.height * .7f),
+                    end = Offset(size.width * .28f, size.height * .7f),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(size.width * .3f, center),
+                    end = Offset(size.width * .85f, center),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(size.width * .67f, center - arrowSize),
+                    end = Offset(size.width * .85f, center),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(size.width * .67f, center + arrowSize),
+                    end = Offset(size.width * .85f, center),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
         }
     }
 }

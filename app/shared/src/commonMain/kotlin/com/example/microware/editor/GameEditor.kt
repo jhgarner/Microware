@@ -1,17 +1,12 @@
 package com.example.microware.editor
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,13 +26,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.microware.editor.logic.LogicEditToolbar
 import com.example.microware.editor.logic.LogicEditorContent
@@ -58,6 +47,7 @@ import com.example.microware.game.sprite.Palette
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.ButtonHandle
 import com.example.microware.ui.components.HandleType
+import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.Scrim
 import com.example.microware.ui.gestures.dragObserver
 import com.example.microware.ui.layout.insets
@@ -252,59 +242,10 @@ private fun EditorTabButton(
         selected = selected,
         enabled = enabled,
         padding = 0.dp,
-        buttonSize = 52.dp,
+        modifier = Modifier.size(52.dp),
         onClick = onClick,
         icon = icon,
     )
-}
-
-@Composable
-internal fun IconButton(
-    description: String,
-    modifier: Modifier = Modifier,
-    padding: Dp = 4.dp,
-    selected: Boolean = false,
-    enabled: Boolean = true,
-    buttonSize: Dp? = 48.dp,
-    onClick: () -> Unit,
-    icon: DrawScope.(Float) -> Unit,
-) {
-    val iconAnimation = remember { Animatable(0f) }
-    var animationRequest by remember { mutableStateOf(0) }
-
-    LaunchedEffect(animationRequest) {
-        iconAnimation.snapTo(0f)
-        iconAnimation.animateTo(
-            1f,
-            animationSpec = tween(durationMillis = 800, easing = LinearEasing)
-        )
-    }
-
-    Button(
-        onClick = {
-            animationRequest++
-            onClick()
-        },
-        enabled = enabled,
-        modifier = modifier
-            .then(buttonSize?.let { Modifier.size(it) } ?: Modifier)
-            .padding(padding)
-            .semantics {
-                contentDescription = description
-            },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) Palette.LightGray.color else Palette.OffWhite.color,
-            contentColor = Color.Black,
-            disabledContainerColor = Palette.DarkGray.color,
-        ),
-        border = BorderStroke(2.dp, Color.Black),
-        shape = RectangleShape,
-        contentPadding = PaddingValues(8.dp),
-    ) {
-        Canvas(Modifier.fillMaxSize()) {
-            icon(iconAnimation.value)
-        }
-    }
 }
 
 internal fun DrawScope.drawBackIcon() {

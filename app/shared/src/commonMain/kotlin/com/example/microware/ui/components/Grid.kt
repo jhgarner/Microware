@@ -1,5 +1,6 @@
 package com.example.microware.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -17,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +50,8 @@ import com.example.microware.ui.gestures.dropTarget
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 
+private val GridNavigationHeight = 56.dp
+
 private data class GridDragSource(
     val sourceId: Any,
     val index: Int,
@@ -70,94 +76,181 @@ fun <T : Identifiable<T>> Grid(
     val gridDropTarget = remember(sourceId) { GridDropTarget(sourceId) }
     val itemBounds = remember { mutableStateMapOf<Id, Rect>() }
     val itemOffsets = remember { mutableStateMapOf<Id, Offset>() }
-    val slotBounds = items
-        .mapNotNull { itemBounds[it.id] }
-        .sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
     var gridBounds by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var currentPage by remember(sourceId) { mutableIntStateOf(0) }
+    var previousButtonBounds by remember { mutableStateOf<Rect?>(null) }
+    var nextButtonBounds by remember { mutableStateOf<Rect?>(null) }
 
-    LaunchedEffect(
-        dragTarget.offer?.item?.id,
-        dragTarget.offer?.offset,
-        dragTarget.offer?.from,
-        dragTarget.hoveredDropTarget?.to,
-        items,
-        slotBounds,
-        gridDropTarget,
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val columns = ((maxWidth + 8.dp) / (itemSize.width + 24.dp))
+            .toInt()
+            .coerceAtLeast(1)
+        val rows = ((maxHeight - GridNavigationHeight) / (itemSize.height + 16.dp))
+            .toInt()
+            .coerceAtLeast(1)
+        val pageCapacity = columns * rows
+        val pageCount = ((items.size + pageCapacity - 1) / pageCapacity).coerceAtLeast(1)
+        val page = currentPage.coerceIn(0, pageCount - 1)
+        val pageStart = page * pageCapacity
+        val visibleItems = items.drop(pageStart).take(pageCapacity)
+        val slotBounds = visibleItems
+            .mapNotNull { item -> itemBounds[item.id] }
+            .sortedWith(compareBy<Rect> { it.top }.thenBy { it.left })
+        val canGoToPreviousPage = page > 0
+        val canGoToNextPage = page < pageCount - 1
         val offer = dragTarget.offer
-        val draggedItem = offer?.item ?: return@LaunchedEffect
-        val from = offer.from as? GridDragSource ?: return@LaunchedEffect
-        if (from.sourceId != sourceId) return@LaunchedEffect
-
-        val targetIndex = if (dragTarget.hoveredDropTarget?.to == gridDropTarget) {
-            nearestGridSlot(slotBounds, offer.offset) ?: return@LaunchedEffect
-        } else {
-            from.index
+        val offerOffset = offer?.offset
+        val isOverPreviousButton = offerOffset != null &&
+                previousButtonBounds?.contains(offerOffset) == true
+        val isOverNextButton = offerOffset != null &&
+                nextButtonBounds?.contains(offerOffset) == true
+        val hoveredDirection = when {
+            isOverPreviousButton && canGoToPreviousPage -> GridPageDirection.Previous
+            isOverNextButton && canGoToNextPage -> GridPageDirection.Next
+            else -> null
         }
-        onMove(draggedItem.id, targetIndex)
-    }
+        val isOverNavigation = isOverPreviousButton || isOverNextButton
+        val navigationProgress = remember(sourceId) { Animatable(0f) }
 
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .onGloballyPositioned { gridBounds = it }
-            .dropTarget(
-                dragController = dragTarget,
-                to = gridDropTarget,
-                onGiven = { offer ->
-                    if (!offer.originatesFromGrid(sourceId)) {
-                        onDrop(
-                            offer,
-                            nearestGridInsertionIndex(slotBounds, offer.offset),
-                        )
+        LaunchedEffect(pageCount) {
+            currentPage = page
+        }
+
+        LaunchedEffect(hoveredDirection, offer?.item?.id, pageCount) {
+            navigationProgress.snapTo(0f)
+            val direction = hoveredDirection ?: return@LaunchedEffect
+
+            while (true) {
+                navigationProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 1_000),
+                )
+                val nextPage = currentPage + direction.pageDelta
+                if (nextPage !in 0 until pageCount) break
+
+                currentPage = nextPage
+                navigationProgress.snapTo(0f)
+            }
+
+            navigationProgress.snapTo(0f)
+        }
+
+        LaunchedEffect(
+            offer?.item?.id,
+            offer?.offset,
+            offer?.from,
+            dragTarget.hoveredDropTarget?.to,
+            items,
+            slotBounds,
+            pageStart,
+            isOverNavigation,
+            gridDropTarget,
+        ) {
+            val draggedItem = offer?.item ?: return@LaunchedEffect
+            val from = offer.from as? GridDragSource ?: return@LaunchedEffect
+            if (from.sourceId != sourceId || isOverNavigation) return@LaunchedEffect
+
+            val targetIndex = if (dragTarget.hoveredDropTarget?.to == gridDropTarget) {
+                nearestGridSlot(slotBounds, offer.offset)?.let(pageStart::plus)
+                    ?: return@LaunchedEffect
+            } else {
+                from.index
+            }
+            onMove(draggedItem.id, targetIndex)
+        }
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .dropTarget(
+                        dragController = dragTarget,
+                        to = gridDropTarget,
+                        onGiven = { newOffer ->
+                            if (!newOffer.originatesFromGrid(sourceId)) {
+                                onDrop(
+                                    newOffer,
+                                    pageStart + nearestGridInsertionIndex(slotBounds, newOffer.offset),
+                                )
+                            }
+                        },
+                    )
+                    .onGloballyPositioned { gridBounds = it },
+            ) {
+                for (item in visibleItems) {
+                    key(item.id) {
+                        itemOffsets[item.id]?.let { offset ->
+                            val animatedOffset = animateIntOffsetAsState(
+                                offset.round(),
+                                animationSpec = tween(durationMillis = 180),
+                            )
+                            GridItem(
+                                item = item,
+                                offer = offer,
+                                sourceId = sourceId,
+                                modifier = Modifier.size(itemSize)
+                                    .offset { animatedOffset.value },
+                                preview = preview,
+                            )
+                        }
                     }
-                },
-            )
-    ) {
-        for (item in items) {
-            key(item.id) {
-                itemOffsets[item.id]?.let { offset ->
-                    val animatedOffset = animateIntOffsetAsState(
-                        offset.round(),
-                        animationSpec = tween(durationMillis = 180)
-                    )
-                    GridItem(
-                        item = item,
-                        offer = dragTarget.offer,
-                        sourceId = sourceId,
-                        modifier = Modifier.size(itemSize)
-                            .offset { animatedOffset.value },
-                        preview = preview,
-                    )
+                }
+
+                Column {
+                    visibleItems.withIndex().chunked(columns).forEach { row ->
+                        Row(
+                            modifier = Modifier.height(itemSize.height + 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            row.forEach { (index, item) ->
+                                val itemIndex = pageStart + index
+                                Box(
+                                    modifier = Modifier.padding(8.dp)
+                                        .size(itemSize)
+                                        .dragSource(dragSource, GridDragSource(sourceId, itemIndex), item)
+                                        .suggestDrag()
+                                        .onGloballyPositioned { layout ->
+                                            itemBounds[item.id] = layout.boundsInWindow()
+                                            gridBounds?.let { root ->
+                                                itemOffsets[item.id] =
+                                                    root.windowToLocal(layout.positionInWindow())
+                                            }
+                                        },
+                                )
+                            }
+                        }
+                    }
                 }
             }
-        }
-        Column {
-            val columns = (this@BoxWithConstraints.maxWidth / (itemSize.width + 16.dp))
-                .toInt()
-                .coerceAtLeast(1)
-            items.withIndex().chunked(columns).forEach { row ->
-                Row(
-                    modifier = Modifier
-                        .height(itemSize.height + 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    row.forEach { (index, item) ->
-                        Box(
-                            modifier = Modifier.padding(8.dp)
-                                .size(itemSize)
-                                .dragSource(dragSource, GridDragSource(sourceId, index), item)
-                                .suggestDrag()
-                                .onGloballyPositioned { layout ->
-                                    itemBounds[item.id] = layout.boundsInWindow()
-                                    gridBounds?.let { root ->
-                                        itemOffsets[item.id] =
-                                            root.windowToLocal(layout.positionInWindow())
-                                    }
-                                },
-                        )
-                    }
-                }
+
+            Row(modifier = Modifier.fillMaxWidth().height(GridNavigationHeight)) {
+                GridNavigationButton(
+                    direction = GridPageDirection.Previous,
+                    enabled = canGoToPreviousPage,
+                    progress = if (hoveredDirection == GridPageDirection.Previous) {
+                        navigationProgress.value
+                    } else {
+                        0f
+                    },
+                    onClick = { currentPage = page - 1 },
+                    modifier = Modifier.weight(1f)
+                        .fillMaxHeight()
+                        .onGloballyPositioned { previousButtonBounds = it.boundsInWindow() },
+                )
+                GridNavigationButton(
+                    direction = GridPageDirection.Next,
+                    enabled = canGoToNextPage,
+                    progress = if (hoveredDirection == GridPageDirection.Next) {
+                        navigationProgress.value
+                    } else {
+                        0f
+                    },
+                    onClick = { currentPage = page + 1 },
+                    modifier = Modifier.weight(1f)
+                        .fillMaxHeight()
+                        .onGloballyPositioned { nextButtonBounds = it.boundsInWindow() },
+                )
             }
         }
     }

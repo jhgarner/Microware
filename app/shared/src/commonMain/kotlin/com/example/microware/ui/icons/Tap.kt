@@ -1,10 +1,16 @@
 package com.example.microware.ui.icons
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.microware.editor.logic.animate
 import com.example.microware.game.sprite.Palette
 
@@ -23,7 +29,7 @@ fun DrawScope.drawTapCircle(t: Float) {
         Palette.Cyan.color,
         size.minDimension * .18f * radScale,
         touchPoint,
-        style = Stroke(strokeWidth)
+        style = Stroke(strokeWidth),
     )
 }
 
@@ -44,13 +50,13 @@ fun DrawScope.drawTapHand(t: Float) {
             size.width * .42f,
             size.height * (.12f + fingerMove),
             size.width * .5f,
-            size.height * (.12f + fingerMove)
+            size.height * (.12f + fingerMove),
         )
         quadraticTo(
             size.width * .58f,
             size.height * (.12f + fingerMove),
             size.width * .58f,
-            size.height * (.22f + fingerMove)
+            size.height * (.22f + fingerMove),
         )
         lineTo(size.width * .58f, size.height * .48f)
         quadraticTo(size.width * .82f, size.height * .43f, size.width * .82f, size.height * .62f)
@@ -66,4 +72,16 @@ fun DrawScope.drawTapIcon(t: Float = TAP_START) {
     drawTapCircle(t)
     drawTapHand(t)
 }
+
+@Preview
+@Composable
+fun StartOfHand() = Icon { drawTapHand(TAP_START) }
+
+@Preview
+@Composable
+fun TapOfHand() = Icon { drawTapHand(TAP_DOWN) }
+
+@Preview
+@Composable
+fun FullTapAnimation() = Animated { drawTapIcon(it) }
 
