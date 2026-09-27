@@ -11,11 +11,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.microware.game.sprite.Palette
 
-internal fun DrawScope.drawWorldIcon() {
+internal fun DrawScope.drawMountains() {
     val stroke = 2.dp.toPx()
-    fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
     fun Float.x(): Float = size.width * this
-    fun Float.y(): Float = size.width * this
+    fun Float.y(): Float = size.height * this
 
     val mountain = Path().apply {
         moveTo(.08f.x(), .68f.y())
@@ -47,6 +46,13 @@ internal fun DrawScope.drawWorldIcon() {
     }
     drawPath(snow2, Palette.OffWhite.color)
     drawPath(snow2, Color.Black, style = Stroke(stroke))
+}
+
+internal fun DrawScope.drawHouse() {
+    val stroke = 2.dp.toPx()
+    fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
+    fun Float.x(): Float = size.width * this
+    fun Float.y(): Float = size.height * this
 
     val house = Path().apply {
         moveTo(.25f.x(), .53f.y())
@@ -95,6 +101,11 @@ internal fun DrawScope.drawWorldIcon() {
         size = Size(size.width * .07f, size.height * .07f),
         style = Stroke(stroke / 1.5f),
     )
+}
+
+internal fun DrawScope.drawWorldIcon() {
+    drawMountains()
+    drawHouse()
 }
 
 @Preview

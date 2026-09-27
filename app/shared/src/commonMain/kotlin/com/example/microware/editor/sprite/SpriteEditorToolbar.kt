@@ -19,10 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -31,6 +29,7 @@ import com.example.microware.game.sprite.Palette
 import com.example.microware.game.sprite.scaled
 import com.example.microware.game.sprite.tiled
 import com.example.microware.game.sprite.transparent
+import com.example.microware.ui.icons.resizeIcon
 
 enum class SpriteEditorTool {
     Pen,
@@ -70,22 +69,7 @@ fun SpriteToolPicker(
             selected = selectedTool == SpriteEditorTool.Resize,
             onClick = { onSelectTool(SpriteEditorTool.Resize) },
         ) {
-            Canvas(Modifier.fillMaxSize().padding(10.dp)) {
-                val strokeWidth = 2.dp.toPx()
-                drawRect(
-                    color = Color.Black,
-                    topLeft = Offset(size.width * 0.2f, size.height * 0.2f),
-                    size = Size(size.width * 0.6f, size.height * 0.6f),
-                    style = Stroke(strokeWidth),
-                )
-                val handleRadius = 3.dp.toPx()
-                listOf(
-                    Offset(size.width * 0.2f, size.height * 0.2f),
-                    Offset(size.width * 0.8f, size.height * 0.2f),
-                    Offset(size.width * 0.2f, size.height * 0.8f),
-                    Offset(size.width * 0.8f, size.height * 0.8f),
-                ).forEach { drawCircle(Color.Black, handleRadius, it) }
-            }
+            Canvas(Modifier.fillMaxSize().padding(10.dp)) { resizeIcon() }
         }
         ToolButton(
             description = "Position tool",

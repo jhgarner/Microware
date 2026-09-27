@@ -77,8 +77,8 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
     drawRect(
         color = Color.Black,
         topLeft = point(.2f, .34f),
-        size = Size(size.width * .22f, size.height * .28f),
-        style = Stroke(strokeWidth),
+        size = Size(size.width * .22f, size.height * .27f),
+        style = Stroke(strokeWidth / 1.5f),
     )
     drawPath(
         Path().apply {
@@ -94,7 +94,7 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
         Color.Black,
         point(.16f, .34f),
         point(.46f, .34f),
-        strokeWidth,
+        strokeWidth / 1.5f,
         StrokeCap.Round,
     )
 
@@ -107,7 +107,7 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
         color = Color.Black,
         topLeft = point(.25f, .39f),
         size = Size(size.width * .1f, size.height * .1f),
-        style = Stroke(strokeWidth / 1.5f),
+        style = Stroke(strokeWidth / 1.75f),
     )
 
     drawRoundRect(
@@ -121,7 +121,7 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
         topLeft = point(.38f, .4f),
         size = Size(size.width * .43f, size.height * .2f),
         cornerRadius = CornerRadius(size.minDimension * .08f),
-        style = Stroke(strokeWidth),
+        style = Stroke(strokeWidth / 1.5f),
     )
 
     drawRoundRect(
@@ -151,15 +151,6 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
         style = Stroke(strokeWidth),
     )
 
-    val cowcatcher = Path().apply {
-        moveTo(point(.76f, .57f).x, point(.76f, .57f).y)
-        lineTo(point(.91f, .7f).x, point(.91f, .7f).y)
-        lineTo(point(.83f, .7f).x, point(.83f, .7f).y)
-        lineTo(point(.73f, .62f).x, point(.73f, .62f).y)
-        close()
-    }
-    drawPath(cowcatcher, Palette.Yellow.color)
-    drawPath(cowcatcher, Color.Black, style = Stroke(strokeWidth))
     drawCircle(Palette.Yellow.color, size.minDimension * .045f, point(.78f, .43f))
     drawCircle(
         Color.Black,
@@ -199,8 +190,7 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
     }
 
     val wheelRotation = animate(t) {
-        anim(360f, .8f)
-        anim(0f, .2f)
+        anim(360f, 1f)
     }
     val wheelRadius = size.minDimension * .105f
     val leftWheel = point(.3f, .72f)
@@ -208,22 +198,19 @@ internal fun DrawScope.drawTrainIcon(t: Float = 0f) {
     drawTrainWheel(leftWheel, wheelRadius, wheelRotation, strokeWidth)
     drawTrainWheel(rightWheel, wheelRadius, wheelRotation, strokeWidth)
 
-    val couplingAngle = animate(t) {
-        anim(360f, .8f)
-        anim(0f, .2f)
-    } * PI.toFloat() / 180f
+    val couplingAngle = wheelRotation * PI.toFloat() / 180f
     val crankRadius = wheelRadius * .55f
     val leftCrank = leftWheel + Offset(
         cos(couplingAngle) * crankRadius,
         sin(couplingAngle) * crankRadius,
     )
     val rightCrank = rightWheel + Offset(
-        cos(couplingAngle + PI.toFloat() * .65f) * crankRadius,
-        sin(couplingAngle + PI.toFloat() * .65f) * crankRadius,
+        cos(couplingAngle) * crankRadius,
+        sin(couplingAngle) * crankRadius,
     )
-    drawLine(Palette.Yellow.color, leftCrank, rightCrank, strokeWidth, StrokeCap.Round)
-    drawCircle(Color.Black, strokeWidth * .75f, leftCrank)
-    drawCircle(Color.Black, strokeWidth * .75f, rightCrank)
+    drawLine(Palette.LightGray.color, leftCrank, rightCrank, strokeWidth, StrokeCap.Round)
+    drawCircle(Palette.LightGray.color, strokeWidth * .75f, leftCrank)
+    drawCircle(Palette.LightGray.color, strokeWidth * .75f, rightCrank)
 }
 
 private fun DrawScope.drawTrainCloud(
@@ -274,12 +261,12 @@ private fun DrawScope.drawTrainWheel(
     strokeWidth: Float,
 ) {
     drawCircle(Color.Black, radius, center)
-    drawCircle(Palette.DarkGray.color, radius * .8f, center)
+    drawCircle(Palette.Black.color, radius * .8f, center)
     rotate(rotation, pivot = center) {
         repeat(4) { index ->
             val angle = 2f * PI.toFloat() * index / 4f
             drawLine(
-                Palette.LightGray.color,
+                Palette.DarkGray.color,
                 center,
                 center + Offset(
                     cos(angle) * radius * .65f,
@@ -290,7 +277,6 @@ private fun DrawScope.drawTrainWheel(
             )
         }
     }
-    drawCircle(Palette.LightGray.color, radius * .15f, center)
     drawCircle(Color.Black, radius, center, style = Stroke(strokeWidth / 1.5f))
 }
 

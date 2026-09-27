@@ -11,29 +11,35 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun Icon(draw: DrawScope.() -> Unit) {
-    Canvas(modifier = Modifier.size(40.dp)) {
+    Canvas(modifier = Modifier.size(40.dp).clipToBounds()) {
         draw()
     }
 }
 
 @Composable
-internal fun Animated(draw: DrawScope.(Float) -> Unit) {
+internal fun Animated(
+    duration: Int = 1000,
+    size: DpSize = DpSize(40.dp, 40.dp),
+    draw: DrawScope.(Float) -> Unit,
+) {
     val infiniteTransition = rememberInfiniteTransition()
 
     val animatedProgress: Float by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            animation = tween(durationMillis = duration, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
     )
-    Canvas(modifier = Modifier.size(40.dp)) {
+    Canvas(modifier = Modifier.size(size)) {
         draw(animatedProgress)
     }
 }
