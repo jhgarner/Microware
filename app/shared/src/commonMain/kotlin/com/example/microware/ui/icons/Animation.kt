@@ -6,7 +6,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.util.lerp
 
-data class Frame<T>(val start: T, val stop: T, val ease: Easing, val duration: Float)
+data class Frame<T>(
+    val start: T,
+    val stop: T,
+    val ease: Easing,
+    val duration: Float,
+    val during: (Float) -> Unit,
+    val after: () -> Unit,
+)
+
 data class AnimBuilder<T>(
     val initial: T,
     val actions: MutableList<Frame<T>>,
@@ -15,33 +23,47 @@ data class AnimBuilder<T>(
     var at = 0f
 
     fun get(t: Float): T {
-        if (t <= 0f || t >= 1f) {
+        if (t < 0) {
             return initial
+        } else if (t > 1f) {
+            return actions.lastOrNull()?.stop ?: initial
         }
         var remaining = t
         for (action in actions) {
             if (remaining <= action.duration) {
+                action.during(remaining / action.duration)
                 return lerp(
                     action.start,
                     action.stop,
                     action.ease.transform(remaining / action.duration),
                 )
             }
+            action.after()
             remaining -= action.duration
         }
         return initial
     }
 
-    fun hold(duration: Float = 1f - at) {
-        anim(actions.lastOrNull()?.stop ?: initial, duration)
+    fun hold(duration: Float = 1f - at, after: () -> Unit = {}, during: (Float) -> Unit = {}) {
+        anim(actions.lastOrNull()?.stop ?: initial, duration, after = after, during = during)
+    }
+
+    fun track(action: () -> Unit) {
+        hold(0f, after = { action() })
     }
 
     fun until(time: Float): Float = time - at
 
-    fun anim(newValue: T, duration: Float, ease: Easing = EaseInOut) {
+    fun anim(
+        newValue: T,
+        duration: Float,
+        ease: Easing = EaseInOut,
+        after: () -> Unit = {},
+        during: (Float) -> Unit = {},
+    ) {
         at += duration
         val from = actions.lastOrNull()?.stop ?: initial
-        actions.add(Frame(from, newValue, ease, duration))
+        actions.add(Frame(from, newValue, ease, duration, during, after))
     }
 }
 

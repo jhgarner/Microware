@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 
 fun DrawScope.drawCreateIcon(t: Float) {
     var mountainMoveAt = 0f
@@ -66,30 +67,43 @@ fun DrawScope.drawCreateIcon(t: Float) {
     }
 
     val pressTime = 0.02f
+    var tapProgress = 0f
     val hand = animate(t, initial = Offset(.5f, -.3f)) {
         val mountainTarget = Offset(.3f, .5f)
         anim(mountainTarget, until(mountainMoveAt - pressTime))
-        hold(pressTime)
+        hold(pressTime) {
+            tapProgress = lerp(TAP_START, TAP_DOWN, it)
+        }
+        track { tapProgress = TAP_DOWN }
         val handEndMountain = mountainsFinal - mountainStart + mountainTarget
         anim(handEndMountain, until(mountainDone))
+        track { tapProgress = TAP_START }
 
         val houseTarget = Offset(.65f, .8f)
         anim(houseTarget, until(houseMoveAt - pressTime))
-        hold(pressTime)
+        hold(pressTime) {
+            tapProgress = lerp(TAP_START, TAP_DOWN, it)
+        }
+        track { tapProgress = TAP_DOWN }
         val handEndHouse = houseFinal - houseStart + houseTarget
         anim(handEndHouse, until(houseDone))
+        track { tapProgress = TAP_START }
 
         val trainTarget = Offset(.8f, .4f)
         anim(trainTarget, until(trainMoveAt - pressTime))
-        hold(pressTime)
+        hold(pressTime) {
+            tapProgress = lerp(TAP_START, TAP_DOWN, it)
+        }
+        track { tapProgress = TAP_DOWN }
         val handEndTrain = trainFinal - trainStart + trainTarget
         anim(handEndTrain, until(trainDone))
+        track { tapProgress = TAP_START }
         hold(.1f)
         anim(initial, 0.1f)
         hold()
     }
     within(fromPercents(Rect(hand, Size(.15f, .3f)))) {
-        drawTapHand(0f)
+        drawTapHand(tapProgress)
     }
 }
 
@@ -102,12 +116,12 @@ private fun PreviewCanvas(t: Float) = Canvas(
 
 @Preview
 @Composable
-fun StartState() = PreviewCanvas(0f)
+private fun StartState() = PreviewCanvas(0f)
 
 @Preview
 @Composable
-fun Dynamic() = PreviewCanvas(0.6f)
+private fun Dynamic() = PreviewCanvas(0.6f)
 
 @Preview
 @Composable
-fun Anim() = Animated(duration = 2000, size = DpSize(300.dp, 150.dp)) { drawCreateIcon(it) }
+private fun Anim() = Animated(duration = 3000, size = DpSize(300.dp, 150.dp)) { drawCreateIcon(it) }
