@@ -34,6 +34,7 @@ import com.example.microware.game.model.World
 import com.example.microware.game.model.WorldHeight
 import com.example.microware.game.model.WorldWidth
 import com.example.microware.game.sprite.Palette
+import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.ButtonHandle
 import com.example.microware.ui.components.DrawerButtonState
 import com.example.microware.ui.components.Grid
@@ -66,7 +67,9 @@ internal fun BoxWithConstraintsScope.GamesPage(
     games: List<Game>,
     selectGame: (Id) -> Unit,
     handler: (GamesEvent) -> Unit,
+    onBack: () -> Unit,
 ) {
+    SystemBackHandler(onBack = onBack)
     val dragController = remember { DragController<Game>() }
     val offered = dragController.offer
     var wouldDelete by remember { mutableStateOf(false) }
@@ -158,12 +161,12 @@ internal fun BoxWithConstraintsScope.GamesPage(
         if (draggedGame != null) {
             val alpha by animateFloatAsState(
                 if (wouldDelete) .5f else 1f,
-                tween(durationMillis = 180)
+                tween(durationMillis = 180),
             )
             GameDragGhost(
                 game = draggedGame,
                 offer = offered,
-                alpha = alpha
+                alpha = alpha,
             )
         }
     }
@@ -233,7 +236,7 @@ private fun GameDragGhost(
                 height = offer.size.height.toDp(),
             )
             .alpha(alpha)
-            .zIndex(0.5f)
+            .zIndex(0.5f),
     ) {
         GamePreview(game)
     }
@@ -245,7 +248,7 @@ private fun GamePreview(game: Game) {
         modifier = Modifier.fillMaxSize()
             .clip(RoundedCornerShape(8.dp))
             .background(Palette.OffWhite.color)
-            .drawBorder(Palette.DarkGray.color)
+            .drawBorder(Palette.DarkGray.color),
     ) {
         val world = game.world
         val scale = min(

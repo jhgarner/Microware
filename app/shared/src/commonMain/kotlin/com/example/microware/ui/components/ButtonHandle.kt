@@ -47,6 +47,8 @@ import androidx.graphics.shapes.RoundedPolygon
 import com.example.microware.editor.world.CreateTarget
 import com.example.microware.game.sprite.Palette
 import com.example.microware.library.LibraryTarget
+import com.example.microware.ui.icons.ChevronDirection
+import com.example.microware.ui.icons.ChevronIcon
 import com.example.microware.ui.layout.Insets
 import com.example.microware.ui.layout.LocalInsets
 import com.example.microware.util.toPx
@@ -257,7 +259,7 @@ fun BoxWithConstraintsScope.ButtonHandle(
                 label = "handle icon"
             ) { expanded ->
                 if (expanded) {
-                    CloseChevron(edge = type.edge, color = foreground.color)
+                    ChevronIcon(direction = type.edge.chevronDirection(), color = foreground.color)
                 } else {
                     type.content(foreground.color)
                 }
@@ -352,31 +354,10 @@ private class MorphHandleShape(
 }
 
 @Composable
-private fun CloseChevron(edge: HandleEdge, color: Color) {
-    Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        val strokeWidth = 2.dp.toPx()
-        val top = Offset(size.width * 0.5f, size.height * 0.15f)
-        val right = Offset(size.width * 0.85f, size.height * 0.5f)
-        val bottom = Offset(size.width * 0.5f, size.height * 0.85f)
-        val left = Offset(size.width * 0.15f, size.height * 0.5f)
-
-        when (edge) {
-            HandleEdge.Left -> {
-                drawLine(color, top, left, strokeWidth, StrokeCap.Round)
-                drawLine(color, left, bottom, strokeWidth, StrokeCap.Round)
-            }
-
-            HandleEdge.Right -> {
-                drawLine(color, top, right, strokeWidth, StrokeCap.Round)
-                drawLine(color, right, bottom, strokeWidth, StrokeCap.Round)
-            }
-
-            HandleEdge.Bottom -> {
-                drawLine(color, left, bottom, strokeWidth, StrokeCap.Round)
-                drawLine(color, bottom, right, strokeWidth, StrokeCap.Round)
-            }
-        }
-    }
+private fun HandleEdge.chevronDirection() = when (this) {
+    HandleEdge.Left -> ChevronDirection.Left
+    HandleEdge.Right -> ChevronDirection.Right
+    HandleEdge.Bottom -> ChevronDirection.Down
 }
 
 @Composable

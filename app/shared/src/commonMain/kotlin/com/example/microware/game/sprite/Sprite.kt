@@ -175,6 +175,10 @@ class Sprite private constructor(
         fun solid(w: Int, h: Int, color: Palette): Sprite {
             return fromPaletteCodes(w, h, ByteArray(w * h) { color.code.toByte() })
         }
+
+        fun pattern(w: Int, h: Int, draw: (Int) -> Palette): Sprite {
+            return fromPaletteCodes(w, h, ByteArray(w * h) { draw(it).code.toByte() })
+        }
     }
 }
 
@@ -240,7 +244,7 @@ fun RenderSprite(offset: Offset, scale: Int, sprite: Sprite) {
     println("${image.width} by ${image.height}")
     Canvas(
         modifier = Modifier.requiredSize(sprite.width.dp * scale, sprite.height.dp * scale)
-            .offset(offset.x.dp, offset.y.dp)
+            .offset(offset.x.dp, offset.y.dp),
     ) {
         drawImage(image)
     }
