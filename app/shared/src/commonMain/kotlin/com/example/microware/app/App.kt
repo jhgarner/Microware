@@ -13,12 +13,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.microware.Palette
+import com.example.microware.community.Community
+import com.example.microware.community.JoinCommunity
 import com.example.microware.editor.GameEditor
 import com.example.microware.game.events.GamesEvent.Companion.forGame
-import com.example.microware.game.sprite.Palette
 import com.example.microware.games.GamesPage
 import com.example.microware.games.store.AppGameRepository
 import com.example.microware.games.store.GameStore
+import com.example.microware.play.PlayPage
 import com.example.microware.ui.components.Overlay
 import com.example.microware.ui.layout.Insets
 import com.example.microware.ui.layout.LocalInsets
@@ -42,6 +45,9 @@ fun App() {
             }
             val gameState by gameStore.state.collectAsState()
             var selectedGameId by remember { mutableStateOf<Id?>(null) }
+
+            var communities by remember { mutableStateOf(listOf<Community>()) }
+
             CompositionLocalProvider(LocalInsets provides Insets.new()) {
                 var navigation by remember { mutableStateOf<HomeNavigation?>(null) }
                 when (navigation) {
@@ -69,6 +75,13 @@ fun App() {
                             )
                         }
                     }
+
+                    HomeNavigation.Play -> PlayPage(
+                        communities.flatMap { it.experiences },
+                        onBack = { navigation = null },
+                    )
+
+                    HomeNavigation.Community -> JoinCommunity { }
                 }
             }
         }

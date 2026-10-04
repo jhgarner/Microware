@@ -32,7 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 import com.example.microware.ui.icons.drawDecrementIcon
 import com.example.microware.ui.icons.drawIncrementIcon
 import com.example.microware.util.toPx
@@ -92,7 +92,7 @@ fun IntegerSliderControl(
                 description = "Decrease ${dimension.name.lowercase()}",
                 onClick = {
                     onValueChange(
-                        if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(minValue)
+                        if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(minValue),
                     )
                 },
                 enabled = hasPreviousValue,
@@ -115,7 +115,7 @@ fun IntegerSliderControl(
             description = "Increase ${dimension.name.lowercase()}",
             onClick = {
                 onValueChange(
-                    if (finiteValue!! < maxValue) finiteValue + 1 else null
+                    if (finiteValue!! < maxValue) finiteValue + 1 else null,
                 )
             },
             enabled = hasNextValue,
@@ -290,7 +290,7 @@ private fun IntegerSlider(
                         val lastIndex = maxValue - minValue + if (allowInfinity) 1 else 0
                         val index = (fraction * lastIndex).roundToInt().coerceIn(0, lastIndex)
                         latestOnValueChange.value(
-                            if (allowInfinity && index == lastIndex) null else index + minValue
+                            if (allowInfinity && index == lastIndex) null else index + minValue,
                         )
                     }
 

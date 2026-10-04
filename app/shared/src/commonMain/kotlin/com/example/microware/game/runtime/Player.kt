@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Game
@@ -34,7 +35,6 @@ import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.World
 import com.example.microware.game.model.WorldHeight
 import com.example.microware.game.model.WorldWidth
-import com.example.microware.game.sprite.Palette
 import com.example.microware.game.sprite.scaled
 import com.example.microware.ui.layout.insets
 import kotlin.math.min

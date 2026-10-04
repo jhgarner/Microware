@@ -8,8 +8,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.game.model.LogicTag
-import com.example.microware.game.sprite.Palette
 
 internal fun DrawScope.drawLogicIcon(enabled: Boolean = true) {
     val pageStroke = 2.dp.toPx()

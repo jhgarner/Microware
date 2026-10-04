@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 import com.example.microware.game.sprite.scaled
 import com.example.microware.game.sprite.tiled
 import com.example.microware.game.sprite.transparent

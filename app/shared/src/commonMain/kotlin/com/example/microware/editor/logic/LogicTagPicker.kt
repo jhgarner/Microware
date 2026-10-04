@@ -41,8 +41,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.game.model.LogicTag
-import com.example.microware.game.sprite.Palette
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawLogicTag
 import com.example.microware.ui.icons.drawLogicTagAt
@@ -148,13 +148,13 @@ fun LogicTagPicker(
                             Color.Black,
                             Offset(size.width * .2f, y),
                             Offset(size.width * .5f, tipY),
-                            2.dp.toPx()
+                            2.dp.toPx(),
                         )
                         drawLine(
                             Color.Black,
                             Offset(size.width * .8f, y),
                             Offset(size.width * .5f, tipY),
-                            2.dp.toPx()
+                            2.dp.toPx(),
                         )
                     }
                     if (unusedExpanded) {

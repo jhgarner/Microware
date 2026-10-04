@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -30,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -44,8 +42,8 @@ import androidx.compose.ui.zIndex
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
+import com.example.microware.Palette
 import com.example.microware.editor.world.CreateTarget
-import com.example.microware.game.sprite.Palette
 import com.example.microware.library.LibraryTarget
 import com.example.microware.ui.icons.ChevronDirection
 import com.example.microware.ui.icons.ChevronIcon
@@ -78,7 +76,7 @@ enum class HandleType(
         foreground = Palette.Maroon,
         highlight = Palette.Red,
         edge = HandleEdge.Left,
-        content = ::TrashControls
+        content = ::TrashControls,
     ),
     Create(
         foreground = Palette.Navy,
@@ -256,7 +254,7 @@ fun BoxWithConstraintsScope.ButtonHandle(
             Crossfade(
                 targetState = state is DrawerButtonState.Expanded,
                 animationSpec = tween(durationMillis = 180),
-                label = "handle icon"
+                label = "handle icon",
             ) { expanded ->
                 if (expanded) {
                     ChevronIcon(direction = type.edge.chevronDirection(), color = foreground.color)
@@ -378,7 +376,7 @@ private fun HandleBorder(
             topLeft = Offset(inset, inset),
             size = Size(size.width - strokeWidth, size.height - strokeWidth),
             cornerRadius = CornerRadius(radius, radius),
-            style = Stroke(strokeWidth)
+            style = Stroke(strokeWidth),
         )
 
         val borderPath = Path().apply {
@@ -414,7 +412,7 @@ private fun HandleBorder(
         drawPath(
             path = borderPath,
             color = color.copy(alpha = color.alpha * morphProgress),
-            style = Stroke(strokeWidth)
+            style = Stroke(strokeWidth),
         )
     }
 }

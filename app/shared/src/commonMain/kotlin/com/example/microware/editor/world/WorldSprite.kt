@@ -1,12 +1,5 @@
 package com.example.microware.editor.world
 
-import com.example.microware.game.model.Obj
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.Sprite
-import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.util.toDp
-
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -29,6 +22,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
+import com.example.microware.game.model.Obj
+import com.example.microware.game.sprite.Sprite
+import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.gestures.dragSource
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -61,11 +59,11 @@ internal fun WorldSprite(
             .offset {
                 IntOffset(
                     origin.x + (obj.offset.x * scale).roundToInt(),
-                    origin.y + (obj.offset.y * scale).roundToInt()
+                    origin.y + (obj.offset.y * scale).roundToInt(),
                 )
             }
             .alpha(animatedOpacity)
-            .then(dragController?.let { Modifier.dragSource(it, from, obj) } ?: Modifier)
+            .then(dragController?.let { Modifier.dragSource(it, from, obj) } ?: Modifier),
     ) {
         drawWorldSprite(
             sprite = obj.sprite,

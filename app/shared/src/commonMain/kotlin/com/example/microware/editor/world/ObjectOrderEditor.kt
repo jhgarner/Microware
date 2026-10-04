@@ -1,16 +1,4 @@
 package com.example.microware.editor.world
-import com.example.microware.game.events.WorldEvent
-import com.example.microware.game.model.Obj
-import com.example.microware.game.model.World
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.Sprite
-import com.example.microware.ui.components.Grid
-import com.example.microware.ui.components.HandleSize
-import com.example.microware.ui.components.TrashGap
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.ui.icons.drawLogicTag
-import com.example.microware.ui.layout.insets
-import com.example.microware.util.toDp
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -48,6 +36,17 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import com.example.microware.Palette
+import com.example.microware.game.events.WorldEvent
+import com.example.microware.game.model.Obj
+import com.example.microware.game.model.World
+import com.example.microware.game.sprite.Sprite
+import com.example.microware.ui.components.Grid
+import com.example.microware.ui.components.HandleSize
+import com.example.microware.ui.components.TrashGap
+import com.example.microware.ui.icons.drawLogicTag
+import com.example.microware.ui.layout.insets
+import com.example.microware.util.toDp
 import kotlinx.collections.immutable.toPersistentList
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -67,7 +66,7 @@ internal fun ObjectOrderEditor(
     var rootBounds by remember { mutableStateOf<Rect?>(null) }
     Box(
         modifier = Modifier.fillMaxSize()
-            .onGloballyPositioned { rootBounds = it.boundsInWindow() }
+            .onGloballyPositioned { rootBounds = it.boundsInWindow() },
     ) {
         Column(
             modifier = modifier
@@ -120,7 +119,7 @@ internal fun ObjectOrderEditor(
                     .offset {
                         (offer.offset - (rootBounds?.topLeft
                             ?: Offset.Zero) - offer.localOffset).round()
-                    }
+                    },
             ) {
                 ObjectOrderCard(offer.item, world, Modifier)
             }

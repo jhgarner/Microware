@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 import com.example.microware.ui.layout.insets
 import com.example.microware.util.toPx
 import kotlinx.coroutines.coroutineScope
@@ -73,19 +73,19 @@ fun <Data> Drawer(
             HandleEdge.Left -> PaddingValues(
                 start = insets.leftDp(),
                 top = insets.topDp(),
-                bottom = insets.bottomDp()
+                bottom = insets.bottomDp(),
             )
 
             HandleEdge.Right -> PaddingValues(
                 end = insets.rightDp(),
                 top = insets.topDp(),
-                bottom = insets.bottomDp()
+                bottom = insets.bottomDp(),
             )
 
             HandleEdge.Bottom -> PaddingValues(
                 start = insets.leftDp(),
                 end = insets.rightDp(),
-                bottom = insets.bottomDp()
+                bottom = insets.bottomDp(),
             )
         }
         val slideX = remember { Animatable(closedOffset.x) }
@@ -98,7 +98,7 @@ fun <Data> Drawer(
                             state != null -> expandedOffset.x
                             else -> closedOffset.x
                         },
-                        animationSpec = tween(durationMillis = 180)
+                        animationSpec = tween(durationMillis = 180),
                     )
                 }
                 launch {
@@ -107,7 +107,7 @@ fun <Data> Drawer(
                             state != null -> expandedOffset.y
                             else -> closedOffset.y
                         },
-                        animationSpec = tween(durationMillis = 180)
+                        animationSpec = tween(durationMillis = 180),
                     )
                 }
             }
@@ -120,7 +120,7 @@ fun <Data> Drawer(
                 .requiredSize(drawerSize)
                 .shadow(OverlayShadowElevation, panelShape)
                 .background(Palette.OffWhite.color, panelShape)
-                .padding(12.dp)
+                .padding(12.dp),
         ) {
             Box(modifier = Modifier.padding(contentPadding)) {
                 state?.let { content(it.data) }

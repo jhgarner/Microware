@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.editor.logic.LogicEditToolbar
 import com.example.microware.editor.logic.LogicEditorContent
 import com.example.microware.editor.logic.LogicEditorPage
@@ -35,7 +36,6 @@ import com.example.microware.editor.world.rememberWorldEditorState
 import com.example.microware.game.events.GameEvents
 import com.example.microware.game.model.Game
 import com.example.microware.game.runtime.Player
-import com.example.microware.game.sprite.Palette
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.ButtonHandle
 import com.example.microware.ui.components.HandleType
@@ -118,7 +118,7 @@ fun BoxWithConstraintsScope.GameEditor(
         GameEditorPage.Play -> null
     }
     Box(
-        modifier = activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier
+        modifier = activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier,
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(

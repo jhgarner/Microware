@@ -4,14 +4,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 import com.example.microware.ui.icons.drawGridNavigationArrow
 
 internal enum class GridPageDirection(val pageDelta: Int) {
@@ -39,8 +39,10 @@ internal fun GridNavigationButton(
         val right = size.width - inset
         val bottom = size.height - inset
         val buttonColor = if (enabled) Palette.OffWhite.color else Palette.LightGray.color
-        val borderColor = if (enabled) Palette.Black.color else Palette.DarkGray.color.copy(alpha = .45f)
-        val arrowColor = if (enabled) Palette.Black.color else Palette.DarkGray.color.copy(alpha = .45f)
+        val borderColor =
+            if (enabled) Palette.Black.color else Palette.DarkGray.color.copy(alpha = .45f)
+        val arrowColor =
+            if (enabled) Palette.Black.color else Palette.DarkGray.color.copy(alpha = .45f)
 
         drawRect(buttonColor)
         drawRect(

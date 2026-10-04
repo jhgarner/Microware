@@ -1,6 +1,9 @@
 package com.example.microware.ui.icons
 
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.inset
@@ -12,6 +15,16 @@ fun DrawScope.fromPercents(rect: Rect): Rect = Rect(
     right = rect.right * size.width,
     top = rect.top * size.height,
     bottom = rect.bottom * size.height,
+)
+
+fun DrawScope.fromPercents(offset: Offset): Offset = Offset(
+    x = offset.x * size.width,
+    y = offset.y * size.height,
+)
+
+fun DrawScope.fromPercents(percents: Size): Size = Size(
+    width = percents.width * size.width,
+    height = percents.height * size.height,
 )
 
 fun DrawScope.within(rect: DpRect, inner: DrawScope.() -> Unit) = within(rect.toRect(), inner)

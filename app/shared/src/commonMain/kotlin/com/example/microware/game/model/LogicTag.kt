@@ -1,6 +1,6 @@
 package com.example.microware.game.model
 
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 
 private val logicTagColors = Palette.entries.filter { it != Palette.Clear }
 private const val logicTagShapeCount = 4

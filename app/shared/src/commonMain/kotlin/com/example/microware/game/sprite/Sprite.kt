@@ -7,10 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.editor.sprite.MutableSpriteDraft
 
 private class PackedPixels private constructor(
@@ -80,8 +80,6 @@ class Sprite private constructor(
 
     fun get(row: Int, col: Int): Palette = Palette.fromCode(pixels.get(row * width + col))
 
-    fun inBounds(row: Int, col: Int) = row in 0..<height && col in 0..<width
-
     fun isFullyTransparent(): Boolean {
         for (index in 0 until width * height) {
             if (pixels.get(index) != Palette.Clear.code) return false
@@ -145,20 +143,6 @@ class Sprite private constructor(
     }
 
     companion object {
-        fun fromRows(rows: List<List<Palette>>): Sprite {
-            require(rows.isNotEmpty())
-            val width = rows.first().size
-            require(width > 0)
-            require(rows.all { it.size == width })
-            val codes = ByteArray(width * rows.size)
-            rows.forEachIndexed { row, values ->
-                values.forEachIndexed { col, palette ->
-                    codes[row * width + col] = palette.code.toByte()
-                }
-            }
-            return fromPaletteCodes(width, rows.size, codes)
-        }
-
         internal fun fromPaletteCodes(width: Int, height: Int, codes: ByteArray): Sprite {
             require(codes.size == width * height)
             return Sprite(width, height, PackedPixels.fromPaletteCodes(codes))
@@ -207,33 +191,6 @@ data class SpriteBounds(
             bottom = sprite.height,
         )
     }
-}
-
-// Copied from the Pico8 color palette, but can be replaced or extended with something else if needed.
-enum class Palette(val code: Int, val color: Color) {
-    Black(0, Color(0xFF000000)),
-    Navy(1, Color(0xFF1D2B53)),
-    Maroon(2, Color(0xFF7E2553)),
-    Forest(3, Color(0xFF008751)),
-    Rust(4, Color(0xFFAB5236)),
-    DarkGray(5, Color(0xFF5F574F)),
-    LightGray(6, Color(0xFFC2C3C7)),
-    OffWhite(7, Color(0xFFFFF1E8)),
-    Red(8, Color(0xFFFF004D)),
-    Orange(9, Color(0xFFFFA300)),
-    Yellow(10, Color(0xFFFFEC27)),
-    Green(11, Color(0xFF00E436)),
-    Cyan(12, Color(0xFF29ADFF)),
-    Purple(13, Color(0xFF83769C)),
-    Pink(14, Color(0xFFFF77A8)),
-    Tan(15, Color(0xFFFFCCAA)),
-    Clear(16, Color(0x00000000));
-
-    companion object {
-        fun fromCode(code: Int): Palette = entries.firstOrNull { it.code == code }
-            ?: error("Unknown palette code: $code")
-    }
-
 }
 
 @Composable

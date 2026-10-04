@@ -1,12 +1,4 @@
 package com.example.microware.editor.sprite
-import com.example.microware.game.sprite.MaxSpriteHeight
-import com.example.microware.game.sprite.MaxSpriteWidth
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.Sprite
-import com.example.microware.game.sprite.SpriteBounds
-import com.example.microware.ui.gestures.racing
-import com.example.microware.ui.gestures.sequence
-import com.example.microware.util.toPx
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +27,13 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
+import com.example.microware.game.sprite.MaxSpriteHeight
+import com.example.microware.game.sprite.MaxSpriteWidth
+import com.example.microware.game.sprite.Sprite
+import com.example.microware.game.sprite.SpriteBounds
+import com.example.microware.ui.gestures.racing
+import com.example.microware.ui.gestures.sequence
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
@@ -130,7 +129,7 @@ fun SpriteResizeCanvas(
                         val handle = startGeometry.handleCenters(startBounds)
                             .filterValues { center ->
                                 abs(initial.position.x - center.x) <= hitSize &&
-                                    abs(initial.position.y - center.y) <= hitSize
+                                        abs(initial.position.y - center.y) <= hitSize
                             }
                             .minByOrNull { (_, center) ->
                                 (initial.position - center).getDistance()
@@ -175,7 +174,7 @@ fun SpriteResizeCanvas(
                             val previousSize = lastSize ?: size
                             val zoomFactor = size / previousSize
                             panState.value += (offset - previousOffset) +
-                                (panState.value + spriteOrigin - previousOffset) * (zoomFactor - 1f)
+                                    (panState.value + spriteOrigin - previousOffset) * (zoomFactor - 1f)
                             zoomState.value *= zoomFactor
                             lastOffset = offset
                             lastSize = size
@@ -281,10 +280,38 @@ private fun DrawScope.drawResizeOverlay(bounds: SpriteBounds, geometry: ResizeGe
 
     val dots = PathEffect.dashPathEffect(floatArrayOf(1.dp.toPx(), 5.dp.toPx()))
     val borderWidth = 2.dp.toPx()
-    drawLine(Color.White, topLeft, Offset(bottomRight.x, topLeft.y), borderWidth, StrokeCap.Round, dots)
-    drawLine(Color.White, Offset(bottomRight.x, topLeft.y), bottomRight, borderWidth, StrokeCap.Round, dots)
-    drawLine(Color.White, bottomRight, Offset(topLeft.x, bottomRight.y), borderWidth, StrokeCap.Round, dots)
-    drawLine(Color.White, Offset(topLeft.x, bottomRight.y), topLeft, borderWidth, StrokeCap.Round, dots)
+    drawLine(
+        Color.White,
+        topLeft,
+        Offset(bottomRight.x, topLeft.y),
+        borderWidth,
+        StrokeCap.Round,
+        dots,
+    )
+    drawLine(
+        Color.White,
+        Offset(bottomRight.x, topLeft.y),
+        bottomRight,
+        borderWidth,
+        StrokeCap.Round,
+        dots,
+    )
+    drawLine(
+        Color.White,
+        bottomRight,
+        Offset(topLeft.x, bottomRight.y),
+        borderWidth,
+        StrokeCap.Round,
+        dots,
+    )
+    drawLine(
+        Color.White,
+        Offset(topLeft.x, bottomRight.y),
+        topLeft,
+        borderWidth,
+        StrokeCap.Round,
+        dots,
+    )
 
     val handleSize = 12.dp.toPx()
     geometry.handleCenters(bounds).values.forEach { center ->

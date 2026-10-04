@@ -13,12 +13,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun Icon(draw: DrawScope.() -> Unit) {
-    Canvas(modifier = Modifier.size(40.dp).clipToBounds()) {
+internal fun Icon(size: Dp = 40.dp, draw: DrawScope.() -> Unit) {
+    Canvas(modifier = Modifier.size(size).clipToBounds()) {
         draw()
     }
 }

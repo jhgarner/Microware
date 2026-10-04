@@ -18,14 +18,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.game.model.Logic
-import com.example.microware.game.sprite.Palette
 import com.example.microware.ui.components.Grid
+import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.icons.drawAction
 import com.example.microware.ui.icons.drawArrowIcon
 import com.example.microware.ui.icons.drawTrigger
-import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.gestures.Offer
 import com.example.microware.util.Id
 
 internal object LogicListDragSource

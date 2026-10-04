@@ -1,10 +1,4 @@
 package com.example.microware.editor.sprite
-import com.example.microware.game.sprite.MaxSpriteHeight
-import com.example.microware.game.sprite.MaxSpriteWidth
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.Sprite
-import com.example.microware.game.sprite.SpriteBounds
-import com.example.microware.util.set
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +6,11 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
+import com.example.microware.Palette
+import com.example.microware.game.sprite.MaxSpriteHeight
+import com.example.microware.game.sprite.MaxSpriteWidth
+import com.example.microware.game.sprite.Sprite
+import com.example.microware.game.sprite.SpriteBounds
 
 internal class SpriteDraftFrame(
     val bitmap: ImageBitmap,

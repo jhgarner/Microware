@@ -1,17 +1,4 @@
 package com.example.microware.library
-import com.example.microware.game.model.Action
-import com.example.microware.game.model.Direction
-import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
-import com.example.microware.game.model.Obj
-import com.example.microware.game.model.Trigger
-import com.example.microware.game.sprite.Palette
-import com.example.microware.game.sprite.Sprite
-import com.example.microware.game.sprite.SpriteCodec
-import com.example.microware.game.sprite.StoredSprite
-import com.example.microware.platform.AppStorage
-import com.example.microware.util.Identifiable
-import com.example.microware.util.toPx
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +12,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
+import com.example.microware.game.model.Action
+import com.example.microware.game.model.Direction
+import com.example.microware.game.model.Logic
+import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Obj
+import com.example.microware.game.model.Trigger
+import com.example.microware.game.sprite.Sprite
+import com.example.microware.game.sprite.SpriteCodec
+import com.example.microware.game.sprite.StoredSprite
+import com.example.microware.platform.AppStorage
+import com.example.microware.util.Identifiable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 

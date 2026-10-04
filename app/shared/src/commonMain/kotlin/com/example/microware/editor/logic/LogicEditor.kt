@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import com.example.microware.Palette
 import com.example.microware.game.events.LogicEvent
 import com.example.microware.game.events.LogicsEvent
 import com.example.microware.game.model.Action
@@ -43,7 +44,6 @@ import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Trigger
-import com.example.microware.game.sprite.Palette
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.IntegerSliderControl

@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 
 internal fun DrawScope.drawMoveToIcon() {
     drawCircle(

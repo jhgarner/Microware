@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 
 internal fun DrawScope.drawCollisionIcon() {
     drawCollisionIcon(0f)

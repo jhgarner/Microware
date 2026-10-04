@@ -28,12 +28,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.example.microware.Palette
 import com.example.microware.game.events.GamesEvent
 import com.example.microware.game.model.Game
 import com.example.microware.game.model.World
 import com.example.microware.game.model.WorldHeight
 import com.example.microware.game.model.WorldWidth
-import com.example.microware.game.sprite.Palette
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.ButtonHandle
 import com.example.microware.ui.components.DrawerButtonState

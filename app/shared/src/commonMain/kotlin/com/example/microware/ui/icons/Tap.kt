@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 
 const val TAP_START = 0f
 const val TAP_DOWN = .3f

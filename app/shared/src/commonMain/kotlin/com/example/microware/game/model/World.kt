@@ -27,11 +27,11 @@ data class World(
                     newObj.copy(
                         offset = Offset(
                             (newObj.offset.x).coerceIn(0f, maxX),
-                            (newObj.offset.y).coerceIn(0f, maxY)
-                        )
+                            (newObj.offset.y).coerceIn(0f, maxY),
+                        ),
                     )
                 }
-            }.toPersistentList()
+            }.toPersistentList(),
         )
     }
 
@@ -48,8 +48,8 @@ data class World(
         copy(
             logicTags = if (logicTag != null) logicTags.add(
                 logicTag,
-                objectId
-            ) else logicTags.remove(objectId)
+                objectId,
+            ) else logicTags.remove(objectId),
         )
 
     fun clamped(obj: Obj): Obj {
@@ -58,8 +58,8 @@ data class World(
         return obj.copy(
             offset = Offset(
                 obj.offset.x.coerceIn(0f, maxX),
-                obj.offset.y.coerceIn(0f, maxY)
-            )
+                obj.offset.y.coerceIn(0f, maxY),
+            ),
         )
     }
 }

@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.random.Random
 
-val hands: List<Offset> = mutableListOf<Offset>().apply {
+private val hands: List<Offset> = mutableListOf<Offset>().apply {
     val rand = Random(31)
     repeat(40) {
         add(Offset(rand.nextFloat(), rand.nextFloat()))

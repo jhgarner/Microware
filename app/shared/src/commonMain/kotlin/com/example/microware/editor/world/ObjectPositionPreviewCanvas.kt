@@ -14,11 +14,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.game.model.Obj
 import com.example.microware.game.model.World
 import com.example.microware.game.model.WorldHeight
 import com.example.microware.game.model.WorldWidth
-import com.example.microware.game.sprite.Palette
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max

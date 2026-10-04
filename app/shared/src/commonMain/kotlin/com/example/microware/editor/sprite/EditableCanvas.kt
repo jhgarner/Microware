@@ -36,9 +36,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 import com.example.microware.editor.logic.LogicTagPicker
 import com.example.microware.game.model.LogicTag
-import com.example.microware.game.sprite.Palette
 import com.example.microware.game.sprite.Sprite
 import com.example.microware.game.sprite.SpriteBounds
 import com.example.microware.game.sprite.scaled
@@ -262,18 +262,18 @@ private fun BackgroundCanvas(
         targetValue = BackgroundTileSize,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 5000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            repeatMode = RepeatMode.Restart,
         ),
-        label = "tileScrollOffset"
+        label = "tileScrollOffset",
     )
 
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .clipToBounds()
+            .clipToBounds(),
     ) {
         val backgroundBrush = tiled(
-            scaled(transparent, BackgroundTileSize.toInt(), BackgroundTileSize.toInt())
+            scaled(transparent, BackgroundTileSize.toInt(), BackgroundTileSize.toInt()),
         )
         if (!cropToSprite) {
             translate(-offset, offset) {
@@ -292,7 +292,7 @@ private fun BackgroundCanvas(
         val spriteSize = fittedSpriteSize(size, sprite)
         val canvasOrigin = Offset(
             (size.width - spriteSize.width) / 2f,
-            (size.height - spriteSize.height) / 2f
+            (size.height - spriteSize.height) / 2f,
         ) + pan
         val left = floor(canvasOrigin.x)
         val top = floor(canvasOrigin.y)
@@ -311,12 +311,12 @@ private fun BackgroundCanvas(
                             // local-space overscan keeps it covered by the clip.
                             topLeft = Offset(
                                 -BackgroundTileSize,
-                                -BackgroundTileSize
+                                -BackgroundTileSize,
                             ),
                             size = Size(
                                 spriteSize.width + BackgroundTileSize * 2f,
-                                spriteSize.height + BackgroundTileSize * 2f
-                            )
+                                spriteSize.height + BackgroundTileSize * 2f,
+                            ),
                         )
                     }
                 }
@@ -353,12 +353,12 @@ private fun SpriteCanvas(
                     )
                     val offsetInitial = Offset(
                         (size.width - spriteSize.width) / 2f,
-                        (size.height - spriteSize.height) / 2f
+                        (size.height - spriteSize.height) / 2f,
                     )
                     val cellSize = spriteSize.width / frame.width * zoomState.value
                     return Cell(
                         row = floor((position.y - panState.value.y - offsetInitial.y) / cellSize).toInt(),
-                        col = floor((position.x - panState.value.x - offsetInitial.x) / cellSize).toInt()
+                        col = floor((position.x - panState.value.x - offsetInitial.x) / cellSize).toInt(),
                     )
                 }
 
@@ -402,7 +402,7 @@ private fun SpriteCanvas(
                         )
                         val spriteOrigin = Offset(
                             (size.width - spriteSize.width) / 2f,
-                            (size.height - spriteSize.height) / 2f
+                            (size.height - spriteSize.height) / 2f,
                         )
                         followPinch { offset, size ->
                             val lastOff = lastOffset ?: offset
@@ -417,7 +417,7 @@ private fun SpriteCanvas(
                         }
                     }
                 }
-            }
+            },
     ) {
         // Use exact (non-floored) cell size for math, then snap edges to pixels.
         // This avoids banding/gaps from flooring the cell size and from
@@ -427,7 +427,7 @@ private fun SpriteCanvas(
         val spriteSize = fittedSize(size, frame.width, frame.height)
         val offsetInitial = Offset(
             (size.width - spriteSize.width) / 2f,
-            (size.height - spriteSize.height) / 2f
+            (size.height - spriteSize.height) / 2f,
         )
         val exactCellSize = spriteSize.width / frame.width * zoom
 

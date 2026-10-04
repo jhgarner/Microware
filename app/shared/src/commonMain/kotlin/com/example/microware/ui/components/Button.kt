@@ -27,7 +27,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.microware.game.sprite.Palette
+import com.example.microware.Palette
 
 @Composable
 internal fun IconButton(
@@ -47,7 +47,7 @@ internal fun IconButton(
         iconAnimation.snapTo(0f)
         iconAnimation.animateTo(
             1f,
-            animationSpec = tween(durationMillis = 800, easing = LinearEasing)
+            animationSpec = tween(durationMillis = 800, easing = LinearEasing),
         )
     }
 
