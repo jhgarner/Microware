@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
 import com.example.microware.ui.components.IconButton
-import com.example.microware.ui.icons.drawStartIcon
+import com.example.microware.ui.icons.drawJoinCommunityIcon
 import com.example.microware.ui.layout.insets
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -110,6 +110,7 @@ fun JoinCommunity(onJoin: (DurableId) -> Boolean) {
                     ),
                 )
                 IconButton(
+                    description = "Join community",
                     modifier = Modifier.size(60.dp),
                     onClick = {
                         submittedType = SubmittedType.Emoji
@@ -121,9 +122,7 @@ fun JoinCommunity(onJoin: (DurableId) -> Boolean) {
                         }
                     },
                 ) {
-                    // TODO this is the wrong icon. Figure out an icon that represents joining a
-                    //  community.
-                    drawStartIcon()
+                    drawJoinCommunityIcon(it)
                 }
             }
         }
