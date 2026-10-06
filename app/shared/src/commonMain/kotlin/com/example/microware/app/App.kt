@@ -8,16 +8,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.microware.Palette
+import com.example.microware.community.Avatar
+import com.example.microware.community.Banner
+import com.example.microware.community.Communities
 import com.example.microware.community.Community
-import com.example.microware.community.JoinCommunity
+import com.example.microware.community.DurableId
 import com.example.microware.editor.GameEditor
 import com.example.microware.game.events.GamesEvent.Companion.forGame
+import com.example.microware.game.sprite.Sprite
 import com.example.microware.games.GamesPage
 import com.example.microware.games.store.AppGameRepository
 import com.example.microware.games.store.GameStore
@@ -26,6 +31,24 @@ import com.example.microware.ui.components.Overlay
 import com.example.microware.ui.layout.Insets
 import com.example.microware.ui.layout.LocalInsets
 import com.example.microware.util.Id
+
+private val existingCommunities = listOf(
+    Community(
+        code = DurableId(511L),
+        icon = Avatar(Sprite.solid(32, 32, Palette.Cyan)),
+        memberBanner = Banner(
+            Sprite.pattern(128, 32) {
+                when (it % 3) {
+                    0 -> Palette.Green
+                    1 -> Palette.Forest
+                    2 -> Palette.Cyan
+                    else -> Palette.Tan
+                }
+            },
+        ),
+        experiences = listOf(),
+    ),
+)
 
 @Composable
 fun App() {
@@ -46,7 +69,7 @@ fun App() {
             val gameState by gameStore.state.collectAsState()
             var selectedGameId by remember { mutableStateOf<Id?>(null) }
 
-            var communities by remember { mutableStateOf(listOf<Community>()) }
+            val communities = remember { mutableStateListOf<Community>() }
 
             CompositionLocalProvider(LocalInsets provides Insets.new()) {
                 var navigation by remember { mutableStateOf<HomeNavigation?>(null) }
@@ -81,7 +104,11 @@ fun App() {
                         onBack = { navigation = null },
                     )
 
-                    HomeNavigation.Community -> JoinCommunity { }
+                    HomeNavigation.Community -> Communities(
+                        communities,
+                        lookup = { id -> println("Id is $id"); existingCommunities.find { it.code == id } },
+                        addCommunity = { communities.add(it) },
+                    )
                 }
             }
         }

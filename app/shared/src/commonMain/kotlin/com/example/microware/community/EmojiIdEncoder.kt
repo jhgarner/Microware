@@ -51,7 +51,7 @@ private fun parityDigitFor(digits: List<Int>): Int {
     return ((encodingRadix - sum) % encodingRadix).toInt()
 }
 
-private val encodingAlphabet = listOf(
+val encodingAlphabet = listOf(
     "😀",
     "😃",
     "😄",
