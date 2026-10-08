@@ -17,7 +17,8 @@ internal fun DrawScope.drawJoinCommunityIcon(t: Float = 0f) {
     val approach = animate(t) {
         hold(.08f)
         anim(1f, .37f)
-        hold()
+        hold(until(.9f))
+        anim(initial, until(1f))
     }
     val cyanPosition = Offset(-.1f, .48f) + Offset(.24f, -.26f) * approach
     val cyanSize = Size(.44f - .20f * approach, .60f - .22f * approach)
