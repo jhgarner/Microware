@@ -23,13 +23,16 @@ import kotlin.math.sin
 
 @Composable
 internal fun PlayNumber(value: Int, modifier: Modifier, description: String) {
-    Canvas(modifier.semantics {
-        contentDescription = description
-        stateDescription = value.toString()
-    }) { drawPlayNumber(value) }
+    Canvas(
+        modifier.semantics {
+            contentDescription = description
+            stateDescription = value.toString()
+        },
+    ) { drawPlayNumber(value) }
 }
 
-private val digitSegments = listOf("abcdef", "bc", "abdeg", "abcdg", "bcfg", "acdfg", "acdefg", "abc", "abcdefg", "abcdfg")
+private val digitSegments =
+    listOf("abcdef", "bc", "abdeg", "abcdg", "bcfg", "acdfg", "acdefg", "abc", "abcdefg", "abcdfg")
 private val segments = listOf(
     'a' to (Offset(.2f, .12f) to Offset(.8f, .12f)),
     'b' to (Offset(.86f, .2f) to Offset(.86f, .44f)),
@@ -45,7 +48,10 @@ private fun DrawScope.drawPlayNumber(value: Int) {
     val height = min(size.height, size.width / (digits.length * .65f))
     val width = height * .55f
     val spacing = height * .1f
-    val origin = Offset((size.width - digits.length * (width + spacing) + spacing) / 2, (size.height - height) / 2)
+    val origin = Offset(
+        (size.width - digits.length * (width + spacing) + spacing) / 2,
+        (size.height - height) / 2,
+    )
     digits.forEachIndexed { index, digit ->
         within(Rect(origin + Offset(index * (width + spacing), 0f), Size(width, height))) {
             for ((name, points) in segments) {
@@ -66,8 +72,22 @@ private fun DrawScope.drawPlayNumber(value: Int) {
 internal fun DrawScope.drawLife(filled: Boolean) {
     val heart = Path().apply {
         moveTo(size.width * .5f, size.height * .88f)
-        cubicTo(-size.width * .18f, size.height * .35f, size.width * .13f, -size.height * .1f, size.width * .5f, size.height * .25f)
-        cubicTo(size.width * .87f, -size.height * .1f, size.width * 1.18f, size.height * .35f, size.width * .5f, size.height * .88f)
+        cubicTo(
+            -size.width * .18f,
+            size.height * .35f,
+            size.width * .13f,
+            -size.height * .1f,
+            size.width * .5f,
+            size.height * .25f,
+        )
+        cubicTo(
+            size.width * .87f,
+            -size.height * .1f,
+            size.width * 1.18f,
+            size.height * .35f,
+            size.width * .5f,
+            size.height * .88f,
+        )
         close()
     }
     drawPath(heart, if (filled) Palette.Red.color else Palette.LightGray.color)
@@ -76,13 +96,25 @@ internal fun DrawScope.drawLife(filled: Boolean) {
 
 internal fun DrawScope.drawPauseIcon() {
     for (x in listOf(.28f, .60f)) {
-        drawRect(Palette.Navy.color, Offset(size.width * x, size.height * .22f), Size(size.width * .14f, size.height * .56f))
+        drawRect(
+            Palette.Navy.color,
+            Offset(size.width * x, size.height * .22f),
+            Size(size.width * .14f, size.height * .56f),
+        )
     }
 }
 
 internal fun DrawScope.drawReplayIcon(t: Float) {
-    rotate(-t * 360f) {
-        drawArc(Palette.Cyan.color, 35f, 280f, false, Offset(size.width * .18f, size.height * .18f), Size(size.width * .64f, size.height * .64f), style = Stroke(size.minDimension * .10f, cap = StrokeCap.Round))
+    rotate(t * 360f) {
+        drawArc(
+            Palette.Cyan.color,
+            35f,
+            280f,
+            false,
+            Offset(size.width * .18f, size.height * .18f),
+            Size(size.width * .64f, size.height * .64f),
+            style = Stroke(size.minDimension * .10f, cap = StrokeCap.Round),
+        )
         val arrow = Path().apply {
             moveTo(size.width * .68f, size.height * .10f)
             lineTo(size.width * .92f, size.height * .34f)
@@ -97,8 +129,20 @@ internal fun DrawScope.drawSpeedIcon(t: Float) {
     val pulse = 1f + sin(t * PI.toFloat()) * .12f
     scale(pulse) {
         for (x in listOf(.18f, .5f)) {
-            drawLine(Palette.Orange.color, Offset(size.width * x, size.height * .24f), Offset(size.width * (x + .23f), size.height * .5f), size.minDimension * .10f, StrokeCap.Round)
-            drawLine(Palette.Orange.color, Offset(size.width * (x + .23f), size.height * .5f), Offset(size.width * x, size.height * .76f), size.minDimension * .10f, StrokeCap.Round)
+            drawLine(
+                Palette.Orange.color,
+                Offset(size.width * x, size.height * .24f),
+                Offset(size.width * (x + .23f), size.height * .5f),
+                size.minDimension * .10f,
+                StrokeCap.Round,
+            )
+            drawLine(
+                Palette.Orange.color,
+                Offset(size.width * (x + .23f), size.height * .5f),
+                Offset(size.width * x, size.height * .76f),
+                size.minDimension * .10f,
+                StrokeCap.Round,
+            )
         }
     }
 }

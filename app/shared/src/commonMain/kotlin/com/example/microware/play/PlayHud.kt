@@ -25,7 +25,11 @@ internal fun PlayHud(session: PlaySession) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Canvas(Modifier.size(28.dp)) { drawWinIcon() }
-            PlayNumber(session.score, Modifier.size(40.dp).testTag("play-score"), "Score ${session.score}")
+            PlayNumber(
+                session.score,
+                Modifier.size(40.dp).testTag("play-score"),
+                "Score ${session.score}",
+            )
             Spacer(Modifier.weight(1f))
             Lives(session)
             Spacer(Modifier.weight(1f))
@@ -36,12 +40,21 @@ internal fun PlayHud(session: PlaySession) {
                 onClick = session::pause,
             ) { drawPauseIcon() }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PlayNumber(session.round, Modifier.size(28.dp).testTag("play-round"), "Round ${session.round}")
-            Canvas(Modifier.size(28.dp).testTag("play-speed").semantics {
-                contentDescription = "Speed ${session.speed}"
-                stateDescription = session.speed.toString()
-            }) { drawSpeedIcon(0f) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            PlayNumber(
+                session.round,
+                Modifier.size(28.dp).testTag("play-round"),
+                "Round ${session.round}",
+            )
+            Canvas(
+                Modifier.size(28.dp).testTag("play-speed").semantics {
+                    contentDescription = "Speed ${session.speed}"
+                    stateDescription = session.speed.toString()
+                },
+            ) { drawSpeedIcon(0f) }
         }
     }
 }
@@ -59,6 +72,7 @@ private fun Lives(session: PlaySession) {
     ) {
         repeat(PlaySession.StartingLives) { index ->
             Canvas(Modifier.size(20.dp)) {
+                drawLife(false)
                 val disappearing = feedback?.result == GameResult.Lost && index == session.lives
                 if (disappearing) scale(1f - session.phaseProgress) { drawLife(true) }
                 else drawLife(index < session.lives)
