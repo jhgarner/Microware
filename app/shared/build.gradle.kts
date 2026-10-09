@@ -1,3 +1,5 @@
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import org.gradle.api.attributes.java.TargetJvmVersion
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -7,6 +9,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.roborazzi)
 }
 
 kotlin {
@@ -20,7 +23,13 @@ kotlin {
         }
     }
 
-    jvm()
+    jvm {
+        compilerOptions {
+            // ComposablePreviewScanner publishes JVM 17 metadata, so the desktop
+            // test classpath needs a JVM 17 target to resolve it.
+            jvmTarget = JvmTarget.JVM_17
+        }
+    }
 
     js {
         browser()
@@ -88,10 +97,30 @@ kotlin {
         jvmTest.dependencies {
             implementation(libs.kotlin.testJunit)
             implementation(compose.desktop.currentOs)
+            implementation(libs.roborazzi.desktopPreviewScannerSupport)
+            implementation(libs.composablePreviewScanner.android)
         }
     }
 }
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+}
+
+// The test classpath's JVM attribute is not derived from the target's compiler
+// options, so raise it to JVM 17 to resolve ComposablePreviewScanner's metadata.
+afterEvaluate {
+    listOf("jvmTestCompileClasspath", "jvmTestRuntimeClasspath").forEach { name ->
+        configurations.named(name) {
+            attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+        }
+    }
+}
+
+roborazzi {
+    @OptIn(ExperimentalRoborazziApi::class)
+    generateComposePreviewDesktopTests {
+        enable = true
+        packages = listOf("com.example.microware")
+    }
 }
