@@ -1,23 +1,71 @@
 package com.example.microware.play
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.microware.community.DrawBanner
-
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toIntSize
+import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.icons.drawBackIcon
+import com.example.microware.ui.icons.drawHomePlayIcon
+import com.example.microware.ui.layout.insets
 
 @Composable
-fun PickExperience(experiences: List<Experience>, pick: (Experience) -> Unit) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        for (experience in experiences) {
-            item {
-                Box(modifier = Modifier.clickable { pick(experience) }) {
-                    DrawBanner(experience.banner)
+fun PickExperience(experiences: List<Experience>, onBack: () -> Unit, pick: (Experience) -> Unit) {
+    Column(Modifier.fillMaxSize().padding(
+        start = insets.leftDp() + 16.dp,
+        end = insets.rightDp() + 16.dp,
+        top = insets.topDp() + 8.dp,
+        bottom = insets.bottomDp(),
+    )) {
+        IconButton(description = "Back from play", modifier = Modifier.size(52.dp), onClick = onBack) {
+            drawBackIcon()
+        }
+        if (experiences.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.size(120.dp).semantics { contentDescription = "No experiences to play yet" }) {
+                    drawHomePlayIcon(0f)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                itemsIndexed(experiences, key = { _, experience -> experience.id.value }) { index, experience ->
+                    IconButton(
+                        description = "Play experience",
+                        modifier = Modifier.fillMaxWidth().height(112.dp).semantics {
+                            stateDescription = "Experience ${index + 1}, ${experience.games.size} games"
+                        },
+                        aspectRatio = 4f,
+                        enabled = experience.games.isNotEmpty(),
+                        onClick = { pick(experience) },
+                    ) {
+                        drawImage(
+                            experience.banner.sprite.bitmap,
+                            dstSize = size.toIntSize(),
+                            filterQuality = FilterQuality.None,
+                            alpha = if (experience.games.isEmpty()) .35f else 1f,
+                        )
+                    }
                 }
             }
         }

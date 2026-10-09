@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-private fun DrawScope.drawCheckIcon() {
+internal fun DrawScope.drawCheckIcon() {
     drawLine(
         Color.Black,
         Offset(size.width * .15f, size.height * .52f),

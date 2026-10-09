@@ -493,7 +493,11 @@ private fun EditableActionCard(
         ) {
             Canvas(Modifier.size(36.dp).padding(4.dp)) { drawAction(action) }
             Box(Modifier.weight(1f))
-            IconButton("Delete action", onClick = onDelete) { _ -> drawTrashIcon() }
+            IconButton(
+                "Delete action",
+                modifier = Modifier.size(48.dp),
+                onClick = onDelete,
+            ) { _ -> drawTrashIcon() }
         }
 
         when (action) {
@@ -528,6 +532,7 @@ private fun EditableActionCard(
                     )
                     IconButton(
                         "Change direction",
+                        modifier = Modifier.size(48.dp),
                         onClick = {
                             val directions =
                                 listOf(Direction.N, Direction.E, Direction.S, Direction.W)
@@ -620,7 +625,11 @@ private fun SpeedControl(
 
 @Composable
 private fun ActionButton(choice: ActionChoice, onClick: () -> Unit) {
-    IconButton("Add ${choice.name} action", onClick = onClick) { time ->
+    IconButton(
+        "Add ${choice.name} action",
+        modifier = Modifier.size(48.dp),
+        onClick = onClick,
+    ) { time ->
         when (choice) {
             ActionChoice.Move -> drawTrainIcon(time)
             ActionChoice.MoveTo -> drawMoveToIcon()

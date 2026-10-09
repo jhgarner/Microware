@@ -26,7 +26,9 @@ import com.example.microware.game.sprite.Sprite
 import com.example.microware.games.GamesPage
 import com.example.microware.games.store.AppGameRepository
 import com.example.microware.games.store.GameStore
+import com.example.microware.play.Experience
 import com.example.microware.play.PlayPage
+import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.Overlay
 import com.example.microware.ui.layout.Insets
 import com.example.microware.ui.layout.LocalInsets
@@ -46,7 +48,18 @@ private val existingCommunities = listOf(
                 }
             },
         ),
-        experiences = listOf(),
+        experiences = listOf(
+            Experience(
+                banner = Banner(Sprite.pattern(128, 32) { pixel ->
+                    if ((pixel % 128 / 16 + pixel / 128 / 16) % 2 == 0) {
+                        Palette.Cyan
+                    } else {
+                        Palette.Purple
+                    }
+                }),
+                games = emptyList(),
+            ),
+        ),
     ),
 )
 
@@ -95,6 +108,17 @@ fun App() {
                                 game = game,
                                 handler = { event -> gameStore.dispatch(event.forGame(gameIndex)) },
                                 onBack = { selectedGameId = null },
+                                publish = { gameToPublish ->
+                                    PublishGame(
+                                        communities = communities,
+                                        game = gameToPublish,
+                                        onJoinCommunity = { navigation = HomeNavigation.Community },
+                                        onPublish = { communityCode, experienceId ->
+                                            val index = communities.indexOfFirst { it.code == communityCode }
+                                            communities[index] = communities[index].publish(experienceId, gameToPublish)
+                                        },
+                                    )
+                                },
                             )
                         }
                     }
@@ -104,11 +128,19 @@ fun App() {
                         onBack = { navigation = null },
                     )
 
-                    HomeNavigation.Community -> Communities(
-                        communities,
-                        lookup = { id -> println("Id is $id"); existingCommunities.find { it.code == id } },
-                        addCommunity = { communities.add(it) },
-                    )
+                    HomeNavigation.Community -> {
+                        SystemBackHandler {
+                            navigation = if (selectedGameId != null) HomeNavigation.Editor else null
+                        }
+                        Communities(
+                            communities,
+                            lookup = { id -> existingCommunities.find { it.code == id } },
+                            addCommunity = { community ->
+                                if (communities.none { it.code == community.code }) communities.add(community)
+                                if (selectedGameId != null) navigation = HomeNavigation.Editor
+                            },
+                        )
+                    }
                 }
             }
         }

@@ -44,6 +44,27 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
   - JS target: `./gradlew :app:shared:jsTest`
 - iOS tests: `./gradlew :app:shared:iosSimulatorArm64Test`
 
+### Checking the publish and play flow
+
+With an Android device or emulator listed by `adb devices`, run:
+
+```sh
+./gradlew -PisolatedVerification :app:shared:jvmTest :app:androidApp:connectedDebugAndroidTest
+```
+
+The optional `isolatedVerification` property installs the debug app as
+`com.example.microware.verification`. This keeps an existing MicroWare installation
+and its saved games separate, including when it was signed with a different key.
+Normal builds keep their existing application ID.
+
+The JVM tests check session rules and runtime timing. Graphics-dependent JVM
+tests need Skiko's native dependencies on Linux. On NixOS, expose the 64-bit
+libglvnd, libX11, fontconfig, and compiler runtime library directories through
+`LD_LIBRARY_PATH`.
+The Android tests supply their own game and community fixtures and advance a
+virtual clock, so they do not require manually creating or joining anything or
+waiting through each attempt. They do not use the saved game library.
+
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),

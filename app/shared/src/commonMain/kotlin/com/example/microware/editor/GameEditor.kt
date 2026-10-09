@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
@@ -46,16 +46,18 @@ import com.example.microware.ui.icons.drawBackIcon
 import com.example.microware.ui.icons.drawLogicIcon
 import com.example.microware.ui.icons.drawObjectOrderIcon
 import com.example.microware.ui.icons.drawPlayIcon
+import com.example.microware.ui.icons.drawPublishIcon
 import com.example.microware.ui.icons.drawWorldIcon
 import com.example.microware.ui.layout.insets
 
-private enum class GameEditorPage { World, Objects, Logic, Play }
+private enum class GameEditorPage { World, Objects, Logic, Play, Publish }
 
 @Composable
 fun BoxWithConstraintsScope.GameEditor(
     game: Game,
     handler: (GameEvents) -> Unit,
     onBack: () -> Unit = {},
+    publish: @Composable (Game) -> Unit,
 ) {
     var page by remember { mutableStateOf(GameEditorPage.World) }
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
@@ -95,7 +97,7 @@ fun BoxWithConstraintsScope.GameEditor(
             if (selectedPage == GameEditorPage.World) {
                 logicPage = LogicEditorPage.List
             }
-            if (selectedPage == GameEditorPage.Play && page != GameEditorPage.Play) {
+            if (selectedPage == GameEditorPage.Play) {
                 playSession++
             }
             page = selectedPage
@@ -116,12 +118,13 @@ fun BoxWithConstraintsScope.GameEditor(
 
         GameEditorPage.Logic -> logicEditorState.dragController
         GameEditorPage.Play -> null
+        GameEditorPage.Publish -> null
     }
     Box(
         modifier = activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier,
     ) {
         Column(Modifier.fillMaxSize()) {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Palette.OffWhite.color)
@@ -133,12 +136,12 @@ fun BoxWithConstraintsScope.GameEditor(
                     } else {
                         "Back from game editor"
                     },
-                    modifier = Modifier.align(Alignment.CenterStart),
+                    modifier = Modifier.size(52.dp),
                     onClick = onBack1,
                 ) { _ -> drawBackIcon() }
                 Row(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.Center,
                 ) {
                     EditorTabButton(
                         description = "Edit world",
@@ -161,6 +164,11 @@ fun BoxWithConstraintsScope.GameEditor(
                         selected = page == GameEditorPage.Play,
                         onClick = { onPageChange1(GameEditorPage.Play) },
                     ) { _ -> drawPlayIcon() }
+                    EditorTabButton(
+                        description = "Publish Game",
+                        selected = page == GameEditorPage.Publish,
+                        onClick = { onPageChange1(GameEditorPage.Publish) },
+                    ) { drawPublishIcon(it) }
                 }
             }
             Box(Modifier.weight(1f)) {
@@ -192,6 +200,7 @@ fun BoxWithConstraintsScope.GameEditor(
                             )
 
                             GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
+                            GameEditorPage.Publish -> publish(game)
                         }
                     }
                 }
@@ -217,7 +226,7 @@ fun BoxWithConstraintsScope.GameEditor(
                 handler = handler,
             )
 
-            GameEditorPage.Play -> {
+            GameEditorPage.Play, GameEditorPage.Publish -> {
                 this@GameEditor.ButtonHandle(HandleType.Trash)
                 this@GameEditor.ButtonHandle(HandleType.Create)
                 this@GameEditor.ButtonHandle(HandleType.Library)
@@ -227,7 +236,7 @@ fun BoxWithConstraintsScope.GameEditor(
 }
 
 @Composable
-private fun EditorTabButton(
+private fun RowScope.EditorTabButton(
     description: String,
     selected: Boolean,
     enabled: Boolean = true,
@@ -239,7 +248,7 @@ private fun EditorTabButton(
         selected = selected,
         enabled = enabled,
         padding = 0.dp,
-        modifier = Modifier.size(52.dp),
+        modifier = Modifier.weight(1f, fill = false).size(52.dp),
         onClick = onClick,
         icon = icon,
     )

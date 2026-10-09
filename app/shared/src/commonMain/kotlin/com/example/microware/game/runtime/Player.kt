@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -39,7 +40,7 @@ import com.example.microware.game.sprite.scaled
 import com.example.microware.ui.layout.insets
 import kotlin.math.min
 
-data class Player(
+class Player(
     val logics: List<Logic>,
     val objects: MutableMap<LogicTag, ObjectState> = mutableMapOf(),
     val scenery: List<ObjectState> = emptyList(),
@@ -47,6 +48,8 @@ data class Player(
     var winState: WinState = WinState.Playing,
     var colliding: Set<Colliding> = setOf(),
 ) {
+    private var fractionalElapsedMs = 0.0
+    private var hasDeliveredResult = false
     private var cachedScale = Float.NaN
     private var cachedBackground: ImageBitmap? = null
     private val cachedObjects = mutableMapOf<LogicTag, CachedBitmap>()
@@ -66,35 +69,34 @@ data class Player(
         }
     }
 
+    val result: GameResult?
+        get() = if (timeMs < GameDurationMillis) {
+            null
+        } else if (winState == WinState.Won) {
+            GameResult.Won
+        } else {
+            GameResult.Lost
+        }
+
     fun step(delta: Long) {
         if (delta <= 0L || timeMs >= GameDurationMillis) return
 
         val elapsed = delta.coerceAtMost(GameDurationMillis - timeMs)
-        move(elapsed)
-
-        val newColliding = mutableSetOf<Colliding>()
-        val objectEntries = objects.entries.toList()
-        for (firstIndex in objectEntries.indices) {
-            val (tag, obj) = objectEntries[firstIndex]
-            for (secondIndex in firstIndex + 1 until objectEntries.size) {
-                val (tag2, obj2) = objectEntries[secondIndex]
-                if (obj.rect().overlaps(obj2.rect())) {
-                    newColliding += Colliding.new(tag, tag2)
-                }
-            }
+        var remaining = elapsed
+        while (remaining > 0L) {
+            val substep = remaining.coerceAtMost(MaxSimulationStepMillis)
+            move(substep)
+            resolveCollisions()
+            timeMs += substep
+            remaining -= substep
         }
+    }
 
-        for (logic in logics) {
-            if (logic.trigger is Trigger.Collision) {
-                val trigger = Colliding.new(logic.trigger)
-                if (trigger in newColliding && trigger !in colliding) {
-                    logic.actions.forEach { runAction(it) }
-                }
-            }
-        }
-
-        colliding = newColliding
-        timeMs += elapsed
+    fun advance(delta: Long, speed: Float = 1f) {
+        val scaledDelta = delta * speed.toDouble() + fractionalElapsedMs
+        val wholeMilliseconds = scaledDelta.toLong()
+        fractionalElapsedMs = scaledDelta - wholeMilliseconds
+        step(wholeMilliseconds)
     }
 
     fun tap(location: Offset) {
@@ -163,34 +165,77 @@ data class Player(
         }
     }
 
+    private fun resolveCollisions() {
+        val newColliding = mutableSetOf<Colliding>()
+        val objectEntries = objects.entries.toList()
+        for (firstIndex in objectEntries.indices) {
+            val (tag, obj) = objectEntries[firstIndex]
+            for (secondIndex in firstIndex + 1 until objectEntries.size) {
+                val (tag2, obj2) = objectEntries[secondIndex]
+                if (obj.rect().overlaps(obj2.rect())) {
+                    newColliding += Colliding.new(tag, tag2)
+                }
+            }
+        }
+
+        for (logic in logics) {
+            if (logic.trigger is Trigger.Collision) {
+                val trigger = Colliding.new(logic.trigger)
+                if (trigger in newColliding && trigger !in colliding) {
+                    logic.actions.forEach { runAction(it) }
+                }
+            }
+        }
+
+        colliding = newColliding
+    }
+
     @Composable
-    fun PlayGame(active: Boolean = true) {
+    fun PlayGame(
+        active: Boolean = true,
+        speed: Float = 1f,
+        modifier: Modifier = Modifier,
+        applyInsets: Boolean = true,
+        onFinished: (GameResult) -> Unit = {},
+    ) {
         var frameTime by remember(this@Player) { mutableStateOf(0L) }
         var canvasSize by remember(this@Player) { mutableStateOf(IntSize.Zero) }
+        val latestOnFinished by rememberUpdatedState(onFinished)
 
-        LaunchedEffect(this@Player, active) {
-            if (!active) return@LaunchedEffect
+        LaunchedEffect(this@Player, active, speed) {
+            if (!active || hasDeliveredResult) return@LaunchedEffect
 
             var previousFrame = withFrameMillis { it }
             frameTime = previousFrame
 
-            while (timeMs < GameDurationMillis) {
+            while (result == null) {
                 val currentFrame = withFrameMillis { it }
                 val delta = (currentFrame - previousFrame).coerceAtLeast(0L)
-                step(delta)
+                advance(delta, speed)
                 previousFrame = currentFrame
                 frameTime = currentFrame
+
+                result?.let { finishedResult ->
+                    hasDeliveredResult = true
+                    latestOnFinished(finishedResult)
+                }
             }
         }
 
         Canvas(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
-                .padding(
-                    start = insets.leftDp(),
-                    top = insets.topDp(),
-                    end = insets.rightDp(),
-                    bottom = insets.bottomDp(),
+                .then(
+                    if (applyInsets) {
+                        Modifier.padding(
+                            start = insets.leftDp(),
+                            top = insets.topDp(),
+                            end = insets.rightDp(),
+                            bottom = insets.bottomDp(),
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
                 .clipToBounds()
                 .onSizeChanged { canvasSize = it }
@@ -294,6 +339,7 @@ data class Player(
 
     companion object {
         internal const val GameDurationMillis = 3_000L
+        private const val MaxSimulationStepMillis = 4L
 
         private fun worldObj(world: World): MutableMap<LogicTag, ObjectState> {
             val result = mutableMapOf<LogicTag, ObjectState>()
