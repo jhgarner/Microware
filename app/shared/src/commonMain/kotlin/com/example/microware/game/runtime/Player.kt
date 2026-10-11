@@ -39,6 +39,7 @@ import com.example.microware.game.model.WorldWidth
 import com.example.microware.game.sprite.scaled
 import com.example.microware.ui.layout.insets
 import kotlin.math.min
+import kotlin.random.Random
 
 class Player(
     val logics: List<Logic>,
@@ -47,6 +48,7 @@ class Player(
     var timeMs: Long = 0L,
     var winState: WinState = WinState.Playing,
     var colliding: Set<Colliding> = setOf(),
+    private val random: Random = Random.Default,
 ) {
     private var fractionalElapsedMs = 0.0
     private var hasDeliveredResult = false
@@ -55,10 +57,11 @@ class Player(
     private val cachedObjects = mutableMapOf<LogicTag, CachedBitmap>()
     private val cachedScenery = mutableListOf<CachedBitmap>()
 
-    constructor(game: Game) : this(
+    constructor(game: Game, random: Random = Random.Default) : this(
         logics = game.logics,
         objects = worldObj(game.world),
         scenery = worldScenery(game.world),
+        random = random,
     )
 
     init {
@@ -147,21 +150,40 @@ class Player(
             is Action.MoveTo -> {
                 val mover = objects[action.mover] ?: return
                 val target = objects[action.target] ?: return
-                val difference = target.offset - mover.offset
-                val distance = difference.getDistance()
-
-                if (action.speed == null) {
-                    mover.offset = target.offset
-                    mover.velocity = Offset.Zero
-                    mover.destination = null
-                } else if (distance == 0f) {
-                    mover.velocity = Offset.Zero
-                    mover.destination = null
-                } else {
-                    mover.velocity = difference / distance * action.speed.toFloat()
-                    mover.destination = target.offset
-                }
+                moveTo(mover, target.offset, action.speed)
             }
+
+            is Action.MoveWithin -> {
+                val mover = objects[action.mover] ?: return
+                val target = objects[action.target] ?: return
+                val targetRect = target.rect()
+                val availableWidth = targetRect.width - mover.bitmap.width
+                val availableHeight = targetRect.height - mover.bitmap.height
+                if (availableWidth < 0f || availableHeight < 0f) return
+
+                val destination = Offset(
+                    x = targetRect.left + random.nextFloat() * availableWidth,
+                    y = targetRect.top + random.nextFloat() * availableHeight,
+                )
+                moveTo(mover, destination, action.speed)
+            }
+        }
+    }
+
+    private fun moveTo(mover: ObjectState, destination: Offset, speed: Int?) {
+        val difference = destination - mover.offset
+        val distance = difference.getDistance()
+
+        if (speed == null) {
+            mover.offset = destination
+            mover.velocity = Offset.Zero
+            mover.destination = null
+        } else if (distance == 0f) {
+            mover.velocity = Offset.Zero
+            mover.destination = null
+        } else {
+            mover.velocity = difference / distance * speed.toFloat()
+            mover.destination = destination
         }
     }
 

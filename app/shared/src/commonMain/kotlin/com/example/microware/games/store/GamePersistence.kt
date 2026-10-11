@@ -190,6 +190,13 @@ private fun Action.toStoredAction(): GameStoredAction = when (this) {
         speed = speed,
     )
 
+    is Action.MoveWithin -> GameStoredAction(
+        type = "moveWithin",
+        moverTag = mover.tag,
+        targetTag = target.tag,
+        speed = speed,
+    )
+
     Action.Win -> GameStoredAction(type = "win")
     Action.Lose -> GameStoredAction(type = "lose")
 }
@@ -202,6 +209,12 @@ private fun GameStoredAction.toAction(): Action = when (type) {
     )
 
     "moveTo" -> Action.MoveTo(
+        mover = LogicTag(requireNotNull(moverTag)),
+        target = LogicTag(requireNotNull(targetTag)),
+        speed = speed,
+    )
+
+    "moveWithin" -> Action.MoveWithin(
         mover = LogicTag(requireNotNull(moverTag)),
         target = LogicTag(requireNotNull(targetTag)),
         speed = speed,

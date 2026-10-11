@@ -57,7 +57,7 @@ fun BoxWithConstraintsScope.GameEditor(
     game: Game,
     handler: (GameEvents) -> Unit,
     onBack: () -> Unit = {},
-    publish: @Composable (Game) -> Unit,
+    publish: (@Composable (Game) -> Unit)?,
 ) {
     var page by remember { mutableStateOf(GameEditorPage.World) }
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
@@ -167,6 +167,7 @@ fun BoxWithConstraintsScope.GameEditor(
                     EditorTabButton(
                         description = "Publish Game",
                         selected = page == GameEditorPage.Publish,
+                        enabled = publish != null,
                         onClick = { onPageChange1(GameEditorPage.Publish) },
                     ) { drawPublishIcon(it) }
                 }
@@ -200,7 +201,7 @@ fun BoxWithConstraintsScope.GameEditor(
                             )
 
                             GameEditorPage.Play -> player.PlayGame(active = page == GameEditorPage.Play)
-                            GameEditorPage.Publish -> publish(game)
+                            GameEditorPage.Publish -> publish?.invoke(game)
                         }
                     }
                 }

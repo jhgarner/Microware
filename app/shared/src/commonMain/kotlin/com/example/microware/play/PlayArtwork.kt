@@ -125,22 +125,27 @@ internal fun DrawScope.drawReplayIcon(t: Float) {
     }
 }
 
-internal fun DrawScope.drawSpeedIcon(t: Float) {
+internal fun DrawScope.drawSpeedIcon(arrowCount: Int, t: Float = 0f) {
     val pulse = 1f + sin(t * PI.toFloat()) * .12f
+    val arrowWidth = min(.23f, .72f / (arrowCount + (arrowCount - 1) * .4f))
+    val spacing = arrowWidth * 1.4f
+    val startX = (1f - arrowWidth - (arrowCount - 1) * spacing) / 2f
+    val strokeWidth = size.minDimension * min(.10f, arrowWidth * .4f)
     scale(pulse) {
-        for (x in listOf(.18f, .5f)) {
+        repeat(arrowCount) { index ->
+            val x = startX + index * spacing
             drawLine(
                 Palette.Orange.color,
                 Offset(size.width * x, size.height * .24f),
-                Offset(size.width * (x + .23f), size.height * .5f),
-                size.minDimension * .10f,
+                Offset(size.width * (x + arrowWidth), size.height * .5f),
+                strokeWidth,
                 StrokeCap.Round,
             )
             drawLine(
                 Palette.Orange.color,
-                Offset(size.width * (x + .23f), size.height * .5f),
+                Offset(size.width * (x + arrowWidth), size.height * .5f),
                 Offset(size.width * x, size.height * .76f),
-                size.minDimension * .10f,
+                strokeWidth,
                 StrokeCap.Round,
             )
         }

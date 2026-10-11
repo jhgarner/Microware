@@ -1,4 +1,5 @@
 package com.example.microware.game.model
+
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 
@@ -18,8 +19,9 @@ data class Logic(
 sealed interface Action {
     class Move(val mover: LogicTag, val target: Direction, val speed: Int) : Action
 
-    // If the speed is null, the mover will instantly teleport to the target.
+    // If the speed is null, the mover will instantly teleport to its destination.
     class MoveTo(val mover: LogicTag, val target: LogicTag, val speed: Int?) : Action
+    class MoveWithin(val mover: LogicTag, val target: LogicTag, val speed: Int?) : Action
 
     object Win : Action
     object Lose : Action

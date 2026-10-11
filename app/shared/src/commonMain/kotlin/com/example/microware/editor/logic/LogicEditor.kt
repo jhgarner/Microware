@@ -56,10 +56,11 @@ import com.example.microware.ui.icons.drawCollisionIcon
 import com.example.microware.ui.icons.drawDirectionIcon
 import com.example.microware.ui.icons.drawDownArrowIcon
 import com.example.microware.ui.icons.drawLoseIcon
+import com.example.microware.ui.icons.drawMoveIcon
 import com.example.microware.ui.icons.drawMoveToIcon
+import com.example.microware.ui.icons.drawMoveWithinIcon
 import com.example.microware.ui.icons.drawStartIcon
 import com.example.microware.ui.icons.drawTapIcon
-import com.example.microware.ui.icons.drawTrainIcon
 import com.example.microware.ui.icons.drawTrashIcon
 import com.example.microware.ui.icons.drawWinIcon
 import com.example.microware.ui.layout.insets
@@ -69,7 +70,7 @@ import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-private enum class ActionChoice { Move, MoveTo, Win, Lose }
+private enum class ActionChoice { Move, MoveTo, MoveWithin, Win, Lose }
 private enum class TriggerLayout { Large, Small }
 
 sealed interface LogicEditorPage {
@@ -339,6 +340,15 @@ internal fun LogicBuilder(
                                         ),
                                     )
                                 }
+                                ActionButton(ActionChoice.MoveWithin) {
+                                    updateActions(
+                                        actions + Action.MoveWithin(
+                                            defaultTag,
+                                            defaultTag,
+                                            50,
+                                        ),
+                                    )
+                                }
                                 ActionButton(ActionChoice.Win) {
                                     updateActions(actions + Action.Win)
                                 }
@@ -549,59 +559,67 @@ private fun EditableActionCard(
                 }
             }
 
-            is Action.MoveTo -> Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        6.dp,
-                        Alignment.CenterHorizontally,
-                    ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    LogicTagPicker(
-                        action.mover,
-                        {
-                            it?.let { tag ->
-                                onChange(
-                                    Action.MoveTo(
-                                        tag,
-                                        action.target,
-                                        action.speed,
-                                    ),
-                                )
-                            }
-                        },
-                        usedTags = usedTags,
-                        allowClear = false,
-                    )
-                    Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
-                    LogicTagPicker(
-                        action.target,
-                        {
-                            it?.let { tag ->
-                                onChange(
-                                    Action.MoveTo(
-                                        action.mover,
-                                        tag,
-                                        action.speed,
-                                    ),
-                                )
-                            }
-                        },
-                        usedTags = usedTags,
-                        allowClear = false,
-                    )
-                }
-                SpeedControl(action.speed, allowInfinity = true) {
-                    onChange(Action.MoveTo(action.mover, action.target, it))
-                }
-            }
+            is Action.MoveTo -> TargetedMovementEditor(
+                mover = action.mover,
+                target = action.target,
+                speed = action.speed,
+                usedTags = usedTags,
+                createAction = Action::MoveTo,
+                onChange = onChange,
+            )
+
+            is Action.MoveWithin -> TargetedMovementEditor(
+                mover = action.mover,
+                target = action.target,
+                speed = action.speed,
+                usedTags = usedTags,
+                createAction = Action::MoveWithin,
+                onChange = onChange,
+            )
 
             Action.Win, Action.Lose -> Unit
+        }
+    }
+}
+
+@Composable
+private fun TargetedMovementEditor(
+    mover: LogicTag,
+    target: LogicTag,
+    speed: Int?,
+    usedTags: Set<LogicTag>,
+    createAction: (LogicTag, LogicTag, Int?) -> Action,
+    onChange: (Action) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(
+                6.dp,
+                Alignment.CenterHorizontally,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LogicTagPicker(
+                mover,
+                { it?.let { tag -> onChange(createAction(tag, target, speed)) } },
+                usedTags = usedTags,
+                allowClear = false,
+            )
+            Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
+            LogicTagPicker(
+                target,
+                { it?.let { tag -> onChange(createAction(mover, tag, speed)) } },
+                usedTags = usedTags,
+                allowClear = false,
+            )
+        }
+        SpeedControl(speed, allowInfinity = true) {
+            onChange(createAction(mover, target, it))
         }
     }
 }
@@ -631,8 +649,9 @@ private fun ActionButton(choice: ActionChoice, onClick: () -> Unit) {
         onClick = onClick,
     ) { time ->
         when (choice) {
-            ActionChoice.Move -> drawTrainIcon(time)
-            ActionChoice.MoveTo -> drawMoveToIcon()
+            ActionChoice.Move -> drawMoveIcon(Direction.E, time)
+            ActionChoice.MoveTo -> drawMoveToIcon(time)
+            ActionChoice.MoveWithin -> drawMoveWithinIcon(time)
             ActionChoice.Win -> drawWinIcon(time)
             ActionChoice.Lose -> drawLoseIcon()
         }

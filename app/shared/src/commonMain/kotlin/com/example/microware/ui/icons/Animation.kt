@@ -12,7 +12,6 @@ data class Frame<T>(
     val ease: Easing,
     val duration: Float,
     val during: (Float) -> Unit,
-    val after: () -> Unit,
 )
 
 data class AnimBuilder<T>(
@@ -38,18 +37,18 @@ data class AnimBuilder<T>(
                     action.ease.transform(remaining / action.duration),
                 )
             }
-            action.after()
+            action.during(1f)
             remaining -= action.duration
         }
         return initial
     }
 
-    fun hold(duration: Float = 1f - at, after: () -> Unit = {}, during: (Float) -> Unit = {}) {
-        anim(actions.lastOrNull()?.stop ?: initial, duration, after = after, during = during)
+    fun hold(duration: Float = 1f - at, during: (Float) -> Unit = {}) {
+        anim(actions.lastOrNull()?.stop ?: initial, duration, during = during)
     }
 
     fun track(action: () -> Unit) {
-        hold(0f, after = { action() })
+        hold(0f, during = { if (it == 1f) action() })
     }
 
     fun until(time: Float): Float = time - at
@@ -58,12 +57,11 @@ data class AnimBuilder<T>(
         newValue: T,
         duration: Float,
         ease: Easing = EaseInOut,
-        after: () -> Unit = {},
         during: (Float) -> Unit = {},
     ) {
         at += duration
         val from = actions.lastOrNull()?.stop ?: initial
-        actions.add(Frame(from, newValue, ease, duration, during, after))
+        actions.add(Frame(from, newValue, ease, duration, during))
     }
 }
 

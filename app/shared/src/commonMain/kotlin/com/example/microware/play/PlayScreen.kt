@@ -88,7 +88,9 @@ internal fun PlayScreen(session: PlaySession, onExit: () -> Unit, onReplay: () -
                         drawWinIcon(session.phaseProgress)
                     } else drawLoseIcon()
                 }
-                PlayPhase.SpeedUp -> PhaseArtwork { drawSpeedIcon(session.phaseProgress) }
+                PlayPhase.SpeedUp -> PhaseArtwork {
+                    drawSpeedIcon(arrowCount = session.speedTier + 1, t = session.phaseProgress)
+                }
                 PlayPhase.GameOver -> RunFinished(session.score, onReplay, onExit)
                 is PlayPhase.Paused -> Unit
             }

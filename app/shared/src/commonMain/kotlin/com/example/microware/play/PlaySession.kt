@@ -22,7 +22,6 @@ class PlaySession(games: List<Game>, private val random: Random = Random.Default
     private val bag = mutableListOf<Int>()
     private var lastGameIndex: Int? = null
     private var completed = 0
-    private var speedTier = 0
 
     init {
         require(games.isNotEmpty())
@@ -40,8 +39,11 @@ class PlaySession(games: List<Game>, private val random: Random = Random.Default
         private set
     var round by mutableStateOf(1)
         private set
-    var speed by mutableStateOf(1f)
+    var speedTier by mutableStateOf(0)
         private set
+
+    val speed: Float
+        get() = 1f + speedTier * .15f
 
     val phaseProgress: Float
         get() {
@@ -60,7 +62,6 @@ class PlaySession(games: List<Game>, private val random: Random = Random.Default
                 lives == 0 -> transition(PlayPhase.GameOver)
                 completed / RoundsPerSpeedUp > speedTier && speedTier < MaximumSpeedTier -> {
                     speedTier++
-                    speed = 1f + speedTier * .15f
                     transition(PlayPhase.SpeedUp)
                 }
                 else -> nextRound()

@@ -54,7 +54,7 @@ internal fun PlayHud(session: PlaySession) {
                     contentDescription = "Speed ${session.speed}"
                     stateDescription = session.speed.toString()
                 },
-            ) { drawSpeedIcon(0f) }
+            ) { drawSpeedIcon(arrowCount = session.speedTier + 1) }
         }
     }
 }

@@ -23,32 +23,29 @@ import com.example.microware.community.DurableId
 import com.example.microware.game.model.Game
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawCheckIcon
-import com.example.microware.ui.icons.drawJoinCommunityIcon
-import com.example.microware.ui.icons.drawPublishIcon
 import com.example.microware.ui.layout.insets
 import com.example.microware.util.Id
+
+fun publisher(
+    communities: List<Community>,
+    onPublish: (Game, DurableId, Id) -> Unit,
+): (@Composable (Game) -> Unit)? {
+    if (communities.all { it.experiences.isEmpty() }) return null
+    return {
+        PublishGame(
+            communities = communities,
+            game = it,
+            onPublish = { durableId, id -> onPublish(it, durableId, id) },
+        )
+    }
+}
 
 @Composable
 fun PublishGame(
     communities: List<Community>,
     game: Game,
-    onJoinCommunity: () -> Unit,
     onPublish: (DurableId, Id) -> Unit,
 ) {
-    if (communities.all { it.experiences.isEmpty() }) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            IconButton(
-                description = if (communities.isEmpty()) "Join a community to publish a game" else "No experiences available for publishing",
-                modifier = Modifier.size(96.dp),
-                enabled = communities.isEmpty(),
-                onClick = onJoinCommunity,
-            ) {
-                if (communities.isEmpty()) drawJoinCommunityIcon(it) else drawPublishIcon(it)
-            }
-        }
-        return
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
