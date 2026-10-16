@@ -12,14 +12,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
-import com.example.microware.Palette
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Obj
 import com.example.microware.game.model.Trigger
-import com.example.microware.game.sprite.Sprite
 import com.example.microware.game.sprite.SpriteCodec
 import com.example.microware.game.sprite.StoredSprite
 import com.example.microware.platform.AppStorage
@@ -86,7 +84,7 @@ fun loadObjLibrary(): Library<Obj> {
     return runCatching {
         val stored = libraryJson.decodeFromString<ObjStoredLibrary>(encoded)
         Library(
-            items = stored.objects.map { it.toObj() },
+            items = stored.objects.mapNotNull { it.toObj() },
         )
     }.getOrDefault(Library())
 }
@@ -121,26 +119,12 @@ private fun Obj.toStoredObj(): StoredObj = StoredObj(
     sprite = SpriteCodec.encode(sprite),
 )
 
-private fun StoredObj.toObj(): Obj {
-    val decodedSprite = sprite?.let(SpriteCodec::decode) ?: decodeLegacySprite()
+private fun StoredObj.toObj(): Obj? {
+    val decodedSprite = sprite?.let(SpriteCodec::decode) ?: return null
     return Obj(
         offset = Offset(offsetX, offsetY),
         sprite = decodedSprite,
     )
-}
-
-private fun StoredObj.decodeLegacySprite(): Sprite {
-    val legacyWidth = width ?: error("Missing sprite width")
-    val legacyHeight = height ?: error("Missing sprite height")
-    val legacyPixels = pixels ?: error("Missing sprite pixels")
-    require(legacyWidth > 0 && legacyHeight > 0)
-    require(legacyPixels.size == legacyWidth * legacyHeight)
-    val codes = ByteArray(legacyPixels.size) { index ->
-        val code = legacyPixels[index]
-        Palette.fromCode(code)
-        code.toByte()
-    }
-    return Sprite.fromPaletteCodes(legacyWidth, legacyHeight, codes)
 }
 
 private fun Logic.toStoredLogic(): StoredLogic = StoredLogic(

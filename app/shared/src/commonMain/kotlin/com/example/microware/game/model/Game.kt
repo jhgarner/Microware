@@ -9,7 +9,7 @@ import kotlinx.serialization.Transient
 data class Game(
     val world: World,
     val logics: PersistentList<Logic>,
-//    val dbId: DurableId?,
+    val dbId: Long? = null,
     @Transient
     override val id: Id = nextId(),
 ) : Identifiable<Game> {

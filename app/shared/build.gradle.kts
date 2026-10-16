@@ -1,5 +1,4 @@
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
-import org.gradle.api.attributes.java.TargetJvmVersion
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -15,7 +14,7 @@ plugins {
 kotlin {
     listOf(
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "Shared"
@@ -79,6 +78,10 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kscan)
             implementation(libs.qrose)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.default)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.json)
 
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.kotlinx.coroutines.core)

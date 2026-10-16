@@ -1,25 +1,20 @@
 package com.example.microware.editor
-import com.example.microware.library.Library
-import com.example.microware.ui.components.DrawerHandleState
-import com.example.microware.ui.components.DrawerWithHandle
-import com.example.microware.ui.components.HandleEdge
-import com.example.microware.ui.components.HandleType
-import com.example.microware.ui.components.Trash
-import com.example.microware.ui.components.TrashHandle
-import com.example.microware.ui.gestures.DragSource
-import com.example.microware.ui.gestures.DragTarget
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.util.Identifiable
 
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.microware.ui.components.DrawerHandleState
+import com.example.microware.ui.components.DrawerWithHandle
+import com.example.microware.ui.components.HandleEdge
+import com.example.microware.ui.components.HandleType
+import com.example.microware.ui.components.TrashHandle
+import com.example.microware.ui.gestures.DragSource
+import com.example.microware.ui.gestures.DragTarget
+import com.example.microware.util.Identifiable
 import kotlinx.collections.immutable.PersistentList
 
 sealed interface ExpandedSide<Data> {
@@ -80,13 +75,16 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
     )
 
     val createState = when {
-        offer != null -> DrawerHandleState.Dragging(dragTarget, onGiven = { offer ->
-            setExpanded(dropOnEditor(offer.item, setExpanded))
-        })
+        offer != null -> DrawerHandleState.Dragging(
+            dragTarget,
+            onGiven = { offer ->
+                setExpanded(dropOnEditor(offer.item, setExpanded))
+            },
+        )
 
         expandedSide is ExpandedSide.Editor -> DrawerHandleState.Expanded(
             expandedSide.edge,
-            expandedSide.data
+            expandedSide.data,
         )
 
         expandedSide != null -> DrawerHandleState.Expanded(expandedSide.edge, null)
@@ -108,7 +106,7 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
 
         expandedSide is ExpandedSide.Library -> DrawerHandleState.Expanded(
             expandedSide.edge,
-            dragSource
+            dragSource,
         )
 
         expandedSide != null -> DrawerHandleState.Expanded(expandedSide.edge, null)

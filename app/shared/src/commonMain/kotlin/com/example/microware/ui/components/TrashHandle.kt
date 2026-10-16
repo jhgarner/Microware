@@ -1,8 +1,4 @@
 package com.example.microware.ui.components
-import com.example.microware.ui.gestures.DragSource
-import com.example.microware.ui.gestures.DragTarget
-import com.example.microware.ui.gestures.dragSource
-import com.example.microware.util.Identifiable
 
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.runtime.Composable
@@ -10,6 +6,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.example.microware.ui.gestures.DragSource
+import com.example.microware.ui.gestures.DragTarget
+import com.example.microware.util.Identifiable
 
 @Composable
 internal fun <T : Identifiable<T>> BoxWithConstraintsScope.TrashHandle(

@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawJoinCommunityIcon
 import com.example.microware.ui.layout.insets
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
@@ -36,7 +38,8 @@ import kotlin.time.Duration.Companion.seconds
 private enum class SubmittedType { Qr, Emoji }
 
 @Composable
-fun JoinCommunity(onJoin: (DurableId) -> Boolean) {
+fun JoinCommunity(onJoin: suspend (DurableId) -> Boolean) {
+    val scope = rememberCoroutineScope()
     var invalid by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxSize().padding(
@@ -47,10 +50,19 @@ fun JoinCommunity(onJoin: (DurableId) -> Boolean) {
         ),
     ) {
         var submittedType by remember { mutableStateOf<SubmittedType?>(null) }
+        var submitting by remember { mutableStateOf(false) }
         var shouldAnimateText by remember { mutableStateOf(true) }
         DurableIdQrScanner(
             modifier = Modifier.weight(.5f),
-            onScanned = { submittedType = SubmittedType.Qr; if (!onJoin(it)) invalid = true },
+            onScanned = {
+                if (submitting) return@DurableIdQrScanner
+                submitting = true
+                submittedType = SubmittedType.Qr
+                scope.launch {
+                    invalid = !onJoin(it)
+                    submitting = false
+                }
+            },
             onInteraction = { shouldAnimateText = false },
         )
         var emojiInput by remember { mutableStateOf("") }
@@ -113,12 +125,19 @@ fun JoinCommunity(onJoin: (DurableId) -> Boolean) {
                     description = "Join community",
                     modifier = Modifier.size(60.dp),
                     onClick = {
+                        if (submitting) return@IconButton
+                        submitting = true
                         submittedType = SubmittedType.Emoji
                         val id = runCatching { durableIdFromEmojis(emojiInput) }
                             .onFailure { println(it) }
                             .getOrNull()
-                        if (id == null || !onJoin(id)) {
+                        if (id == null) {
                             invalid = true
+                            return@IconButton
+                        }
+                        scope.launch {
+                            invalid = !onJoin(id)
+                            submitting = false
                         }
                     },
                 ) {

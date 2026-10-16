@@ -5,6 +5,7 @@ import com.example.microware.play.Experience
 import com.example.microware.util.Id
 
 data class Community(
+    val dbId: Long,
     val code: DurableId,
     val icon: Avatar,
     val memberBanner: Banner,

@@ -1,18 +1,4 @@
 package com.example.microware.editor.world
-import com.example.microware.editor.ExpandedSide
-import com.example.microware.editor.Toolbar
-import com.example.microware.editor.sprite.EditableCanvas
-import com.example.microware.game.events.WorldEvent
-import com.example.microware.game.model.Obj
-import com.example.microware.game.model.World
-import com.example.microware.library.Library
-import com.example.microware.library.loadObjLibrary
-import com.example.microware.library.saveObjLibrary
-import com.example.microware.ui.components.HandleEdge
-import com.example.microware.ui.components.Trash
-import com.example.microware.ui.gestures.DragSource
-import com.example.microware.ui.gestures.DragTarget
-import com.example.microware.ui.gestures.dragSource
 
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.runtime.Composable
@@ -21,6 +7,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import com.example.microware.editor.ExpandedSide
+import com.example.microware.editor.Toolbar
+import com.example.microware.editor.sprite.EditableCanvas
+import com.example.microware.editor.sprite.MutableSpriteDraft
+import com.example.microware.game.events.WorldEvent
+import com.example.microware.game.model.Obj
+import com.example.microware.game.model.World
+import com.example.microware.library.loadObjLibrary
+import com.example.microware.library.saveObjLibrary
+import com.example.microware.ui.components.HandleEdge
+import com.example.microware.ui.gestures.DragSource
+import com.example.microware.ui.gestures.DragTarget
 
 private var library by mutableStateOf(loadObjLibrary())
 
@@ -72,7 +70,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
             ObjectTable(
                 items = garbage,
                 dragSource = source,
-                dragTarget = dragTarget
+                dragTarget = dragTarget,
             )
         },
         editorPanel = { objUpdater ->
@@ -91,7 +89,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                             bounds.left.toFloat(),
                             bounds.top.toFloat(),
                         ),
-                        sprite = obj.sprite.resized(bounds),
+                        sprite = MutableSpriteDraft(obj.sprite).resize(bounds).toSprite(),
                     )
                     setExpanded(Expanded.Editor(world.clamped(newObj), setExpanded))
                     handler { world -> world.updateObject(newObj) }
@@ -101,7 +99,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                         val newObj = world.clamped(
                             obj.copy(
                                 offset = Offset(position.x.toFloat(), position.y.toFloat()),
-                            )
+                            ),
                         )
                         setExpanded(Expanded.Editor(newObj, setExpanded))
                         handler { world -> world.upsertObject(newObj) }
@@ -118,8 +116,8 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
             ObjectTable(
                 items = library.items,
                 dragSource = it,
-                dragTarget = dragTarget
+                dragTarget = dragTarget,
             )
-        }
+        },
     )
 }

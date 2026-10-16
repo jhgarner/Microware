@@ -1,8 +1,8 @@
 package com.example.microware.play
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -15,11 +15,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.microware.Palette
 import com.example.microware.app.PublishGame
+import com.example.microware.community.Avatar
 import com.example.microware.community.Banner
 import com.example.microware.community.BannerHeight
 import com.example.microware.community.BannerWidth
-import com.example.microware.community.Avatar
 import com.example.microware.community.Community
 import com.example.microware.community.DurableId
 import com.example.microware.game.model.Action
@@ -31,11 +33,9 @@ import com.example.microware.game.model.Obj
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.World
 import com.example.microware.game.sprite.Sprite
-import com.example.microware.Palette
 import com.example.microware.ui.layout.Insets
 import com.example.microware.ui.layout.LocalInsets
 import com.example.microware.util.Id
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.collections.immutable.persistentListOf
 
 internal fun experienceWith(vararg games: Game) = Experience(
@@ -118,7 +118,9 @@ internal fun PlayPageTestContent(
 ) {
     MaterialTheme {
         CompositionLocalProvider(LocalInsets provides Insets.new()) {
-            Box(Modifier.fillMaxSize().background(Palette.OffWhite.color)) {
+            Box(Modifier
+                .fillMaxSize()
+                .background(Palette.OffWhite.color)) {
                 if (lifecycleOwner == null) {
                     PlayPage(experiences, onBack)
                 } else {
@@ -142,14 +144,18 @@ internal fun PublishToPlayTestContent(
 
     MaterialTheme {
         CompositionLocalProvider(LocalInsets provides Insets.new()) {
-            Box(Modifier.fillMaxSize().background(Palette.OffWhite.color)) {
+            Box(Modifier
+                .fillMaxSize()
+                .background(Palette.OffWhite.color)) {
                 if (showingPlay) {
-                    PlayPage(communities.flatMap { it.experiences }, onBack = { showingPlay = false })
+                    PlayPage(
+                        communities.flatMap { it.experiences },
+                        onBack = { showingPlay = false },
+                    )
                 } else {
                     PublishGame(
                         communities = communities,
                         game = game,
-                        onJoinCommunity = {},
                         onPublish = { communityCode, experienceId ->
                             onPublished(communityCode, experienceId)
                             communities = communities.map { community ->

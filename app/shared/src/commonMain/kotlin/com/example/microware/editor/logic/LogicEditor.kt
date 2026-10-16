@@ -177,7 +177,7 @@ internal fun LogicBuilder(
 ) {
     val updater = handler as? LogicBuildHandler.Update
     val initialLogic = updater?.logic
-    val defaultTag = usedTags.firstOrNull() ?: LogicTag.all.first()
+    val defaultTag = usedTags.firstOrNull() ?: LogicTag(0)
     var trigger by remember(initialLogic) { mutableStateOf(initialLogic?.trigger) }
     var actions by remember(initialLogic) { mutableStateOf(initialLogic?.actions.orEmpty()) }
     var triggerLayout by remember(initialLogic) {

@@ -79,7 +79,7 @@ internal class MutableSpriteDraft(sprite: Sprite) {
         return true
     }
 
-    fun resize(bounds: SpriteBounds) {
+    fun resize(bounds: SpriteBounds): MutableSpriteDraft {
         require(bounds.width <= MaxSpriteWidth)
         require(bounds.height <= MaxSpriteHeight)
 
@@ -101,6 +101,7 @@ internal class MutableSpriteDraft(sprite: Sprite) {
         frameCanvas = Canvas(bitmap)
         rebuildBitmap()
         publishFrame()
+        return this
     }
 
     fun synchronize(sprite: Sprite) {

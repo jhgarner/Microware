@@ -1,28 +1,19 @@
 package com.example.microware.game.sprite
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
-import com.example.microware.editor.sprite.MutableSpriteDraft
 
 private class PackedPixels private constructor(
     private val bytes: ByteArray,
 ) {
     fun get(index: Int): Int {
-        val bitOffset = index * BitsPerPixel
+        val bitOffset = index * BITS_PER_PIXEL
         val byteIndex = bitOffset / 8
         val bitShift = bitOffset % 8
         val packed = (bytes[byteIndex].toInt() and 0xFF) or
                 ((bytes.getOrNull(byteIndex + 1)?.toInt()?.and(0xFF) ?: 0) shl 8)
-        return (packed ushr bitShift) and PaletteMask
+        return (packed ushr bitShift) and PALETTE_MASK
     }
 
     fun copyBytes(): ByteArray = bytes.copyOf()
@@ -35,11 +26,10 @@ private class PackedPixels private constructor(
 
     companion object {
         fun fromPaletteCodes(codes: ByteArray): PackedPixels {
-            val bytes = ByteArray((codes.size * BitsPerPixel + 7) / 8)
+            val bytes = ByteArray((codes.size * BITS_PER_PIXEL + 7) / 8)
             for (index in codes.indices) {
                 val code = codes[index].toInt() and 0xFF
-                Palette.fromCode(code)
-                val bitOffset = index * BitsPerPixel
+                val bitOffset = index * BITS_PER_PIXEL
                 val byteIndex = bitOffset / 8
                 val bitShift = bitOffset % 8
                 val packed = code shl bitShift
@@ -55,16 +45,13 @@ private class PackedPixels private constructor(
 
         fun fromBytes(bytes: ByteArray, pixelCount: Int): PackedPixels {
             require(pixelCount > 0)
-            require(bytes.size == (pixelCount * BitsPerPixel + 7) / 8)
+            require(bytes.size == (pixelCount * BITS_PER_PIXEL + 7) / 8)
             val pixels = PackedPixels(bytes.copyOf())
-            for (index in 0 until pixelCount) {
-                Palette.fromCode(pixels.get(index))
-            }
             return pixels
         }
 
-        private const val BitsPerPixel = 5
-        private const val PaletteMask = (1 shl BitsPerPixel) - 1
+        private const val BITS_PER_PIXEL = 5
+        private const val PALETTE_MASK = (1 shl BITS_PER_PIXEL) - 1
     }
 }
 
@@ -77,8 +64,6 @@ class Sprite private constructor(
         require(width in 1..MaxSpriteWidth)
         require(height in 1..MaxSpriteHeight)
     }
-
-    fun get(row: Int, col: Int): Palette = Palette.fromCode(pixels.get(row * width + col))
 
     fun isFullyTransparent(): Boolean {
         for (index in 0 until width * height) {
@@ -103,18 +88,6 @@ class Sprite private constructor(
                 )
             }
         }
-    }
-
-    fun update(edit: Edits): Sprite {
-        val draft = MutableSpriteDraft(this)
-        draft.apply(edit)
-        return draft.toSprite()
-    }
-
-    fun resized(bounds: SpriteBounds): Sprite {
-        val draft = MutableSpriteDraft(this)
-        draft.resize(bounds)
-        return draft.toSprite()
     }
 
     internal fun packedBytes(): ByteArray = pixels.copyBytes()
@@ -190,19 +163,5 @@ data class SpriteBounds(
             right = sprite.width,
             bottom = sprite.height,
         )
-    }
-}
-
-@Composable
-fun RenderSprite(offset: Offset, scale: Int, sprite: Sprite) {
-    val image = remember(sprite, scale) {
-        scaled(sprite.bitmap, sprite.width * scale, sprite.height * scale)
-    }
-    println("${image.width} by ${image.height}")
-    Canvas(
-        modifier = Modifier.requiredSize(sprite.width.dp * scale, sprite.height.dp * scale)
-            .offset(offset.x.dp, offset.y.dp),
-    ) {
-        drawImage(image)
     }
 }

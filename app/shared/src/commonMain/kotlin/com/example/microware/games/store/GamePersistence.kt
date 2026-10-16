@@ -33,6 +33,7 @@ internal data class StoredGames(
 
 @Serializable
 internal data class StoredGame(
+    val dbId: Long?,
     val world: GameStoredWorld,
     val logics: List<GameStoredLogic> = persistentListOf(),
 )
@@ -106,11 +107,13 @@ internal fun GameStoreState.toStoredGames(): StoredGames = StoredGames(
 )
 
 private fun Game.toStoredGame(): StoredGame = StoredGame(
+    dbId = dbId,
     world = world.toStoredWorld(),
     logics = logics.map(Logic::toStoredLogic),
 )
 
 private fun StoredGame.toGame(): Game = Game(
+    dbId = dbId,
     world = world.toWorld(),
     logics = logics.map(GameStoredLogic::toLogic).toPersistentList(),
 )
@@ -123,7 +126,7 @@ private fun GameStoredWorld.toWorld(): World {
     val logicTags = Mut(BiMap<LogicTag, Id>())
     return World(
         objects = objects.map { it.toObj(logicTags) }.toPersistentList(),
-        logicTags = logicTags.value
+        logicTags = logicTags.value,
     )
 }
 
@@ -131,7 +134,7 @@ private fun Obj.toStoredObj(tags: BiMap<LogicTag, Id>): GameStoredObj = GameStor
     offsetX = offset.x,
     offsetY = offset.y,
     sprite = SpriteCodec.encode(sprite),
-    tag = tags.flip()[id]?.tag
+    tag = tags.flip()[id]?.tag,
 )
 
 private fun GameStoredObj.toObj(tags: Mut<BiMap<LogicTag, Id>>): Obj {

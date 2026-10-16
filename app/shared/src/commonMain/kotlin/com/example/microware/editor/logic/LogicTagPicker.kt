@@ -54,6 +54,12 @@ private const val logicTagBackgroundTagSizeFraction = .3f
 private const val logicTagBackgroundTagGapFraction = .12f
 private const val logicTagBackgroundVerticalGapFraction = .05f
 
+private val logicTagColors = Palette.entries.filter { it != Palette.Clear }
+private const val logicTagShapeCount = 4
+private val logicTagCount = logicTagColors.size * logicTagShapeCount
+
+private val allLogicTags: List<LogicTag> = (0..<logicTagCount).map(::LogicTag)
+
 private val logicTagBorderColors = Palette.entries
     .filter { it != Palette.Clear }
     .map { it.color }
@@ -86,13 +92,13 @@ fun LogicTagPicker(
     selectedTag: LogicTag?,
     onSelectTag: (LogicTag?) -> Unit,
     modifier: Modifier = Modifier,
-    usedTags: Set<LogicTag> = LogicTag.all.toSet(),
+    usedTags: Set<LogicTag> = allLogicTags.toSet(),
     allowClear: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var unusedExpanded by remember { mutableStateOf(false) }
-    val preferredTags = LogicTag.all.filter { it in usedTags }
-    val unusedTags = LogicTag.all.filterNot { it in usedTags }
+    val preferredTags = allLogicTags.filter { it in usedTags }
+    val unusedTags = allLogicTags.filterNot { it in usedTags }
 
     Box(modifier = modifier) {
         Button(
@@ -136,7 +142,7 @@ fun LogicTagPicker(
                         },
                     )
                 }
-                if (unusedTags.isNotEmpty() && usedTags.size < LogicTag.all.size) {
+                if (unusedTags.isNotEmpty() && usedTags.size < allLogicTags.size) {
                     IconButton(
                         description = if (unusedExpanded) "Hide unused logic tags" else "Show unused logic tags",
                         modifier = Modifier.fillMaxWidth(),
@@ -195,7 +201,7 @@ private fun ScrollingLogicTagBackground(modifier: Modifier) {
         val tagSize = size.minDimension * logicTagBackgroundTagSizeFraction
         val horizontalStep = tagSize * (1f + logicTagBackgroundTagGapFraction)
         val verticalStep = tagSize * (1f + logicTagBackgroundVerticalGapFraction)
-        val horizontalCycle = horizontalStep * LogicTag.all.size
+        val horizontalCycle = horizontalStep * allLogicTags.size
         val horizontalOffset = -scrollFraction * horizontalCycle
         val verticalOffset = -scrollFraction * verticalStep * 12f
         val firstColumn = floor((horizontalOffset - tagSize) / horizontalStep).toInt()
@@ -205,7 +211,7 @@ private fun ScrollingLogicTagBackground(modifier: Modifier) {
 
         for (row in firstRow..lastRow) {
             for (column in firstColumn..lastColumn) {
-                val tag = LogicTag.all[positiveModulo(column, LogicTag.all.size)]
+                val tag = allLogicTags[positiveModulo(column, allLogicTags.size)]
                 val center = Offset(
                     x = column * horizontalStep + tagSize / 2f - horizontalOffset,
                     y = row * verticalStep + tagSize / 2f - verticalOffset,
