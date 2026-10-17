@@ -42,7 +42,7 @@ object Model {
     }
 
     @Serializable
-    class Experience(val id: Long, banner: Sprite, games: List<Game>) {
+    class Experience(val id: Long, val banner: Sprite, val games: List<Game>) {
         init {
             validateBanner(banner.width, banner.height)
             require(games.size < 200)
@@ -66,9 +66,9 @@ object Model {
     class Community(
         val id: Long,
         val code: Long,
-        icon: Sprite,
-        banner: Sprite,
-        experiences: List<Experience>,
+        val icon: Sprite,
+        val banner: Sprite,
+        val experiences: List<Experience>,
     ) {
         init {
             validateAvatar(icon.width, icon.height)

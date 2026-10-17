@@ -11,6 +11,7 @@ import com.example.microware.game.sprite.MaxSpriteHeight
 import com.example.microware.game.sprite.MaxSpriteWidth
 import com.example.microware.game.sprite.Sprite
 import com.example.microware.game.sprite.SpriteBounds
+import kotlin.collections.ArrayDeque
 
 internal class SpriteDraftFrame(
     val bitmap: ImageBitmap,
@@ -59,6 +60,33 @@ internal class MutableSpriteDraft(sprite: Sprite) {
         if (changed) {
             publishFrame()
         }
+        return changed
+    }
+
+    fun fill(row: Int, col: Int, color: Palette): Boolean {
+        if (!inBounds(row, col)) return false
+
+        val targetColor = pixels[index(row, col)]
+        if (targetColor == color.code.toByte()) return false
+
+        val frontier = ArrayDeque<Cell>()
+        frontier.addLast(Cell(row, col))
+        var changed = false
+        while (frontier.isNotEmpty()) {
+            val cell = frontier.removeLast()
+            if (!inBounds(cell.row, cell.col) || pixels[index(cell.row, cell.col)] != targetColor) {
+                continue
+            }
+
+            set(cell.row, cell.col, color)
+            changed = true
+            frontier.addLast(Cell(cell.row - 1, cell.col))
+            frontier.addLast(Cell(cell.row + 1, cell.col))
+            frontier.addLast(Cell(cell.row, cell.col - 1))
+            frontier.addLast(Cell(cell.row, cell.col + 1))
+        }
+
+        if (changed) publishFrame()
         return changed
     }
 

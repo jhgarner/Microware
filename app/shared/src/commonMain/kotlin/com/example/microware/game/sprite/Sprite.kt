@@ -3,6 +3,7 @@ package com.example.microware.game.sprite
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import com.example.microware.Palette
+import com.example.microware.core.Model
 
 private class PackedPixels private constructor(
     private val bytes: ByteArray,
@@ -64,6 +65,8 @@ class Sprite private constructor(
         require(width in 1..MaxSpriteWidth)
         require(height in 1..MaxSpriteHeight)
     }
+
+    fun toModel(): Model.Sprite = Model.Sprite(width, height, packedBytes())
 
     fun isFullyTransparent(): Boolean {
         for (index in 0 until width * height) {

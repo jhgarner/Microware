@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.icons.drawCreateCommunityIcon
 import com.example.microware.ui.icons.drawJoinCommunityIcon
-import com.example.microware.ui.layout.insets
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -38,16 +38,15 @@ import kotlin.time.Duration.Companion.seconds
 private enum class SubmittedType { Qr, Emoji }
 
 @Composable
-fun JoinCommunity(onJoin: suspend (DurableId) -> Boolean) {
+fun JoinCommunity(
+    onJoin: suspend (DurableId) -> Boolean,
+    onCreate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scope = rememberCoroutineScope()
     var invalid by remember { mutableStateOf(false) }
     Column(
-        modifier = Modifier.fillMaxSize().padding(
-            start = insets.leftDp() + 32.dp,
-            end = insets.rightDp() + 32.dp,
-            top = insets.topDp() + 32.dp,
-            bottom = insets.bottomDp() + 32.dp,
-        ),
+        modifier = modifier.fillMaxSize().padding(16.dp),
     ) {
         var submittedType by remember { mutableStateOf<SubmittedType?>(null) }
         var submitting by remember { mutableStateOf(false) }
@@ -68,7 +67,7 @@ fun JoinCommunity(onJoin: suspend (DurableId) -> Boolean) {
         var emojiInput by remember { mutableStateOf("") }
         Column(
             modifier = Modifier.weight(.5f),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             var placeholder by remember { mutableStateOf("") }
@@ -144,14 +143,13 @@ fun JoinCommunity(onJoin: suspend (DurableId) -> Boolean) {
                     drawJoinCommunityIcon(it)
                 }
             }
+            IconButton(
+                description = "Create a community",
+                modifier = Modifier.size(60.dp),
+                onClick = onCreate,
+            ) {
+                drawCreateCommunityIcon(it)
+            }
         }
     }
 }
-
-//@Preview
-//@Composable
-//fun Preview() {
-//    CompositionLocalProvider(LocalInsets provides Insets.new()) {
-//        JoinCommunity { }
-//    }
-//}

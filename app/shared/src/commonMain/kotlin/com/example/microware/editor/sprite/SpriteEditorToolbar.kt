@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -33,6 +34,7 @@ import com.example.microware.ui.icons.resizeIcon
 
 enum class SpriteEditorTool {
     Pen,
+    Bucket,
     Resize,
     Position,
 }
@@ -43,66 +45,96 @@ private const val TransparentTileSizeDp = 16
 fun SpriteToolPicker(
     selectedTool: SpriteEditorTool,
     onSelectTool: (SpriteEditorTool) -> Unit,
+    tools: List<SpriteEditorTool> = SpriteEditorTool.entries,
 ) {
     Row(modifier = Modifier.fillMaxWidth()) {
-        ToolButton(
-            description = "Pen tool",
-            selected = selectedTool == SpriteEditorTool.Pen,
-            onClick = { onSelectTool(SpriteEditorTool.Pen) },
-        ) {
-            Canvas(Modifier.fillMaxSize().padding(10.dp)) {
-                drawLine(
-                    color = Color.Black,
-                    start = Offset(size.width * 0.25f, size.height * 0.75f),
-                    end = Offset(size.width * 0.75f, size.height * 0.25f),
-                    strokeWidth = 5.dp.toPx(),
-                )
-                drawCircle(
-                    color = Color.Black,
-                    radius = 3.dp.toPx(),
-                    center = Offset(size.width * 0.22f, size.height * 0.78f),
-                )
-            }
-        }
-        ToolButton(
-            description = "Resize tool",
-            selected = selectedTool == SpriteEditorTool.Resize,
-            onClick = { onSelectTool(SpriteEditorTool.Resize) },
-        ) {
-            Canvas(Modifier.fillMaxSize().padding(10.dp)) { resizeIcon() }
-        }
-        ToolButton(
-            description = "Position tool",
-            selected = selectedTool == SpriteEditorTool.Position,
-            onClick = { onSelectTool(SpriteEditorTool.Position) },
-        ) {
-            Canvas(Modifier.fillMaxSize().padding(10.dp)) {
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val radius = size.minDimension * .42f
-                val directions = listOf(
-                    Offset(0f, -1f),
-                    Offset(1f, 0f),
-                    Offset(0f, 1f),
-                    Offset(-1f, 0f),
-                )
-                val corners = directions.map { center + it * radius }
-                val headLength = .40f
-                val stroke = 2.dp.toPx()
+        for (tool in tools) {
+            ToolButton(
+                description = when (tool) {
+                    SpriteEditorTool.Pen -> "Pen tool"
+                    SpriteEditorTool.Bucket -> "Paint bucket tool"
+                    SpriteEditorTool.Resize -> "Resize tool"
+                    SpriteEditorTool.Position -> "Position tool"
+                },
+                selected = selectedTool == tool,
+                onClick = { onSelectTool(tool) },
+            ) {
+                Canvas(Modifier.fillMaxSize().padding(10.dp)) {
+                    when (tool) {
+                        SpriteEditorTool.Pen -> {
+                            drawLine(
+                                color = Color.Black,
+                                start = Offset(size.width * 0.25f, size.height * 0.75f),
+                                end = Offset(size.width * 0.75f, size.height * 0.25f),
+                                strokeWidth = 5.dp.toPx(),
+                            )
+                            drawCircle(
+                                color = Color.Black,
+                                radius = 3.dp.toPx(),
+                                center = Offset(size.width * 0.22f, size.height * 0.78f),
+                            )
+                        }
 
-                corners.forEachIndexed { index, corner ->
-                    val previousCorner = corners[(index - 1 + corners.size) % corners.size]
-                    val nextCorner = corners[(index + 1) % corners.size]
-                    val leftHead = corner + (previousCorner - corner) * headLength
-                    val rightHead = corner + (nextCorner - corner) * headLength
+                        SpriteEditorTool.Bucket -> drawBucketToolIcon()
+                        SpriteEditorTool.Resize -> resizeIcon()
+                        SpriteEditorTool.Position -> {
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            val radius = size.minDimension * .42f
+                            val directions = listOf(
+                                Offset(0f, -1f),
+                                Offset(1f, 0f),
+                                Offset(0f, 1f),
+                                Offset(-1f, 0f),
+                            )
+                            val corners = directions.map { center + it * radius }
+                            val headLength = .40f
+                            val stroke = 2.dp.toPx()
 
-                    drawLine(Color.Black, center, corner, stroke)
-                    drawLine(Color.Black, leftHead, corner, stroke)
-                    drawLine(Color.Black, rightHead, corner, stroke)
+                            corners.forEachIndexed { index, corner ->
+                                val previousCorner = corners[(index - 1 + corners.size) % corners.size]
+                                val nextCorner = corners[(index + 1) % corners.size]
+                                val leftHead = corner + (previousCorner - corner) * headLength
+                                val rightHead = corner + (nextCorner - corner) * headLength
+
+                                drawLine(Color.Black, center, corner, stroke)
+                                drawLine(Color.Black, leftHead, corner, stroke)
+                                drawLine(Color.Black, rightHead, corner, stroke)
+                            }
+                            drawCircle(Color.Black, 1.5.dp.toPx(), center)
+                        }
+                    }
                 }
-                drawCircle(Color.Black, 1.5.dp.toPx(), center)
             }
         }
     }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawBucketToolIcon() {
+    val bucket = Path().apply {
+        moveTo(size.width * .25f, size.height * .38f)
+        lineTo(size.width * .75f, size.height * .38f)
+        lineTo(size.width * .63f, size.height * .82f)
+        lineTo(size.width * .37f, size.height * .82f)
+        close()
+    }
+    drawPath(bucket, Palette.Navy.color)
+    drawLine(
+        color = Color.Black,
+        start = Offset(size.width * .32f, size.height * .34f),
+        end = Offset(size.width * .50f, size.height * .15f),
+        strokeWidth = 2.dp.toPx(),
+    )
+    drawLine(
+        color = Color.Black,
+        start = Offset(size.width * .50f, size.height * .15f),
+        end = Offset(size.width * .68f, size.height * .34f),
+        strokeWidth = 2.dp.toPx(),
+    )
+    drawCircle(
+        color = Palette.Cyan.color,
+        radius = size.minDimension * .10f,
+        center = Offset(size.width * .72f, size.height * .25f),
+    )
 }
 
 @Composable
@@ -131,7 +163,7 @@ private fun ToolButton(
 }
 
 @Composable
-fun PenOptions(
+fun SpriteColorPicker(
     selectedColor: Palette,
     onSelectColor: (Palette) -> Unit,
 ) {

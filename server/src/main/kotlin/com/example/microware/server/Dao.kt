@@ -1,5 +1,6 @@
 package com.example.microware.server
 
+import com.example.microware.community.DurableId
 import com.example.microware.core.Model.CommunityMetadata
 import com.example.microware.core.Model.Experience
 import com.example.microware.core.Model.Game
@@ -23,10 +24,12 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.uuid.Uuid
 
 object Dao {
@@ -41,6 +44,52 @@ object Dao {
         Tables.User.insertAndGetId {
             it[upper] = upperBits
             it[lower] = lowerBits
+        }
+    }
+
+    fun createCommunity(userUuid: Uuid): EntityID<Long> {
+        val userId = withUser(userUuid)
+        val avatarSprite = Sprite(32, 32, ByteArray(640))
+        val bannerSprite = Sprite(128, 32, ByteArray(2560))
+        val communityId = Tables.Community.insertAndGetId {
+            it[owner] = userId
+            it[durableId] = DurableId().bits
+            it[avatar] = writeSprite(avatarSprite)
+            it[banner] = writeSprite(bannerSprite)
+        }
+        Tables.CommunityUserJoin.insert {
+            it[user] = userId
+            it[community] = communityId
+        }
+        return communityId
+    }
+
+    fun updateCommunityAvatar(userUuid: Uuid, communityId: Long, newAvatar: Sprite) {
+        val userId = withUser(userUuid)
+        val oldAvatar = Tables.Community.select(Tables.Community.avatar)
+            .where((Tables.Community.id eq communityId) and (Tables.Community.owner eq userId))
+            .first()[Tables.Community.avatar]
+        Tables.Community.update(where = { (Tables.Community.id eq communityId) }) {
+            it[avatar] = writeSprite(newAvatar)
+        }
+        Tables.Sprite.deleteWhere { id eq oldAvatar }
+    }
+
+    fun updateCommunityBanner(userUuid: Uuid, communityId: Long, newBanner: Sprite) {
+        val userId = withUser(userUuid)
+        val oldBanner = Tables.Community.select(Tables.Community.banner)
+            .where((Tables.Community.id eq communityId) and (Tables.Community.owner eq userId))
+            .first()[Tables.Community.banner]
+        Tables.Community.update(where = { (Tables.Community.id eq communityId) }) {
+            it[banner] = writeSprite(newBanner)
+        }
+        Tables.Sprite.deleteWhere { id eq oldBanner }
+    }
+
+    fun updateDurableId(userUuid: Uuid, communityId: Long, newDurableId: Long) {
+        val userId = withUser(userUuid)
+        Tables.Community.update(where = { (Tables.Community.id eq communityId) and (Tables.Community.owner eq userId) }) {
+            it[durableId] = newDurableId
         }
     }
 
@@ -64,8 +113,12 @@ object Dao {
             .select(
                 Tables.Community.id,
                 Tables.Community.durableId,
-                Tables.Community.banner,
-                Tables.Community.avatar,
+                avatarTable[Tables.Sprite.width],
+                avatarTable[Tables.Sprite.height],
+                avatarTable[Tables.Sprite.pixels],
+                bannerTable[Tables.Sprite.width],
+                bannerTable[Tables.Sprite.height],
+                bannerTable[Tables.Sprite.pixels],
             )
             .where(Tables.CommunityUserJoin.user eq user)
             .map {

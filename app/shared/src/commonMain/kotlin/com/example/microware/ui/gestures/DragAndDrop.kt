@@ -1,6 +1,4 @@
 package com.example.microware.ui.gestures
-import com.example.microware.game.model.Obj
-import com.example.microware.util.modify
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -18,6 +16,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
+import com.example.microware.game.model.Obj
+import com.example.microware.util.modify
 import kotlin.math.roundToInt
 
 data class Offer<T>(
@@ -67,7 +67,7 @@ class Source<T>(
 fun <T> rememberSource(from: Any, item: T): Source<T> = remember {
     Source(
         mutableStateOf(from),
-        mutableStateOf(Rect.Zero), mutableStateOf(item)
+        mutableStateOf(Rect.Zero), mutableStateOf(item),
     )
 }.also {
     it.from = from

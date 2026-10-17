@@ -56,6 +56,26 @@ internal fun DrawScope.drawJoinCommunityIcon(t: Float = 0f) {
     }
 }
 
+fun DrawScope.drawCreateCommunityIcon(t: Float = 0f) {
+    drawJoinCommunityIcon(t)
+
+    val center = Offset(size.width * .78f, size.height * .78f)
+    val radius = size.minDimension * .18f
+    drawCircle(Palette.Forest.color, radius, center)
+    drawLine(
+        color = Palette.OffWhite.color,
+        start = Offset(center.x - radius * .5f, center.y),
+        end = Offset(center.x + radius * .5f, center.y),
+        strokeWidth = radius * .22f,
+    )
+    drawLine(
+        color = Palette.OffWhite.color,
+        start = Offset(center.x, center.y - radius * .5f),
+        end = Offset(center.x, center.y + radius * .5f),
+        strokeWidth = radius * .22f,
+    )
+}
+
 private fun communityBounce(t: Float, start: Float): Float = animate(t - start) {
     anim(.09f, .10f)
     anim(0f, .12f)

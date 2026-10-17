@@ -52,7 +52,7 @@ import kotlin.math.min
 
 private const val BackgroundTileSize = 128f
 
-private data class Cell(val row: Int, val col: Int)
+data class Cell(val row: Int, val col: Int)
 
 private fun cellsBetween(start: Cell, end: Cell): List<Cell> {
     val cells = mutableListOf<Cell>()
@@ -90,12 +90,14 @@ fun EditableCanvas(
     resize: (SpriteBounds) -> Unit,
     modifier: Modifier = Modifier,
     editorKey: Any = Unit,
+    tools: List<SpriteEditorTool> = SpriteEditorTool.entries,
+    showLogicTagPicker: Boolean = true,
     logicTag: LogicTag? = null,
     onLogicTagChange: (LogicTag?) -> Unit = {},
     positionEditor: @Composable () -> Unit,
 ) {
-    var selectedTool by remember(editorKey) { mutableStateOf(SpriteEditorTool.Pen) }
-    var penColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
+    var selectedTool by remember(editorKey) { mutableStateOf(tools.first()) }
+    var selectedColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
     val boundsState = remember(editorKey) { mutableStateOf(SpriteBounds.original(sprite)) }
     val panState = remember(editorKey) { mutableStateOf(Offset.Zero) }
     val zoomState = remember(editorKey) { mutableStateOf(1f) }
@@ -110,15 +112,20 @@ fun EditableCanvas(
             SpriteToolPicker(
                 selectedTool = selectedTool,
                 onSelectTool = { selectedTool = it },
+                tools = tools,
             )
-            LogicTagPicker(
-                selectedTag = logicTag,
-                onSelectTag = onLogicTagChange,
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-            )
+            if (showLogicTagPicker) {
+                LogicTagPicker(
+                    selectedTag = logicTag,
+                    onSelectTag = onLogicTagChange,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                )
+            }
         }
         when (selectedTool) {
-            SpriteEditorTool.Pen -> PenOptions(penColor) { penColor = it }
+            SpriteEditorTool.Pen, SpriteEditorTool.Bucket ->
+                SpriteColorPicker(selectedColor) { selectedColor = it }
+
             SpriteEditorTool.Resize -> ResizeOptions(
                 canReset = boundsState.value != SpriteBounds.original(sprite),
                 onReset = { boundsState.value = SpriteBounds.original(sprite) },
@@ -146,7 +153,7 @@ fun EditableCanvas(
         if (selectedTool != SpriteEditorTool.Position) {
             Content(
                 selectedTool = selectedTool,
-                penColor = penColor,
+                selectedColor = selectedColor,
                 sprite = sprite,
                 draft = draft,
                 boundsState = boundsState,
@@ -162,7 +169,7 @@ fun EditableCanvas(
 @Composable
 private fun Content(
     selectedTool: SpriteEditorTool,
-    penColor: Palette,
+    selectedColor: Palette,
     sprite: Sprite,
     draft: MutableSpriteDraft,
     boundsState: MutableState<SpriteBounds>,
@@ -180,11 +187,13 @@ private fun Content(
             pan = panState.value,
             zoom = zoomState.value,
             sprite = sprite,
-            cropToSprite = selectedTool == SpriteEditorTool.Pen,
+            cropToSprite = selectedTool == SpriteEditorTool.Pen ||
+                    selectedTool == SpriteEditorTool.Bucket,
         )
         when (selectedTool) {
-            SpriteEditorTool.Pen -> SpriteCanvas(
-                penColor = penColor,
+            SpriteEditorTool.Pen, SpriteEditorTool.Bucket -> SpriteCanvas(
+                selectedTool = selectedTool,
+                selectedColor = selectedColor,
                 draft = draft,
                 commit = commit,
                 panState = panState,
@@ -327,7 +336,8 @@ private fun BackgroundCanvas(
 
 @Composable
 private fun SpriteCanvas(
-    penColor: Palette,
+    selectedTool: SpriteEditorTool,
+    selectedColor: Palette,
     draft: MutableSpriteDraft,
     commit: (Sprite) -> Unit,
     panState: MutableState<Offset>,
@@ -343,7 +353,7 @@ private fun SpriteCanvas(
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
-            .pointerInput(penColor) {
+            .pointerInput(selectedColor, selectedTool) {
                 fun cellAt(position: Offset): Cell {
                     val frame = draft.frame
                     val spriteSize = fittedSize(
@@ -363,14 +373,20 @@ private fun SpriteCanvas(
                 }
 
                 racing {
-                    sequence {
+                    if (selectedTool == SpriteEditorTool.Pen) sequence {
                         val cell = cellAt(expectTap().position)
                         if (draft.inBounds(cell.row, cell.col)) {
-                            draft.apply(Sprite.Edits.Write(cell.row, cell.col, penColor))
+                            draft.apply(Sprite.Edits.Write(cell.row, cell.col, selectedColor))
                             commit.value(draft.toSprite())
                         }
                     }
-                    sequence {
+                    if (selectedTool == SpriteEditorTool.Bucket) sequence {
+                        val cell = cellAt(expectTap().position)
+                        if (draft.fill(cell.row, cell.col, selectedColor)) {
+                            commit.value(draft.toSprite())
+                        }
+                    }
+                    if (selectedTool == SpriteEditorTool.Pen) sequence {
                         val visited = mutableSetOf<Cell>()
                         var previousCell: Cell? = null
                         followDrag { change ->
@@ -378,7 +394,7 @@ private fun SpriteCanvas(
                             previousCell?.let { previous ->
                                 val edits = cellsBetween(previous, currentCell).mapNotNull { cell ->
                                     if (draft.inBounds(cell.row, cell.col) && visited.add(cell)) {
-                                        Sprite.Edits.Write(cell.row, cell.col, penColor)
+                                        Sprite.Edits.Write(cell.row, cell.col, selectedColor)
                                     } else {
                                         null
                                     }

@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.core.lessEq
 object Tables {
     object User : LongIdTable() {
         val lower = long("lower")
-        val upper = long("lower")
+        val upper = long("upper")
 
         init {
             index("uuid", isUnique = true, lower, upper)

@@ -1,5 +1,4 @@
 package com.example.microware.ui.gestures
-import com.example.microware.util.untilThrows
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.geometry.Offset
@@ -9,6 +8,7 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.positionChange
+import com.example.microware.util.untilThrows
 import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
@@ -18,7 +18,6 @@ import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.math.abs
 
 private const val DragDistance = 10
 
@@ -89,33 +88,6 @@ sealed class PointerScope {
         }
     }
 
-    suspend fun followHorizontalDrag(chaser: (PointerInputChange) -> Unit): PointerInputChange {
-        val initial = expectDown()
-        var dragging = false
-        var accumulated = Offset.Zero
-        while (true) {
-            val latest = expectFor(initial.id)
-            if (latest.changedToUp()) {
-                if (!dragging) {
-                    unexpected(latest)
-                }
-                return latest
-            }
-            accumulated += latest.positionChange()
-            if (!dragging && accumulated.getDistance() > DragDistance) {
-                if (abs(accumulated.x) <= abs(accumulated.y)) {
-                    unexpected(latest)
-                }
-                dragging = true
-            }
-            if (dragging) {
-                claim()
-                latest.consume()
-                chaser(latest)
-            }
-        }
-    }
-
     suspend fun followPinch(chaser: (Offset, Float) -> Unit): Pair<Offset, Float> {
         var first = expectDown()
         untilThrows<UnexpectedEvent> { first = expectFor(first.id) }
@@ -147,9 +119,10 @@ private class PointerStateMachine private constructor() : PointerScope() {
 
     constructor(block: suspend PointerStateMachine.() -> Unit) : this() {
         block.createCoroutineUnintercepted(
-            this, Continuation(
-                EmptyCoroutineContext
-            ) { it.getOrThrow().apply { complete = true; claimed = true } }
+            this,
+            Continuation(
+                EmptyCoroutineContext,
+            ) { it.getOrThrow().apply { complete = true; claimed = true } },
         ).resume(Unit)
     }
 
