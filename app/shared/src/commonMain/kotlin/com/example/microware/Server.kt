@@ -21,7 +21,7 @@ import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
 
 private val user: User = User.loadOrCreate()
-private const val HOST = "10.0.2.2"
+private const val HOST = "jhgarner.tplinkdns.com"
 
 private val client = HttpClient() {
     install(ContentNegotiation) {
