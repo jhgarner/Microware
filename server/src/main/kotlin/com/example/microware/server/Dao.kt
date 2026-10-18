@@ -338,6 +338,7 @@ object Dao {
                 Tables.Sprite.height,
             )
             .where(Tables.Community.id eq communityId)
+            .andWhere { Tables.CommunityUserJoin.user eq userId }
             .orderBy(Tables.Experience.index to SortOrder.ASC)
             .map {
                 ExperienceMetadata(

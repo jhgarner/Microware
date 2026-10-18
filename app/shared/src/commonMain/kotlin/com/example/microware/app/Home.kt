@@ -57,8 +57,8 @@ fun Home(navigate: (HomeNavigation) -> Unit) {
         } else if (version != "1.0.0") {
             importantMessage = {
                 val uriHandler = LocalUriHandler.current
-                Text("To continue, update your app. The app will likely crash without it. $version")
-                Button(onClick = { uriHandler.openUri("https://github.com/jhgarner/Microware") }) {
+                Text("To continue, update your app by downloading the latest apk file. The app will likely crash without it.")
+                Button(onClick = { uriHandler.openUri("https://github.com/jhgarner/Microware/releases") }) {
                     Text("Open Github to update")
                 }
             }

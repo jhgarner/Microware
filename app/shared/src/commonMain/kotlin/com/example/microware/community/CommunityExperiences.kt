@@ -1,5 +1,6 @@
 package com.example.microware.community
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,10 +21,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.example.microware.core.BannerHeight
 import com.example.microware.core.BannerWidth
 import com.example.microware.core.Model
@@ -40,10 +44,13 @@ import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.gestures.Offer
+import com.example.microware.ui.gestures.dragObserver
 import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 import com.example.microware.util.insetPadding
+import com.example.microware.util.toDp
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -84,7 +91,7 @@ internal fun CommunityExperiences(communityId: Long?) {
         }.orEmpty()
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().dragObserver(dragController)) {
         Column(Modifier.fillMaxSize().insetPadding()) {
             Box(Modifier.weight(1f)) {
                 Grid(
@@ -107,15 +114,22 @@ internal fun CommunityExperiences(communityId: Long?) {
             Spacer(Modifier.height(HandleSize))
         }
 
-        val handleState: DrawerHandleState<ExperienceDraft, ExperienceDraft>? = selectedDraft?.let {
-            DrawerHandleState.Expanded(HandleEdge.Bottom, it)
-        } ?: communityId?.let { id ->
-            DrawerHandleState.Waiting(
-                extraOnExpand = { selectedDraft = newExperienceDraft(id) },
+        val offer = dragController.offer
+        val handleState: DrawerHandleState<ExperienceDraft, ExperienceDraft>? = when {
+            offer != null -> DrawerHandleState.Dragging(
+                dragTarget = dragController,
+                onGiven = { selectedDraft = it.item },
             )
+
+            selectedDraft != null -> DrawerHandleState.Expanded(HandleEdge.Bottom, selectedDraft)
+            communityId != null -> DrawerHandleState.Waiting(
+                extraOnExpand = { selectedDraft = newExperienceDraft(communityId) },
+            )
+
+            else -> null
         }
         DrawerWithHandle(
-            handleType = HandleType.Create,
+            handleType = if (offer == null) HandleType.Create else HandleType.Edit,
             state = handleState,
             setExpanded = { if (it == null) selectedDraft = null },
             drawerContent = { draft ->
@@ -134,6 +148,14 @@ internal fun CommunityExperiences(communityId: Long?) {
                 )
             },
         )
+        offer?.let { currentOffer ->
+            dragController.rootCoordinates.value?.let { root ->
+                ExperienceDragGhost(
+                    offer = currentOffer,
+                    topLeft = root.windowToLocal(currentOffer.offset - currentOffer.localOffset),
+                )
+            }
+        }
     }
 }
 
@@ -181,4 +203,21 @@ private fun DrawScope.drawExperienceBanner(sprite: Sprite) {
         dstSize = IntSize(width, height),
         filterQuality = FilterQuality.None,
     )
+}
+
+@Composable
+private fun ExperienceDragGhost(offer: Offer<ExperienceDraft>, topLeft: Offset) {
+    Canvas(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    topLeft.x.roundToInt(),
+                    topLeft.y.roundToInt(),
+                )
+            }
+            .size(width = offer.size.width.toDp(), height = offer.size.height.toDp())
+            .zIndex(.5f),
+    ) {
+        drawExperienceBanner(offer.item.banner.sprite)
+    }
 }
