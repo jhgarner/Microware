@@ -119,6 +119,13 @@ class Sprite private constructor(
     }
 
     companion object {
+
+        fun Model.Sprite.load(): Sprite = try {
+            fromPackedBytes(width, height, pixels)
+        } catch (_: Exception) {
+            empty(width, height)
+        }
+
         internal fun fromPaletteCodes(width: Int, height: Int, codes: ByteArray): Sprite {
             require(codes.size == width * height)
             return Sprite(width, height, PackedPixels.fromPaletteCodes(codes))

@@ -11,7 +11,8 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondText
+import io.ktor.server.routing.RoutingContext
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.query
@@ -47,36 +48,60 @@ private fun prepareDb() {
 fun Application.module() {
     install(ContentNegotiation) { json() }
     routing {
-        query("/communityMetadata") {
-            val userUuidString = call.request.header("userUuid")
-            if (userUuidString == null) {
-                call.respondText("No user provided")
-                return@query
+        post("/publish") {
+            val uuid = withUser()
+            val publish = call.receive<Model.Publish>()
+            val gameId = transaction {
+                Dao.publishGame(uuid, publish.experience, publish.game)
             }
+            call.respond(gameId.value)
+        }
+        delete("/publish") {
+            val uuid = withUser()
+            val unpublish = call.receive<Model.Unpublish>()
+            transaction {
+                Dao.unpublishGame(uuid, unpublish.experience, unpublish.game)
+            }
+        }
+        query("/publishedAt") {
+            val uuid = withUser()
+            val gameId = call.receive<Long>()
+            val publishedAt = transaction {
+                Dao.publishedAt(uuid, gameId)
+            }.map { it.value }
+            call.respond(publishedAt)
+        }
+        query("/publishableExperiences") {
+            val uuid = withUser()
+            val publishableExperiences = transaction {
+                Dao.publishableExperiences(uuid)
+            }
+            call.respond(publishableExperiences)
+        }
+        query("/banners") {
+            val uuid = withUser()
+            val banners = transaction {
+                Dao.getBanners(uuid)
+            }
+            call.respond(banners)
+        }
+        query("/communityMetadata") {
+            val uuid = withUser()
             val metadata = transaction {
-                Dao.getCommunityMetadata(Uuid.parseHex(userUuidString))
+                Dao.getCommunityMetadata(uuid)
             }
             call.respond(metadata)
         }
         post("/createCommunity") {
-            val userUuidString = call.request.header("userUuid")
-            if (userUuidString == null) {
-                call.respondText("No user provided")
-                return@post
-            }
+            val uuid = withUser()
             val communityId = transaction {
-                Dao.createCommunity(Uuid.parseHex(userUuidString))
+                Dao.createCommunity(uuid)
             }
             call.respond(communityId.value)
         }
         this.patch("/updateCommunity") {
-            val userUuidString = call.request.header("userUuid")
-            if (userUuidString == null) {
-                call.respondText("No user provided")
-                return@patch
-            }
+            val uuid = withUser()
             val metadata = call.receive<Model.CommunityMetadata>()
-            val uuid = Uuid.parseHex(userUuidString)
             transaction {
                 Dao.updateCommunityAvatar(uuid, metadata.id, metadata.icon)
                 Dao.updateCommunityBanner(uuid, metadata.id, metadata.banner)
@@ -86,16 +111,17 @@ fun Application.module() {
         }
 
         post("/joinCommunity") {
-            val userUuidString = call.request.header("userUuid")
-            if (userUuidString == null) {
-                call.respondText("No user provided")
-                return@post
-            }
+            val user = withUser()
             val communityDurableId = call.receive<Long>()
             transaction {
-                Dao.joinCommunity(Uuid.parseHex(userUuidString), communityDurableId)
+                Dao.joinCommunity(user, communityDurableId)
             }
             call.respond(HttpStatusCode.OK, Unit)
         }
     }
+}
+
+private suspend fun RoutingContext.withUser(): Uuid {
+    val uuid = call.request.header("userUuid") ?: throw Exception("No user provided")
+    return Uuid.parseHex(uuid)
 }

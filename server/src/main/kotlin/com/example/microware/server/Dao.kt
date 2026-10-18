@@ -3,10 +3,12 @@ package com.example.microware.server
 import com.example.microware.community.DurableId
 import com.example.microware.core.Model.CommunityMetadata
 import com.example.microware.core.Model.Experience
+import com.example.microware.core.Model.ExperienceMetadata
 import com.example.microware.core.Model.Game
 import com.example.microware.core.Model.Logic
 import com.example.microware.core.Model.Obj
 import com.example.microware.core.Model.Offset
+import com.example.microware.core.Model.PublishableExperience
 import com.example.microware.core.Model.Sprite
 import com.example.microware.core.Model.World
 import com.example.microware.game.model.Action
@@ -91,6 +93,26 @@ object Dao {
         Tables.Community.update(where = { (Tables.Community.id eq communityId) and (Tables.Community.owner eq userId) }) {
             it[durableId] = newDurableId
         }
+    }
+
+    fun getBanners(userUuid: Uuid): List<Sprite> {
+        val userId = withUser(userUuid)
+        val bannerTable = Tables.Sprite.alias("banners")
+        return (Tables.Community innerJoin Tables.CommunityUserJoin)
+            .join(
+                otherTable = bannerTable,
+                joinType = JoinType.INNER,
+                onColumn = Tables.Community.banner,
+                otherColumn = bannerTable[Tables.Sprite.id],
+            )
+            .select(
+                bannerTable[Tables.Sprite.width],
+                bannerTable[Tables.Sprite.height],
+                bannerTable[Tables.Sprite.pixels],
+            )
+            .where(Tables.CommunityUserJoin.user eq userId)
+            .map { it.toSprite(bannerTable) }
+            .toList()
     }
 
     fun getCommunityMetadata(userUuid: Uuid): List<CommunityMetadata> {
@@ -261,7 +283,8 @@ object Dao {
         .firstOrNull()
         ?: Sprite(10, 10, ByteArray(100))
 
-    fun publishGame(userId: EntityID<Long>, experienceId: Long, game: Game): EntityID<Long> {
+    fun publishGame(uuid: Uuid, experienceId: Long, game: Game): EntityID<Long> {
+        val userId = withUser(uuid)
         val isUserMember = (Tables.Experience innerJoin Tables.CommunityUserJoin)
             .select(Tables.CommunityUserJoin.user)
             .where { Tables.CommunityUserJoin.user eq userId }
@@ -274,6 +297,62 @@ object Dao {
             it[this.game] = gameId
         }
         return gameId
+    }
+
+    fun publishedAt(uuid: Uuid, gameId: Long): List<EntityID<Long>> {
+        val userId = withUser(uuid)
+        val owner = Tables.Game
+            .select(Tables.Game.owner)
+            .where(Tables.Game.id eq gameId)
+            .first()[Tables.Game.owner]
+        require(owner == userId)
+        return Tables.ExperienceGameJoin
+            .select(Tables.ExperienceGameJoin.experience)
+            .where(Tables.ExperienceGameJoin.game eq gameId)
+            .map { it[Tables.ExperienceGameJoin.experience] }
+    }
+
+    fun publishableExperiences(uuid: Uuid): List<PublishableExperience> {
+        val communities = getCommunityMetadata(uuid)
+        val experiencesByCommunityId = (Tables.Community innerJoin Tables.Experience)
+            .join(
+                onColumn = Tables.Experience.banner,
+                otherTable = Tables.Sprite,
+                otherColumn = Tables.Sprite.id,
+                joinType = JoinType.INNER,
+            )
+            .select(
+                Tables.Experience.id,
+                Tables.Experience.community,
+                Tables.Sprite.pixels,
+                Tables.Sprite.width,
+                Tables.Sprite.height,
+            )
+            .where(Tables.Community.id inList communities.map { it.id })
+            .groupBy { it[Tables.Experience.community].value }
+            .mapValues { entries ->
+                entries.value.map {
+                    ExperienceMetadata(id = it[Tables.Experience.id].value, banner = it.toSprite())
+                }
+            }
+        return communities
+            .map {
+                PublishableExperience(
+                    it,
+                    experiencesByCommunityId[it.id] ?: listOf(),
+                )
+            }
+            .filter { it.experiences.isNotEmpty() }
+    }
+
+    fun unpublishGame(uuid: Uuid, experienceId: Long, gameId: Long) {
+        val userId = withUser(uuid)
+        val owner = Tables.Game
+            .select(Tables.Game.owner)
+            .where(Tables.Game.id eq gameId)
+            .first()[Tables.Game.owner]
+        require(owner == userId)
+        Tables.ExperienceGameJoin.deleteWhere { (game eq gameId) and (experience eq experienceId) }
     }
 
     private fun writeSprite(sprite: Sprite): EntityID<Long> = Tables.Sprite.insertAndGetId {
@@ -289,7 +368,12 @@ object Dao {
                 .where(Tables.Game.id.eq(gameId))
                 .firstOrNull()
             if (dbGame != null && userId == dbGame[Tables.Game.owner]) {
-                return EntityID(gameId, Tables.Game)
+                Tables.Obj.deleteWhere { this.game eq gameId }
+                Tables.Trigger.deleteWhere { this.game eq gameId }
+                val gameEntityId = EntityID(gameId, Tables.Game)
+                game.world.objects.forEachIndexed { i, obj -> writeObj(gameEntityId, i, obj) }
+                game.logics.forEachIndexed { i, logic -> writeLogic(gameEntityId, i, logic) }
+                return gameEntityId
             }
         }
         return createGame(userId, game)
@@ -402,7 +486,7 @@ private fun ResultRow.toAction(): Action = when (this[Tables.Action.variant]) {
     1 -> Action.Lose
     2 -> Action.Move(
         mover = LogicTag(this[Tables.Action.moveMover]!!),
-        target = Direction.values()[this[Tables.Action.moveTarget]!!],
+        target = Direction.entries[this[Tables.Action.moveTarget]!!],
         speed = this[Tables.Action.moveSpeed]!!,
     )
 

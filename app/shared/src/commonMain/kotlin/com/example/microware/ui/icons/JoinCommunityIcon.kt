@@ -57,11 +57,22 @@ internal fun DrawScope.drawJoinCommunityIcon(t: Float = 0f) {
 }
 
 fun DrawScope.drawCreateCommunityIcon(t: Float = 0f) {
-    drawJoinCommunityIcon(t)
+    drawCommunityPerson(
+        Offset(.0f, .05f),
+        Size(.48f, .76f),
+        Palette.Purple,
+        communityBounce(t, .58f),
+    )
+    drawCommunityPerson(
+        Offset(.52f, .05f),
+        Size(.48f, .76f),
+        Palette.Purple,
+        communityBounce(t, .70f),
+    )
 
-    val center = Offset(size.width * .78f, size.height * .78f)
+    val center = Offset(size.width * .51f, size.height * .78f)
     val radius = size.minDimension * .18f
-    drawCircle(Palette.Forest.color, radius, center)
+    drawCircle(Palette.Forest.color, size.minDimension * .7f, center + Offset(0f, size.height * .50f))
     drawLine(
         color = Palette.OffWhite.color,
         start = Offset(center.x - radius * .5f, center.y),
@@ -114,3 +125,7 @@ private fun JoinCommunityIconPreview() = Icon { drawJoinCommunityIcon() }
 @Preview
 @Composable
 private fun JoinCommunityAnimationPreview() = Animated { drawJoinCommunityIcon(it) }
+
+@Preview
+@Composable
+private fun CreateCommunityIconPreview() = Icon { drawCreateCommunityIcon() }

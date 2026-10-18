@@ -33,9 +33,10 @@ import com.example.microware.core.Model
 import com.example.microware.editor.sprite.EditableCanvas
 import com.example.microware.editor.sprite.SpriteEditorTool
 import com.example.microware.game.sprite.Sprite
+import com.example.microware.game.sprite.Sprite.Companion.load
 import com.example.microware.ui.components.IconButton
-import com.example.microware.ui.icons.drawCreateCommunityIcon
 import com.example.microware.ui.icons.drawQrCode
+import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 import kotlinx.coroutines.launch
@@ -57,8 +58,8 @@ internal data class CommunityDraft(
 internal fun Model.CommunityMetadata.toCommunityDraft() = CommunityDraft(
     serverId = id,
     code = DurableId(code),
-    avatar = Avatar(Sprite.fromPackedBytes(icon.width, icon.height, icon.pixels)),
-    banner = Banner(Sprite.fromPackedBytes(banner.width, banner.height, banner.pixels)),
+    avatar = Avatar(icon.load()),
+    banner = Banner(icon.load()),
     id = Identifiable.nextId(),
 )
 
@@ -107,6 +108,16 @@ internal fun CommunityEditor(
                 selected = tab == Tab.Artwork(CommunityArtwork.Banner),
                 onClick = { tab = Tab.Artwork(CommunityArtwork.Banner) },
             )
+
+            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
+                IconButton(
+                    description = "Save community",
+                    modifier = Modifier.size(56.dp),
+                    onClick = { scope.launch { onCreate(draft) } },
+                ) {
+                    drawSaveIcon(it)
+                }
+            }
         }
 
         when (val tab = tab) {
@@ -151,19 +162,6 @@ internal fun CommunityEditor(
                     showLogicTagPicker = false,
                     positionEditor = {},
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    IconButton(
-                        description = "Create community",
-                        modifier = Modifier.size(56.dp),
-                        onClick = { scope.launch { onCreate(draft) } },
-                    ) {
-                        drawCreateCommunityIcon(it)
-                    }
-                }
             }
         }
     }

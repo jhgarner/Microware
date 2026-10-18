@@ -18,7 +18,7 @@ object Model {
     class Offset(val x: Float, val y: Float)
 
     @Serializable
-    class Obj(val offset: Offset, val sprite: Sprite, val tag: Int)
+    class Obj(val offset: Offset, val sprite: Sprite, val tag: Int?)
 
     @Serializable
     class World(val objects: List<Obj>) {
@@ -48,6 +48,30 @@ object Model {
             require(games.size < 200)
         }
     }
+
+    @Serializable
+    class PublishableExperience(
+        val community: CommunityMetadata,
+        val experiences: List<ExperienceMetadata>,
+    )
+
+    @Serializable
+    class ExperienceMetadata(
+        val id: Long,
+        val banner: Sprite,
+    )
+
+    @Serializable
+    class Publish(
+        val game: Game,
+        val experience: Long,
+    )
+
+    @Serializable
+    class Unpublish(
+        val game: Long,
+        val experience: Long,
+    )
 
     @Serializable
     class CommunityMetadata(

@@ -33,8 +33,12 @@ object Tables {
     }
 
     object CommunityUserJoin : Table() {
-        val community = reference("community", Community)
-        val user = reference("user", User)
+        val community = cascadeReference("community", Community)
+        val user = cascadeReference("user", User)
+
+        init {
+            index("joined", isUnique = true, community, user)
+        }
     }
 
     object Experience : LongIdTable() {
@@ -51,6 +55,10 @@ object Tables {
         val experience = cascadeReference("experience", Experience).index()
         val game = cascadeReference("game", Game).index()
         val index = integer("index")
+
+        init {
+            index("joined", isUnique = true, experience, game)
+        }
     }
 
     object Obj : LongIdTable() {
@@ -63,7 +71,7 @@ object Tables {
     }
 
     object Trigger : LongIdTable() {
-        val game = reference("game", Game).index()
+        val game = cascadeReference("game", Game).index()
         val index = integer("index")
         val variant = integer("variant")
         val tapTarget = integer("tapTarget").nullable()
@@ -72,7 +80,7 @@ object Tables {
     }
 
     object Action : Table() {
-        val trigger = reference("trigger", Trigger).index()
+        val trigger = cascadeReference("trigger", Trigger).index()
         val index = integer("index")
         val variant = integer("variant")
         val moveMover = integer("moveMover").nullable()
@@ -87,7 +95,7 @@ object Tables {
     }
 
     private fun Table.spriteReference(name: String): Column<EntityID<Long>> =
-        cascadeReference(name, Sprite)
+        reference(name, Sprite, onDelete = ReferenceOption.RESTRICT)
 
     private fun <T : Any> Table.cascadeReference(
         name: String,

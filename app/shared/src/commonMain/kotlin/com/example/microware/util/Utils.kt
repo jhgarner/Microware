@@ -1,12 +1,14 @@
 package com.example.microware.util
-import com.example.microware.ui.layout.density
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.node.Ref
 import androidx.compose.ui.unit.Dp
+import com.example.microware.core.Model
+import com.example.microware.ui.layout.density
 import kotlin.reflect.KProperty
 
 inline fun <reified Ex : Exception> untilThrows(cond: () -> Unit) {
@@ -38,6 +40,9 @@ inline fun Int.toDp(): Dp = with(density) { toDp() }
 inline fun <T> MutableState<T>.modify(f: (T) -> T) {
     value = f(value)
 }
+
+fun Offset.toModel(): Model.Offset = Model.Offset(x, y)
+fun Model.Offset.toUi(): Offset = Offset(x, y)
 
 inline fun <T, P> T.runMaybe(p: P?, action: T.(P) -> T): T = run { p?.let { action(it) } ?: this }
 

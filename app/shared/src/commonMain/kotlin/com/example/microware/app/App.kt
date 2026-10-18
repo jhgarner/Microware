@@ -14,10 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.microware.FakeDb
-import com.example.microware.LocalUser
 import com.example.microware.Palette
-import com.example.microware.User
 import com.example.microware.community.Avatar
 import com.example.microware.community.Banner
 import com.example.microware.community.Communities
@@ -78,70 +75,62 @@ fun App() {
                 .background(Palette.OffWhite.color)
                 .fillMaxSize(),
         ) {
-            val user = User.loadOrCreate()
-            val fakeDb = FakeDb.empty()
-            fakeDb.claimUser(user)
-            CompositionLocalProvider(LocalUser provides user) {
-                val gameStoreScope = rememberCoroutineScope()
-                val gameStore = remember {
-                    GameStore(
-                        repository = AppGameRepository,
-                        scope = gameStoreScope,
+            val gameStoreScope = rememberCoroutineScope()
+            val gameStore = remember {
+                GameStore(
+                    repository = AppGameRepository,
+                    scope = gameStoreScope,
+                )
+            }
+            val gameState by gameStore.state.collectAsState()
+            var selectedGameId by remember { mutableStateOf<Id?>(null) }
+
+            val communities = remember { mutableStateListOf<Community>() }
+
+            CompositionLocalProvider(LocalInsets provides Insets.new()) {
+                var navigation by remember { mutableStateOf<HomeNavigation?>(null) }
+                when (navigation) {
+                    null -> Home { navigation = it }
+                    HomeNavigation.Editor -> {
+                        val gameId = selectedGameId
+                        val game = gameId?.let { id ->
+                            gameState.games.firstOrNull { it.id == id }
+                        }
+                        val gameIndex = gameId?.let { id ->
+                            gameState.games.indexOfFirst { it.id == id }
+                        }
+                        if (game == null || gameIndex == null) {
+                            GamesPage(
+                                games = gameState.games,
+                                selectGame = { selectedGameId = it },
+                                handler = gameStore::dispatch,
+                                onBack = { navigation = null },
+                            )
+                        } else {
+                            GameEditor(
+                                game = game,
+                                handler = { event -> gameStore.dispatch(event.forGame(gameIndex)) },
+                                onBack = { selectedGameId = null },
+                                publish = { game ->
+                                    PublishGame(game) { dbId ->
+                                        gameStore.dispatch { games ->
+                                            val game = games[gameIndex]
+                                            games.replacingAt(gameIndex, game.copy(dbId = dbId))
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    }
+
+                    HomeNavigation.Play -> PlayPage(
+                        communities.flatMap { it.experiences },
+                        onBack = { navigation = null },
                     )
-                }
-                val gameState by gameStore.state.collectAsState()
-                var selectedGameId by remember { mutableStateOf<Id?>(null) }
 
-                val communities = remember { mutableStateListOf<Community>() }
-
-                CompositionLocalProvider(LocalInsets provides Insets.new()) {
-                    var navigation by remember { mutableStateOf<HomeNavigation?>(null) }
-                    when (navigation) {
-                        null -> Home { navigation = it }
-                        HomeNavigation.Editor -> {
-                            val gameId = selectedGameId
-                            val game = gameId?.let { id ->
-                                gameState.games.firstOrNull { it.id == id }
-                            }
-                            val gameIndex = gameId?.let { id ->
-                                gameState.games.indexOfFirst { it.id == id }
-                            }
-                            if (game == null || gameIndex == null) {
-                                GamesPage(
-                                    games = gameState.games,
-                                    selectGame = { selectedGameId = it },
-                                    handler = gameStore::dispatch,
-                                    onBack = { navigation = null },
-                                )
-                            } else {
-                                GameEditor(
-                                    game = game,
-                                    handler = { event -> gameStore.dispatch(event.forGame(gameIndex)) },
-                                    onBack = { selectedGameId = null },
-                                    publish = publisher(
-                                        communities = communities,
-                                        onPublish = { gameToPublish, communityCode, experienceId ->
-                                            val index =
-                                                communities.indexOfFirst { it.code == communityCode }
-                                            communities[index] = communities[index].publish(
-                                                experienceId,
-                                                gameToPublish,
-                                            )
-                                        },
-                                    ),
-                                )
-                            }
-                        }
-
-                        HomeNavigation.Play -> PlayPage(
-                            communities.flatMap { it.experiences },
-                            onBack = { navigation = null },
-                        )
-
-                        HomeNavigation.Community -> {
-                            SystemBackHandler { navigation = null }
-                            Communities()
-                        }
+                    HomeNavigation.Community -> {
+                        SystemBackHandler { navigation = null }
+                        Communities()
                     }
                 }
             }

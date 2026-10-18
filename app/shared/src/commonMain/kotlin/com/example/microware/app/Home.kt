@@ -21,10 +21,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.microware.Palette
 import com.example.microware.community.Banner
 import com.example.microware.community.DrawBanner
-import com.example.microware.game.sprite.Sprite
+import com.example.microware.community.defaultBanner
+import com.example.microware.game.sprite.Sprite.Companion.load
+import com.example.microware.getBanners
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawCommunityHomeIcon
 import com.example.microware.ui.icons.drawCreateIcon
@@ -34,20 +35,6 @@ import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 enum class HomeNavigation { Editor, Play, Community }
-
-val memberBanners: List<Banner> = listOf(
-    Banner(
-        Sprite.pattern(128, 32) {
-            when (it % 3) {
-                0 -> Palette.Green
-                1 -> Palette.Forest
-                2 -> Palette.Cyan
-                else -> Palette.Tan
-            }
-        },
-    ),
-    Banner(Sprite.solid(128, 32, Palette.Forest)),
-)
 
 @Composable
 fun Home(navigate: (HomeNavigation) -> Unit) {
@@ -97,7 +84,12 @@ fun Home(navigate: (HomeNavigation) -> Unit) {
 
 @Composable
 private fun Banners() {
-    val pagerState = rememberPagerState(initialPage = 500) { memberBanners.size * 1000 }
+    var banners by remember { mutableStateOf(listOf<Banner>()) }
+    LaunchedEffect(Unit) {
+        val sprites = getBanners()
+        banners = sprites.map { runCatching { Banner(it.load()) }.getOrElse { defaultBanner() } }
+    }
+    val pagerState = rememberPagerState(initialPage = 500) { banners.size * 1000 }
     var interacted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         pagerState.interactionSource.interactions.collect { interacted = true }
@@ -112,6 +104,6 @@ private fun Banners() {
         }
     }
     HorizontalPager(pagerState) {
-        DrawBanner(memberBanners[((it - 500) % memberBanners.size + memberBanners.size) % memberBanners.size])
+        DrawBanner(banners[((it - 500) % banners.size + banners.size) % banners.size])
     }
 }

@@ -75,15 +75,14 @@ fun JoinCommunity(
                 while (true) {
                     val edits = mutableListOf(placeholder)
                     delay(1.seconds)
-                    val len = Random.nextInt(3, 8)
-                    repeat(len) {
+                    repeat(8) {
                         val i = Random.nextInt(0, encodingAlphabet.size)
                         placeholder += encodingAlphabet[i]
                         edits.add(placeholder)
                         delay(40.milliseconds)
                     }
                     delay(1.seconds)
-                    repeat(len + 1) {
+                    repeat(9) {
                         placeholder = edits.removeLast()
                         delay(40.milliseconds)
                     }
@@ -100,7 +99,7 @@ fun JoinCommunity(
                 offsetX.animateTo(0f, animationSpec = tween(durationMillis = 40))
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     placeholder = { Text(if (shouldAnimateText) placeholder else "") },
                     modifier = Modifier.weight(1f)

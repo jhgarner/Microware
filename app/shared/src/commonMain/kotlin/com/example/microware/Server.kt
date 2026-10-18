@@ -4,9 +4,11 @@ import com.example.microware.community.Avatar
 import com.example.microware.community.Banner
 import com.example.microware.community.DurableId
 import com.example.microware.core.Model
+import com.example.microware.game.model.Game
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -26,6 +28,37 @@ private val client = HttpClient() {
         json()
     }
 }
+
+suspend fun getBanners(): List<Model.Sprite> = client.query {
+    url { this.host = HOST; this.port = 8040; this.path("banners") }
+    this.header("userUuid", user.uuid.toHexString())
+}.body()
+
+suspend fun publishGame(experienceId: Long, game: Game): Long = client.post {
+    url { this.host = HOST; this.port = 8040; this.path("publish") }
+    this.header("userUuid", user.uuid.toHexString())
+    contentType(ContentType.Application.Json)
+    setBody(Model.Publish(game.toModel(), experienceId))
+}.body()
+
+suspend fun publishableExperiences(): List<Model.PublishableExperience> = client.query {
+    url { this.host = HOST; this.port = 8040; this.path("publishableExperiences") }
+    this.header("userUuid", user.uuid.toHexString())
+}.body()
+
+suspend fun publishedAt(gameId: Long): List<Long> = client.query {
+    url { this.host = HOST; this.port = 8040; this.path("publishedAt") }
+    this.header("userUuid", user.uuid.toHexString())
+    contentType(ContentType.Application.Json)
+    setBody(gameId)
+}.body()
+
+suspend fun unpublishGame(experienceId: Long, gameId: Long): HttpStatusCode = client.delete {
+    url { this.host = HOST; this.port = 8040; this.path("publish") }
+    this.header("userUuid", user.uuid.toHexString())
+    contentType(ContentType.Application.Json)
+    setBody(Model.Unpublish(gameId, experienceId))
+}.status
 
 suspend fun getCommunityMetadata(): List<Model.CommunityMetadata> = client.query {
     url { this.host = HOST; this.port = 8040; this.path("communityMetadata") }
