@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import com.example.microware.Palette
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawCreateCommunityIcon
 import com.example.microware.ui.icons.drawJoinCommunityIcon
+import com.example.microware.util.insetPadding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -46,7 +46,7 @@ fun JoinCommunity(
     val scope = rememberCoroutineScope()
     var invalid by remember { mutableStateOf(false) }
     Column(
-        modifier = modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier.fillMaxSize().insetPadding(),
     ) {
         var submittedType by remember { mutableStateOf<SubmittedType?>(null) }
         var submitting by remember { mutableStateOf(false) }

@@ -7,7 +7,7 @@ const val AvatarWidth = 32
 const val AvatarHeight = 32
 
 fun validateBanner(width: Int, height: Int) {
-    require(width == BannerWidth && height == BannerHeight)
+    require(width == BannerWidth && height == BannerHeight) { "Invalid $width or $height" }
 }
 
 fun validateAvatar(width: Int, height: Int) {

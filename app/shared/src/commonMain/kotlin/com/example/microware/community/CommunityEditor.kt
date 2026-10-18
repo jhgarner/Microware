@@ -39,6 +39,7 @@ import com.example.microware.ui.icons.drawQrCode
 import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
+import com.example.microware.util.insetPadding
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -59,7 +60,7 @@ internal fun Model.CommunityMetadata.toCommunityDraft() = CommunityDraft(
     serverId = id,
     code = DurableId(code),
     avatar = Avatar(icon.load()),
-    banner = Banner(icon.load()),
+    banner = Banner(banner.load()),
     id = Identifiable.nextId(),
 )
 
@@ -89,7 +90,7 @@ internal fun CommunityEditor(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(72.dp).padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().insetPadding().height(72.dp),
         ) {
             IconButton(
                 modifier = Modifier.size(64.dp),
@@ -112,7 +113,7 @@ internal fun CommunityEditor(
             Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
                 IconButton(
                     description = "Save community",
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(64.dp),
                     onClick = { scope.launch { onCreate(draft) } },
                 ) {
                     drawSaveIcon(it)
@@ -122,7 +123,7 @@ internal fun CommunityEditor(
 
         when (val tab = tab) {
             Tab.Share -> Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
