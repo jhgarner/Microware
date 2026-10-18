@@ -39,8 +39,8 @@ import com.example.microware.ui.components.HandleEdge
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
-import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 import com.example.microware.util.insetPadding
@@ -80,7 +80,7 @@ internal fun CommunityExperiences(communityId: Long?) {
     val dragController = remember { DragController<ExperienceDraft>() }
     LaunchedEffect(communityId, refresh) {
         experiences = communityId?.let { id ->
-            getExperienceMetadatas(id).map { it.toDraft(id) }
+            runCatching { getExperienceMetadatas(id).map { it.toDraft(id) } }.getOrElse { listOf() }
         }.orEmpty()
     }
 

@@ -55,7 +55,8 @@ fun Communities() {
     var panel by remember { mutableStateOf(listOf<CommunityPanel>()) }
 
     LaunchedEffect(refresh) {
-        communities = getCommunityMetadata().map { it.toCommunityDraft() }
+        communities = runCatching { getCommunityMetadata() }.getOrElse { listOf() }
+            .map { it.toCommunityDraft() }
     }
     SystemBackHandler(enabled = panel.isNotEmpty()) { panel = panel.dropLast(1) }
 

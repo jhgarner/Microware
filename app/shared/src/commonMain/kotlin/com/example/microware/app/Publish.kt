@@ -51,7 +51,7 @@ fun PublishGame(
     LaunchedEffect(refresh) {
         publishables = publishableExperiences()
         if (game.dbId != null) {
-            publishedAt = publishedAt(game.dbId).toSet()
+            publishedAt = runCatching { publishedAt(game.dbId).toSet() }.getOrElse { setOf() }
         }
     }
 

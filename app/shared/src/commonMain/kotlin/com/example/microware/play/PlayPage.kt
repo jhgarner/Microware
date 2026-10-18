@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.example.microware.community.Banner
+import com.example.microware.community.defaultBanner
 import com.example.microware.game.model.Game
 import com.example.microware.game.model.fromModel
 import com.example.microware.game.sprite.Sprite.Companion.load
@@ -23,23 +24,28 @@ private data class ExperienceRun(val experience: PlayExperienceMetadata, val ses
 fun PlayPage(onBack: () -> Unit) {
     var experiences by remember { mutableStateOf(emptyList<PlayExperienceMetadata>()) }
     LaunchedEffect(Unit) {
-        experiences = getCommunityMetadata().flatMap { community ->
-            getExperienceMetadatas(community.id).map { metadata ->
-                PlayExperienceMetadata(
-                    id = metadata.id,
-                    communityId = community.id,
-                    banner = Banner(metadata.banner.load()),
-                )
+        experiences =
+            runCatching { getCommunityMetadata() }.getOrElse { listOf() }.flatMap { community ->
+                runCatching {
+                    getExperienceMetadatas(community.id).map { metadata ->
+                        PlayExperienceMetadata(
+                            id = metadata.id,
+                            communityId = community.id,
+                            banner = runCatching { Banner(metadata.banner.load()) }.getOrElse { defaultBanner() },
+                        )
+                    }
+                }.getOrElse { listOf() }
             }
-        }
     }
 
     PlayPage(experiences, onBack) { metadata ->
-        getExperiences(metadata.communityId)
-            .firstOrNull { it.id == metadata.id }
-            ?.games
-            ?.map { it.fromModel() }
-            .orEmpty()
+        runCatching {
+            getExperiences(metadata.communityId)
+                .firstOrNull { it.id == metadata.id }
+                ?.games
+                ?.map { it.fromModel() }
+                .orEmpty()
+        }.getOrElse { listOf() }
     }
 }
 

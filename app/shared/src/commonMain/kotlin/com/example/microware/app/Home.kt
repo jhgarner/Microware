@@ -47,22 +47,28 @@ enum class HomeNavigation { Editor, Play, Community }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Home(navigate: (HomeNavigation) -> Unit) {
-    var importantMessage by remember { mutableStateOf(false) }
+    var importantMessage by remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
     LaunchedEffect(Unit) {
-        val version = getVersion()
-        if (version != "1.0.0") {
-            importantMessage = true
+        val version = runCatching { getVersion() }.getOrElse { "" }
+        if (version == "" || version.length > 12) {
+            importantMessage = {
+                Text("The server is not responding. The app will probably not work. $version")
+            }
+        } else if (version != "1.0.0") {
+            importantMessage = {
+                val uriHandler = LocalUriHandler.current
+                Text("To continue, update your app. The app will likely crash without it. $version")
+                Button(onClick = { uriHandler.openUri("https://github.com/jhgarner/Microware") }) {
+                    Text("Open Github to update")
+                }
+            }
         }
     }
-    if (importantMessage) {
-        val uriHandler = LocalUriHandler.current
-        BasicAlertDialog(onDismissRequest = { importantMessage = false }) {
+    if (importantMessage != null) {
+        BasicAlertDialog(onDismissRequest = { importantMessage = null }) {
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("To continue, update your app. The app will likely crash without it.")
-                    Button(onClick = { uriHandler.openUri("https://github.com/jhgarner/Microware") }) {
-                        Text("Open Github to update")
-                    }
+                    importantMessage?.invoke()
                 }
             }
         }

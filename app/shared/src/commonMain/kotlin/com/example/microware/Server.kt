@@ -16,6 +16,8 @@ import io.ktor.client.request.query
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.URLBuilder
+import io.ktor.http.URLProtocol
 import io.ktor.http.contentType
 import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
@@ -29,25 +31,32 @@ private val client = HttpClient() {
     }
 }
 
+private fun URLBuilder.server(path: String) {
+    protocol = URLProtocol.HTTPS
+    host = HOST
+    this.port = 6375
+    path(path)
+}
+
 suspend fun getVersion(): String = client.query {
-    url { this.host = HOST; this.port = 8040; this.path("version") }
+    url { server("version") }
 }.body()
 
 suspend fun getBanners(): List<Model.Sprite> = client.query {
-    url { this.host = HOST; this.port = 8040; this.path("banners") }
+    url { server("banners") }
     this.header("userUuid", user.uuid.toHexString())
 }.body()
 
 suspend fun getExperienceMetadatas(communityId: Long): List<Model.ExperienceMetadata> =
     client.query {
-        url { this.host = HOST; this.port = 8040; this.path("experienceMetadatas") }
+        url { server("experienceMetadatas") }
         this.header("userUuid", user.uuid.toHexString())
         contentType(ContentType.Application.Json)
         setBody(communityId)
     }.body()
 
 suspend fun getExperiences(communityId: Long): List<Model.Experience> = client.query {
-    url { this.host = HOST; this.port = 8040; this.path("experiences") }
+    url { server("experiences") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
     setBody(communityId)
@@ -58,51 +67,51 @@ suspend fun saveExperienceMetadata(
     communityId: Long,
     banner: Banner,
 ): Long = client.post {
-    url { this.host = HOST; this.port = 8040; this.path("experienceMetadata") }
+    url { server("experienceMetadata") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
     setBody(Model.SaveExperienceMetadata(id, communityId, banner.sprite.toModel()))
 }.body()
 
 suspend fun publishGame(experienceId: Long, game: Game): Long = client.post {
-    url { this.host = HOST; this.port = 8040; this.path("publish") }
+    url { server("publish") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
     setBody(Model.Publish(game.toModel(), experienceId))
 }.body()
 
 suspend fun publishableExperiences(): List<Model.PublishableExperience> = client.query {
-    url { this.host = HOST; this.port = 8040; this.path("publishableExperiences") }
+    url { server("publishableExperiences") }
     this.header("userUuid", user.uuid.toHexString())
 }.body()
 
 suspend fun publishedAt(gameId: Long): List<Long> = client.query {
-    url { this.host = HOST; this.port = 8040; this.path("publishedAt") }
+    url { server("publishedAt") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
     setBody(gameId)
 }.body()
 
 suspend fun unpublishGame(experienceId: Long, gameId: Long): HttpStatusCode = client.delete {
-    url { this.host = HOST; this.port = 8040; this.path("publish") }
+    url { server("publish") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
     setBody(Model.Unpublish(gameId, experienceId))
 }.status
 
 suspend fun getCommunityMetadata(): List<Model.CommunityMetadata> = client.query {
-    url { this.host = HOST; this.port = 8040; this.path("communityMetadata") }
+    url { server("communityMetadata") }
     this.header("userUuid", user.uuid.toHexString())
 }.body()
 
 suspend fun joinCommunity(id: DurableId): HttpStatusCode = client.post {
-    url { this.host = HOST; this.port = 8040; this.path("joinCommunity") }
+    url { server("joinCommunity") }
     this.header("userUuid", user.uuid.toHexString())
     setBody(id.bits)
 }.status
 
 suspend fun createCommunity(): Long = client.post {
-    url { this.host = HOST; this.port = 8040; this.path("createCommunity") }
+    url { server("createCommunity") }
     this.header("userUuid", user.uuid.toHexString())
 }.body()
 
@@ -112,7 +121,7 @@ suspend fun updateCommunity(
     avatar: Avatar,
     banner: Banner,
 ): HttpStatusCode = client.patch {
-    url { this.host = HOST; this.port = 8040; this.path("updateCommunity") }
+    url { server("updateCommunity") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
     setBody(
