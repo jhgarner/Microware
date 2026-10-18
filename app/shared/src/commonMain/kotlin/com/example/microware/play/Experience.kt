@@ -24,3 +24,10 @@ data class Experience(
         )
     }
 }
+
+data class PlayExperienceMetadata(
+    val id: Long,
+    val communityId: Long,
+    val banner: Banner,
+    val gameCount: Int? = null,
+)

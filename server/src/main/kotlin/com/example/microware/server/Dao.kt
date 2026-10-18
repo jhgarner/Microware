@@ -166,9 +166,10 @@ object Dao {
         return communityId
     }
 
-    fun experiences(userUuid: Uuid): List<Experience> {
+    fun experiences(userUuid: Uuid, communityId: Long): List<Experience> {
+        val userId = withUser(userUuid)
         val experienceRows =
-            (Tables.Community innerJoin Tables.Experience innerJoin Tables.CommunityUserJoin innerJoin Tables.User leftJoin Tables.ExperienceGameJoin)
+            (Tables.Community innerJoin Tables.Experience innerJoin Tables.CommunityUserJoin leftJoin Tables.ExperienceGameJoin)
                 .join(
                     otherTable = Tables.Game,
                     joinType = JoinType.LEFT,
@@ -176,7 +177,8 @@ object Dao {
                     otherColumn = Tables.Game.id,
                 )
                 .selectAll()
-                .where { isUser(userUuid) }
+                .where { Tables.CommunityUserJoin.user eq userId }
+                .andWhere { Tables.Community.id eq communityId }
                 .orderBy(
                     Tables.Experience.index to SortOrder.ASC,
                 )
@@ -292,7 +294,7 @@ object Dao {
                 .andWhere { Tables.Experience.id eq experienceId }
                 .empty()
         require(isUserMember)
-        val gameId = game.id?.let { EntityID(it, Tables.Game) } ?: writeGame(userId, game)
+        val gameId = writeGame(userId, game)
         Tables.ExperienceGameJoin.insert {
             it[experience] = experienceId
             it[this.game] = gameId
@@ -305,8 +307,8 @@ object Dao {
         val owner = Tables.Game
             .select(Tables.Game.owner)
             .where(Tables.Game.id eq gameId)
-            .first()[Tables.Game.owner]
-        require(owner == userId)
+            .firstOrNull()?.get(Tables.Game.owner)
+        if (owner != userId) return listOf()
         return Tables.ExperienceGameJoin
             .select(Tables.ExperienceGameJoin.experience)
             .where(Tables.ExperienceGameJoin.game eq gameId)

@@ -42,6 +42,13 @@ suspend fun getExperienceMetadatas(communityId: Long): List<Model.ExperienceMeta
         setBody(communityId)
     }.body()
 
+suspend fun getExperiences(communityId: Long): List<Model.Experience> = client.query {
+    url { this.host = HOST; this.port = 8040; this.path("experiences") }
+    this.header("userUuid", user.uuid.toHexString())
+    contentType(ContentType.Application.Json)
+    setBody(communityId)
+}.body()
+
 suspend fun saveExperienceMetadata(
     id: Long?,
     communityId: Long,

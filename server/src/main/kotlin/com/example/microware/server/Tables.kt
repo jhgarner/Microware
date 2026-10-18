@@ -37,7 +37,7 @@ object Tables {
         val user = cascadeReference("user", User)
 
         init {
-            index("joined", isUnique = true, community, user)
+            index("CUjoined", isUnique = true, community, user)
         }
     }
 
@@ -56,7 +56,7 @@ object Tables {
         val game = cascadeReference("game", Game).index()
 
         init {
-            index("joined", isUnique = true, experience, game)
+            index("EGjoined", isUnique = true, experience, game)
         }
     }
 

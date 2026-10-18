@@ -5,6 +5,7 @@
 xcuserdata
 !src/**/build/
 local.properties
+/android-signing/
 .idea
 .DS_Store
 captures

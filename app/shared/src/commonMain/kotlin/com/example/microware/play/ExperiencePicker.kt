@@ -27,7 +27,12 @@ import com.example.microware.ui.icons.drawHomePlayIcon
 import com.example.microware.ui.layout.insets
 
 @Composable
-fun PickExperience(experiences: List<Experience>, onBack: () -> Unit, pick: (Experience) -> Unit) {
+fun PickExperience(
+    experiences: List<PlayExperienceMetadata>,
+    onBack: () -> Unit,
+    loading: Boolean,
+    pick: (PlayExperienceMetadata) -> Unit,
+) {
     Column(Modifier.fillMaxSize().padding(
         start = insets.leftDp() + 16.dp,
         end = insets.rightDp() + 16.dp,
@@ -49,21 +54,23 @@ fun PickExperience(experiences: List<Experience>, onBack: () -> Unit, pick: (Exp
                 contentPadding = PaddingValues(vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                itemsIndexed(experiences, key = { _, experience -> experience.id.value }) { index, experience ->
+                itemsIndexed(experiences, key = { _, experience -> experience.id }) { index, experience ->
                     IconButton(
                         description = "Play experience",
                         modifier = Modifier.fillMaxWidth().height(112.dp).semantics {
-                            stateDescription = "Experience ${index + 1}, ${experience.games.size} games"
+                            stateDescription = experience.gameCount?.let {
+                                "Experience ${index + 1}, $it games"
+                            } ?: "Experience ${index + 1}"
                         },
                         aspectRatio = 4f,
-                        enabled = experience.games.isNotEmpty(),
+                        enabled = !loading && experience.gameCount != 0,
                         onClick = { pick(experience) },
                     ) {
                         drawImage(
                             experience.banner.sprite.bitmap,
                             dstSize = size.toIntSize(),
                             filterQuality = FilterQuality.None,
-                            alpha = if (experience.games.isEmpty()) .35f else 1f,
+                            alpha = if (experience.gameCount == 0) .35f else 1f,
                         )
                     }
                 }
