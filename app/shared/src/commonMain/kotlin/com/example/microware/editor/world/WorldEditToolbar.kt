@@ -21,6 +21,8 @@ import com.example.microware.ui.gestures.DragSource
 import com.example.microware.ui.gestures.DragTarget
 
 private var library by mutableStateOf(loadObjLibrary())
+private object ObjectTrashGridSource
+private object ObjectLibraryGridSource
 
 private sealed interface Expanded {
     fun edge(): ExpandedSide<ObjUpdater>
@@ -73,6 +75,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                 items = garbage,
                 dragSource = source,
                 dragTarget = dragTarget,
+                sourceId = ObjectTrashGridSource,
             )
         },
         editorPanel = { objUpdater ->
@@ -119,6 +122,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                 items = library.items,
                 dragSource = it,
                 dragTarget = dragTarget,
+                sourceId = ObjectLibraryGridSource,
             )
         },
     )

@@ -1,5 +1,6 @@
 package com.example.microware.editor.world
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +15,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
+import com.example.microware.Palette
 import com.example.microware.game.events.WorldEvent
 import com.example.microware.game.model.Obj
 import com.example.microware.game.model.World
@@ -77,13 +81,13 @@ internal fun WorldEditorContent(
                             }
                         }
                     },
-                )
+                ),
         ) {
             val availableWidth = maxWidth.roundToPx()
             val availableHeight = maxHeight.roundToPx()
             val fitScale = min(
                 availableWidth.toFloat() / WorldWidth,
-                availableHeight.toFloat() / WorldHeight
+                availableHeight.toFloat() / WorldHeight,
             )
             val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
             state.worldScale = scale
@@ -92,6 +96,14 @@ internal fun WorldEditorContent(
             val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
             val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
 
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRect(
+                    Palette.Black.color,
+                    topLeft = Offset(worldLeft.toFloat(), worldTop.toFloat()),
+                    size = Size(worldWidth.toFloat(), worldHeight.toFloat()),
+                    style = Stroke(width = 2f),
+                )
+            }
             for (obj in world.objects) {
                 WorldSprite(
                     obj = obj,
@@ -109,7 +121,7 @@ internal fun WorldEditorContent(
                     origin = IntOffset(worldLeft, worldTop),
                     scale = scale,
                     from = Unit,
-                    opacity = 0.5f
+                    opacity = 0.5f,
                 )
             }
         }

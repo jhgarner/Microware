@@ -54,6 +54,8 @@ import kotlin.math.roundToInt
 private val ObjectOrderCardHeight = 88.dp
 private val ObjectOrderCardShape = RoundedCornerShape(8.dp)
 
+private object ObjectOrderGridSource
+
 @Composable
 internal fun ObjectOrderEditor(
     world: World,
@@ -85,10 +87,12 @@ internal fun ObjectOrderEditor(
                     itemSize = DpSize(maxWidth - 16.dp, 72.dp + 16.dp),
                     dragSource = state.dragController,
                     dragTarget = state.dragController,
+                    sourceId = ObjectOrderGridSource,
                     onMove = { id, targetIndex ->
                         handler { world ->
                             val topFirst = world.objects.asReversed()
                             val sourceIndex = topFirst.indexOfFirst { it.id == id }
+                            if (sourceIndex == -1) return@handler world
                             val game = topFirst[sourceIndex]
                             val mutTopFirst = topFirst.toMutableList()
                             mutTopFirst.removeAt(sourceIndex)

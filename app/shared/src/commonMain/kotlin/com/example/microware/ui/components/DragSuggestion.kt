@@ -36,7 +36,9 @@ fun Modifier.suggestDrag() = composed {
                     if (Clock.System.now() >= lastShown + 15.seconds) {
                         lastShown = Clock.System.now()
                         setOverlayAnimation(2.0.seconds) { t ->
-                            val offset = location.value(pointer.position)
+                            val offset =
+                                runCatching { location.value(pointer.position) }.getOrNull()
+                                    ?: return@setOverlayAnimation
                             val startX = offset.x
                             val horiz =
                                 lerp(0f, 2 * PI.toFloat(), (t - 0.2f).coerceIn(0f, 0.8f) / 0.8f)
@@ -54,15 +56,15 @@ fun Modifier.suggestDrag() = composed {
                                         lerp(
                                             TAP_START,
                                             0.4f,
-                                            t.coerceIn(0f, 0.2f) / 0.2f
-                                        )
+                                            t.coerceIn(0f, 0.2f) / 0.2f,
+                                        ),
                                     )
                                     drawTapHand(
                                         lerp(
                                             TAP_START,
                                             TAP_DOWN,
-                                            t.coerceIn(0f, 0.2f) / 0.2f
-                                        )
+                                            t.coerceIn(0f, 0.2f) / 0.2f,
+                                        ),
                                     )
                                 }
                             }

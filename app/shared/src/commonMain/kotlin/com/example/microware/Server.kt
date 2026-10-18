@@ -107,6 +107,7 @@ suspend fun getCommunityMetadata(): List<Model.CommunityMetadata> = client.query
 suspend fun joinCommunity(id: DurableId): HttpStatusCode = client.post {
     url { server("joinCommunity") }
     this.header("userUuid", user.uuid.toHexString())
+    contentType(ContentType.Application.Json)
     setBody(id.bits)
 }.status
 

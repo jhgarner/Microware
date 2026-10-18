@@ -29,12 +29,14 @@ fun ObjectTable(
     items: List<Obj>,
     dragSource: DragSource<Obj>,
     dragTarget: DragTarget<Obj>,
+    sourceId: Any,
 ) {
     Grid(
         items = items,
         itemSize = DpSize(64.dp, 64.dp),
         dragSource = dragSource,
         dragTarget = dragTarget,
+        sourceId = sourceId,
         onMove = { _, _ -> }
     ) {
         ItemPreview(obj = it)
