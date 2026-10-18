@@ -390,6 +390,7 @@ private fun SpriteCanvas(
                         val visited = mutableSetOf<Cell>()
                         var previousCell: Cell? = null
                         followDrag { change ->
+                            change.consume()
                             val currentCell = cellAt(change.position)
                             previousCell?.let { previous ->
                                 val edits = cellsBetween(previous, currentCell).mapNotNull { cell ->

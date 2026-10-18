@@ -35,7 +35,7 @@ data class World(
         )
     }
 
-    fun addObject(obj: Obj): World = copy(objects = objects.adding(obj.newId()))
+    fun addObject(obj: Obj): World = copy(objects = objects.adding(clamped(obj)))
     fun upsertObject(obj: Obj): World {
         return objects.indexOfFirst { obj.id == it.id }.takeIf { it >= 0 }?.let {
             updateObject(obj)

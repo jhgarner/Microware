@@ -298,21 +298,21 @@ class Player(
             right = frame.rect.right,
             bottom = frame.rect.bottom,
         ) {
-            for (objectState in scenery) {
-                cachedScenery.firstOrNull { it.source === objectState.bitmap }?.bitmap?.let { bitmap ->
-                    drawImage(
-                        bitmap,
-                        topLeft = frame.origin + objectState.offset * frame.scale,
-                    )
+            val drawOrder = buildList {
+                for (objectState in scenery) {
+                    cachedScenery.firstOrNull { it.source === objectState.bitmap }
+                        ?.let { add(RenderedObject(objectState, it.bitmap)) }
                 }
-            }
-            for ((tag, objectState) in objects) {
-                cachedObjects[tag]?.bitmap?.let { bitmap ->
-                    drawImage(
-                        bitmap,
-                        topLeft = frame.origin + objectState.offset * frame.scale,
-                    )
+                for ((tag, objectState) in objects) {
+                    cachedObjects[tag]?.let { add(RenderedObject(objectState, it.bitmap)) }
                 }
+            }.sortedBy { it.state.drawOrder }
+
+            for ((objectState, bitmap) in drawOrder) {
+                drawImage(
+                    bitmap,
+                    topLeft = frame.origin + objectState.offset * frame.scale,
+                )
             }
         }
     }
@@ -365,15 +365,16 @@ class Player(
 
         private fun worldObj(world: World): MutableMap<LogicTag, ObjectState> {
             val result = mutableMapOf<LogicTag, ObjectState>()
-            val objById = world.objects.associate {
-                it.id to ObjectState(
-                    it.sprite.bitmap,
-                    it.offset,
-                    Offset.Zero,
-                )
-            }
-            for ((tag, id) in world.logicTags) {
-                objById[id]?.let { result[tag] = it }
+            val tagByObjectId = world.logicTags.flip()
+            for ((drawOrder, obj) in world.objects.withIndex()) {
+                tagByObjectId[obj.id]?.let { tag ->
+                    result[tag] = ObjectState(
+                        bitmap = obj.sprite.bitmap,
+                        offset = obj.offset,
+                        velocity = Offset.Zero,
+                        drawOrder = drawOrder,
+                    )
+                }
             }
             return result
         }
@@ -381,13 +382,25 @@ class Player(
         private fun worldScenery(world: World): List<ObjectState> {
             val taggedObjectIds = world.logicTags.values.toSet()
             return world.objects
-                .filterNot { it.id in taggedObjectIds }
-                .map { ObjectState(it.sprite.bitmap, it.offset, Offset.Zero) }
+                .mapIndexedNotNull { drawOrder, obj ->
+                    if (obj.id in taggedObjectIds) {
+                        null
+                    } else {
+                        ObjectState(
+                            bitmap = obj.sprite.bitmap,
+                            offset = obj.offset,
+                            velocity = Offset.Zero,
+                            drawOrder = drawOrder,
+                        )
+                    }
+                }
         }
     }
 }
 
 private data class CachedBitmap(val source: ImageBitmap, val bitmap: ImageBitmap)
+
+private data class RenderedObject(val state: ObjectState, val bitmap: ImageBitmap)
 
 private data class GameFrame(
     val origin: Offset,
@@ -472,6 +485,7 @@ data class ObjectState(
     var offset: Offset,
     var velocity: Offset,
     var destination: Offset? = null,
+    val drawOrder: Int = 0,
 ) {
     fun rect(): Rect = Rect(offset, Size(bitmap.width.toFloat(), bitmap.height.toFloat()))
 }

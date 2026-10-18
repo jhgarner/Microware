@@ -35,6 +35,7 @@ import com.example.microware.editor.world.WorldEditorContent
 import com.example.microware.editor.world.rememberWorldEditorState
 import com.example.microware.game.events.GameEvents
 import com.example.microware.game.model.Game
+import com.example.microware.game.model.World
 import com.example.microware.game.runtime.Player
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.ButtonHandle
@@ -121,7 +122,11 @@ fun BoxWithConstraintsScope.GameEditor(
         GameEditorPage.Publish -> null
     }
     Box(
-        modifier = activeDragController?.let { Modifier.dragObserver(it) } ?: Modifier,
+        modifier = activeDragController?.let { dragController ->
+            Modifier.dragObserver(dragController) { from ->
+                !worldEditorState.toolbarExpanded || from !is World
+            }
+        } ?: Modifier,
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(
@@ -214,6 +219,7 @@ fun BoxWithConstraintsScope.GameEditor(
                 willBeDeleted = worldEditorState.mutableWillBeDeleted,
                 world = game.world,
                 handler = handler,
+                onExpandedChange = { worldEditorState.toolbarExpanded = it },
                 dragSource = when (toolbarPage) {
                     GameEditorPage.World -> worldEditorState.dragController
                     GameEditorPage.Objects -> null

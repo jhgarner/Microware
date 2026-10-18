@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,11 +26,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
 import com.example.microware.community.Banner
 import com.example.microware.community.DrawBanner
 import com.example.microware.community.defaultBanner
 import com.example.microware.game.sprite.Sprite.Companion.load
 import com.example.microware.getBanners
+import com.example.microware.getVersion
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawCommunityHomeIcon
 import com.example.microware.ui.icons.drawCreateIcon
@@ -36,8 +44,29 @@ import kotlin.time.Duration.Companion.seconds
 
 enum class HomeNavigation { Editor, Play, Community }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Home(navigate: (HomeNavigation) -> Unit) {
+    var importantMessage by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val version = getVersion()
+        if (version != "1.0.0") {
+            importantMessage = true
+        }
+    }
+    if (importantMessage) {
+        val uriHandler = LocalUriHandler.current
+        BasicAlertDialog(onDismissRequest = { importantMessage = false }) {
+            Card {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("To continue, update your app. The app will likely crash without it.")
+                    Button(onClick = { uriHandler.openUri("https://github.com/jhgarner/Microware") }) {
+                        Text("Open Github to update")
+                    }
+                }
+            }
+        }
+    }
     Banners()
 
     Column(
@@ -86,7 +115,7 @@ fun Home(navigate: (HomeNavigation) -> Unit) {
 private fun Banners() {
     var banners by remember { mutableStateOf(listOf<Banner>()) }
     LaunchedEffect(Unit) {
-        val sprites = getBanners()
+        val sprites = runCatching { getBanners() }.getOrElse { listOf() }
         banners = sprites.map { runCatching { Banner(it.load()) }.getOrElse { defaultBanner() } }
     }
     val pagerState = rememberPagerState(initialPage = 500) { banners.size * 1000 }

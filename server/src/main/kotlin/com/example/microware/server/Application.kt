@@ -29,7 +29,10 @@ fun main() {
 }
 
 private fun prepareDb() {
-    Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver")
+    Database.connect(
+        "jdbc:h2:/var/db/microware/microwaredb",
+        driver = "org.h2.Driver",
+    )
     transaction {
         SchemaUtils.create(Tables.Sprite)
         SchemaUtils.create(Tables.User)
@@ -48,6 +51,9 @@ private fun prepareDb() {
 fun Application.module() {
     install(ContentNegotiation) { json() }
     routing {
+        query("/version") {
+            call.respond("1.0.0")
+        }
         post("/publish") {
             val uuid = withUser()
             val publish = call.receive<Model.Publish>()

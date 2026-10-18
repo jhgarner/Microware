@@ -39,6 +39,7 @@ internal class WorldEditorState {
     val mutableWillBeDeleted = mutableStateOf(false)
     var worldOriginInWindow by mutableStateOf(Offset.Zero)
     var worldScale by mutableStateOf(1f)
+    var toolbarExpanded by mutableStateOf(false)
 }
 
 @Composable
@@ -72,7 +73,7 @@ internal fun WorldEditorContent(
                             if (offer.from is World) {
                                 world.updateObject(obj)
                             } else {
-                                world.addObject(obj)
+                                world.addObject(obj.newId())
                             }
                         }
                     },

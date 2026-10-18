@@ -29,6 +29,10 @@ private val client = HttpClient() {
     }
 }
 
+suspend fun getVersion(): String = client.query {
+    url { this.host = HOST; this.port = 8040; this.path("version") }
+}.body()
+
 suspend fun getBanners(): List<Model.Sprite> = client.query {
     url { this.host = HOST; this.port = 8040; this.path("banners") }
     this.header("userUuid", user.uuid.toHexString())

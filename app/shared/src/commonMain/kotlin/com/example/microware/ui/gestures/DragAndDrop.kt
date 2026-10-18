@@ -6,6 +6,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -144,35 +145,41 @@ fun <T> Modifier.dragSource(
     onGloballyPositioned { source.bounds = it.boundsInWindow() }
 }
 
-fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = composed {
+fun <T> Modifier.dragObserver(
+    dragController: DragController<T>,
+    canStartDrag: (Any) -> Boolean = { true },
+): Modifier = composed {
     val layout = dragController.rootCoordinates
+    val currentCanStartDrag = rememberUpdatedState(canStartDrag)
     pointerInput(dragController) {
         racing {
             sequence {
                 val localToWindow = layout.value?.let { it::localToWindow } ?: { it }
+                val initial = expectDown()
+                val initialOffset = localToWindow(initial.position)
+                val source = dragController.topmostDragSourceAt(initialOffset)
+                    ?.takeIf { currentCanStartDrag.value(it.from) }
+                    ?: unexpected(initial)
                 var started = false
                 try {
-                    val lastChange = followDrag { change ->
+                    val lastChange = followDrag(initial) { change ->
                         change.consume()
                         val offset = localToWindow(change.position)
                         if (!started) {
                             started = true
-                            val source = dragController.topmostDragSourceAt(offset)
-                            if (source != null) {
-                                dragController.offerState.value = mutableStateOf(
-                                    Offer(
-                                        offset = offset,
-                                        size = IntSize(
-                                            source.bounds.width.roundToInt(),
-                                            source.bounds.height.roundToInt()
-                                        ),
-                                        localOffset = offset - source.bounds.topLeft,
-                                        item = source.item,
-                                        from = source.from,
-                                    )
+                            dragController.offerState.value = mutableStateOf(
+                                Offer(
+                                    offset = offset,
+                                    size = IntSize(
+                                        source.bounds.width.roundToInt(),
+                                        source.bounds.height.roundToInt()
+                                    ),
+                                    localOffset = offset - source.bounds.topLeft,
+                                    item = source.item,
+                                    from = source.from,
                                 )
-                                dragController.dropTargets.forEach { it.callbacks.onStart() }
-                            }
+                            )
+                            dragController.dropTargets.forEach { it.callbacks.onStart() }
                         } else {
                             dragController.offerState.value?.modify { it.copy(offset = offset) }
                         }

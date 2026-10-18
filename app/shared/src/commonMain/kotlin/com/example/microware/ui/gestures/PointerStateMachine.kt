@@ -62,7 +62,13 @@ sealed class PointerScope {
     }
 
     suspend fun followDrag(chaser: (PointerInputChange) -> Unit): PointerInputChange {
-        val initial = expectDown()
+        return followDrag(expectDown(), chaser)
+    }
+
+    suspend fun followDrag(
+        initial: PointerInputChange,
+        chaser: (PointerInputChange) -> Unit,
+    ): PointerInputChange {
         var dragging = false
         var traveled = 0f
         while (true) {
