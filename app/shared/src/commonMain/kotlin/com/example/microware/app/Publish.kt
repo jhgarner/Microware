@@ -2,12 +2,14 @@ package com.example.microware.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,8 +32,8 @@ import com.example.microware.publishGame
 import com.example.microware.publishableExperiences
 import com.example.microware.publishedAt
 import com.example.microware.ui.components.IconButton
-import com.example.microware.ui.icons.drawLoseIcon
 import com.example.microware.ui.icons.drawSaveIcon
+import com.example.microware.ui.icons.drawTrashIcon
 import com.example.microware.ui.layout.insets
 import com.example.microware.unpublishGame
 import kotlinx.coroutines.launch
@@ -75,52 +77,74 @@ fun PublishGame(
             }
             items(items = publishable.experiences) { experience ->
                 val published = publishedAt.contains(experience.id)
-                Row {
-                    Canvas(
-                        modifier = Modifier.aspectRatio(4f).weight(1f),
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val rowHeight = (maxWidth - 48.dp) / 4
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(rowHeight),
                     ) {
-                        drawImage(
-                            experience.banner.load().bitmap,
-                            dstSize = size.toIntSize(),
-                            filterQuality = FilterQuality.None,
-                        )
-                    }
-                    if (published) {
-                        Column(modifier = Modifier.fillMaxHeight()) {
-                            IconButton(
-                                modifier = Modifier.weight(.5f).width(48.dp),
-                                onClick = {
-                                    scope.launch {
-                                        publishGame(experience.id, game)
-                                    }
-                                },
-                            ) {
-                                drawLoseIcon()
-                            }
-                            IconButton(
-                                modifier = Modifier.weight(.5f).width(48.dp),
-                                onClick = {
-                                    scope.launch {
-                                        game.dbId?.let { unpublishGame(experience.id, it) }
-                                    }
-                                },
-                            ) {
-                                drawLoseIcon()
-                            }
-                        }
-                    } else {
-                        IconButton(
-                            modifier = Modifier.fillMaxHeight(),
-                            onClick = {
-                                scope.launch {
-                                    val gameId = publishGame(experience.id, game)
-                                    if (gameId != game.dbId) {
-                                        setGameDbId(gameId)
-                                    }
-                                }
-                            },
+                        Canvas(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         ) {
-                            drawSaveIcon()
+                            drawImage(
+                                experience.banner.load().bitmap,
+                                dstSize = size.toIntSize(),
+                                filterQuality = FilterQuality.None,
+                            )
+                        }
+                        if (published) {
+                            Column(
+                                modifier = Modifier
+                                    .width(48.dp)
+                                    .fillMaxHeight(),
+                            ) {
+                                IconButton(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    onClick = {
+                                        scope.launch {
+                                            publishGame(experience.id, game)
+                                            refresh++
+                                        }
+                                    },
+                                ) {
+                                    drawSaveIcon()
+                                }
+                                IconButton(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    onClick = {
+                                        scope.launch {
+                                            game.dbId?.let { unpublishGame(experience.id, it) }
+                                            refresh++
+                                        }
+                                    },
+                                ) {
+                                    drawTrashIcon()
+                                }
+                            }
+                        } else {
+                            IconButton(
+                                modifier = Modifier
+                                    .width(48.dp)
+                                    .fillMaxHeight(),
+                                onClick = {
+                                    scope.launch {
+                                        val gameId = publishGame(experience.id, game)
+                                        if (gameId != game.dbId) {
+                                            setGameDbId(gameId)
+                                        }
+                                        refresh++
+                                    }
+                                },
+                            ) {
+                                drawSaveIcon()
+                            }
                         }
                     }
                 }

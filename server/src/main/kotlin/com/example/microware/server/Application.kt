@@ -78,6 +78,22 @@ fun Application.module() {
             }
             call.respond(publishableExperiences)
         }
+        query("/experienceMetadatas") {
+            val uuid = withUser()
+            val communityId = call.receive<Long>()
+            val experienceMetadatas = transaction {
+                Dao.getExperienceMetadatas(uuid, communityId)
+            }
+            call.respond(experienceMetadatas)
+        }
+        post("/experienceMetadata") {
+            val uuid = withUser()
+            val metadata = call.receive<Model.SaveExperienceMetadata>()
+            val experienceId = transaction {
+                Dao.saveExperienceMetadata(uuid, metadata)
+            }
+            call.respond(experienceId.value)
+        }
         query("/banners") {
             val uuid = withUser()
             val banners = transaction {

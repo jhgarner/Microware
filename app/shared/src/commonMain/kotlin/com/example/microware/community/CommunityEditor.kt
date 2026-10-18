@@ -36,6 +36,7 @@ import com.example.microware.game.sprite.Sprite
 import com.example.microware.game.sprite.Sprite.Companion.load
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawQrCode
+import com.example.microware.ui.icons.drawPlayIcon
 import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
@@ -74,6 +75,7 @@ internal fun newCommunityDraft() = CommunityDraft(
 
 private sealed interface Tab {
     object Share : Tab
+    object Experiences : Tab
     data class Artwork(val style: CommunityArtwork) : Tab
 }
 
@@ -84,6 +86,7 @@ internal fun CommunityEditor(
     draft: CommunityDraft,
     onChange: (CommunityDraft) -> Unit,
     onCreate: suspend (CommunityDraft) -> Unit,
+    onExperiencesTabChanged: (Boolean) -> Unit = {},
 ) {
     var tab by remember(draft.id) { mutableStateOf<Tab>(Tab.Share) }
     val scope = rememberCoroutineScope()
@@ -95,19 +98,37 @@ internal fun CommunityEditor(
             IconButton(
                 modifier = Modifier.size(64.dp),
                 selected = tab == Tab.Share,
-                onClick = { tab = Tab.Share },
+                onClick = {
+                    tab = Tab.Share
+                    onExperiencesTabChanged(false)
+                },
             ) { drawQrCode() }
+            IconButton(
+                description = "Edit community experiences",
+                modifier = Modifier.size(64.dp),
+                selected = tab == Tab.Experiences,
+                onClick = {
+                    tab = Tab.Experiences
+                    onExperiencesTabChanged(true)
+                },
+            ) { drawPlayIcon() }
             ArtworkButton(
                 description = "Edit community avatar",
                 sprite = draft.avatar.sprite,
                 selected = tab == Tab.Artwork(CommunityArtwork.Avatar),
-                onClick = { tab = Tab.Artwork(CommunityArtwork.Avatar) },
+                onClick = {
+                    tab = Tab.Artwork(CommunityArtwork.Avatar)
+                    onExperiencesTabChanged(false)
+                },
             )
             ArtworkButton(
                 description = "Edit community banner",
                 sprite = draft.banner.sprite,
                 selected = tab == Tab.Artwork(CommunityArtwork.Banner),
-                onClick = { tab = Tab.Artwork(CommunityArtwork.Banner) },
+                onClick = {
+                    tab = Tab.Artwork(CommunityArtwork.Banner)
+                    onExperiencesTabChanged(false)
+                },
             )
 
             Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
@@ -164,6 +185,8 @@ internal fun CommunityEditor(
                     positionEditor = {},
                 )
             }
+
+            Tab.Experiences -> CommunityExperiences(draft.serverId)
         }
     }
 }

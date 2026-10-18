@@ -62,6 +62,17 @@ object Model {
     )
 
     @Serializable
+    class SaveExperienceMetadata(
+        val id: Long?,
+        val communityId: Long,
+        val banner: Sprite,
+    ) {
+        init {
+            validateBanner(banner.width, banner.height)
+        }
+    }
+
+    @Serializable
     class Publish(
         val game: Game,
         val experience: Long,

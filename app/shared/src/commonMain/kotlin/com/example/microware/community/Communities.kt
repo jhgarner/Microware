@@ -45,7 +45,7 @@ import kotlin.math.roundToInt
 
 private sealed interface CommunityPanel {
     data object Join : CommunityPanel
-    data class Edit(val draft: CommunityDraft) : CommunityPanel
+    data class Edit(val draft: CommunityDraft, val experiences: Boolean = false) : CommunityPanel
 }
 
 @Composable
@@ -136,7 +136,7 @@ fun Communities() {
                 CommunityEditor(
                     draft = currentPanel.draft,
                     onChange = { updated ->
-                        panel += listOf(CommunityPanel.Edit(updated))
+                        panel = panel.dropLast(1) + currentPanel.copy(draft = updated)
                     },
                     onCreate = { draft ->
                         val serverId = draft.serverId ?: createCommunity()
@@ -145,8 +145,11 @@ fun Communities() {
                         if (status == HttpStatusCode.OK) panel = listOf()
                         refresh++
                     },
+                    onExperiencesTabChanged = { showing ->
+                        panel = panel.dropLast(1) + currentPanel.copy(experiences = showing)
+                    },
                 )
-                ButtonHandle(HandleType.Edit)
+                if (!currentPanel.experiences) ButtonHandle(HandleType.Edit)
             }
         }
     }

@@ -54,7 +54,6 @@ object Tables {
     object ExperienceGameJoin : Table() {
         val experience = cascadeReference("experience", Experience).index()
         val game = cascadeReference("game", Game).index()
-        val index = integer("index")
 
         init {
             index("joined", isUnique = true, experience, game)

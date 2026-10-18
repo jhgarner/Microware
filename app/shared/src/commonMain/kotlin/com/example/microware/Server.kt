@@ -34,6 +34,25 @@ suspend fun getBanners(): List<Model.Sprite> = client.query {
     this.header("userUuid", user.uuid.toHexString())
 }.body()
 
+suspend fun getExperienceMetadatas(communityId: Long): List<Model.ExperienceMetadata> =
+    client.query {
+        url { this.host = HOST; this.port = 8040; this.path("experienceMetadatas") }
+        this.header("userUuid", user.uuid.toHexString())
+        contentType(ContentType.Application.Json)
+        setBody(communityId)
+    }.body()
+
+suspend fun saveExperienceMetadata(
+    id: Long?,
+    communityId: Long,
+    banner: Banner,
+): Long = client.post {
+    url { this.host = HOST; this.port = 8040; this.path("experienceMetadata") }
+    this.header("userUuid", user.uuid.toHexString())
+    contentType(ContentType.Application.Json)
+    setBody(Model.SaveExperienceMetadata(id, communityId, banner.sprite.toModel()))
+}.body()
+
 suspend fun publishGame(experienceId: Long, game: Game): Long = client.post {
     url { this.host = HOST; this.port = 8040; this.path("publish") }
     this.header("userUuid", user.uuid.toHexString())
