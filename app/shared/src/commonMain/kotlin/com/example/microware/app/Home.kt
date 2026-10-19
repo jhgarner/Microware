@@ -54,7 +54,7 @@ fun Home(navigate: (HomeNavigation) -> Unit) {
             importantMessage = {
                 Text("The server is not responding. The app will probably not work. $version")
             }
-        } else if (version != "1.0.0") {
+        } else if (version != "1.0.3") {
             importantMessage = {
                 val uriHandler = LocalUriHandler.current
                 Text("To continue, update your app by downloading the latest apk file. The app will likely crash without it.")

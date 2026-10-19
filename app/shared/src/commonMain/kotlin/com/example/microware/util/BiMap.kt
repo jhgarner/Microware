@@ -12,7 +12,10 @@ class BiMap<L, R> private constructor(
         return BiMap(lToR + (l to r), rToL + (r to l))
     }
 
-    fun remove(r: R): BiMap<L, R> = BiMap(lToR, rToL - r)
+    fun remove(r: R): BiMap<L, R> {
+        val l = rToL[r]
+        return BiMap(l?.let { lToR - it } ?: lToR, rToL - r)
+    }
 
     fun flip(): BiMap<R, L> = BiMap(rToL, lToR)
 }

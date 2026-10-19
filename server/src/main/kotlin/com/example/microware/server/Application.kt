@@ -30,7 +30,7 @@ fun main() {
 
 private fun prepareDb() {
     Database.connect(
-        "jdbc:h2:/var/db/microware/microwaredb",
+        "jdbc:h2:/var/db/microware/microwaredb;MODE=MYSQL",
         driver = "org.h2.Driver",
     )
     transaction {
@@ -52,7 +52,7 @@ fun Application.module() {
     install(ContentNegotiation) { json() }
     routing {
         query("/version") {
-            call.respond("1.0.0")
+            call.respond("1.0.3")
         }
         post("/publish") {
             val uuid = withUser()

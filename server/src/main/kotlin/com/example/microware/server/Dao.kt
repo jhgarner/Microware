@@ -210,7 +210,7 @@ object Dao {
                     row[Tables.Obj.game].value to Obj(
                         offset = Offset(row[Tables.Obj.xOffset], row[Tables.Obj.yOffset]),
                         sprite = row.toSprite(),
-                        tag = row[Tables.Obj.tag] ?: row[Tables.Obj.index],
+                        tag = row[Tables.Obj.tag],
                     )
                 }
                 .groupBy({ it.first }, { it.second })
