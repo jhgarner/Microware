@@ -30,6 +30,7 @@ import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -159,7 +160,7 @@ object Dao {
         val communityId = Tables.Community.select(Tables.Community.id)
             .where(Tables.Community.durableId eq communityDurableId)
             .first()[Tables.Community.id]
-        Tables.CommunityUserJoin.insert {
+        Tables.CommunityUserJoin.insertIgnore {
             it[user] = userId
             it[community] = communityId
         }
@@ -295,7 +296,7 @@ object Dao {
                 .empty()
         require(isUserMember)
         val gameId = writeGame(userId, game)
-        Tables.ExperienceGameJoin.insert {
+        Tables.ExperienceGameJoin.insertIgnore {
             it[experience] = experienceId
             it[this.game] = gameId
         }

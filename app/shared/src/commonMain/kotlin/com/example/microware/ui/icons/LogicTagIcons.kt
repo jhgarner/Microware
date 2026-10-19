@@ -19,6 +19,17 @@ import kotlin.math.sin
 
 private val logicTagColors = Palette.entries.filter { it != Palette.Clear }
 
+@Composable
+fun DrawLogicTag(tag: LogicTag, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        drawLogicTagAt(
+            tag = tag,
+            center = Offset(size.width / 2f, size.height / 2f),
+            size = size.minDimension,
+        )
+    }
+}
+
 fun DrawScope.drawLogicTag(tag: LogicTag) {
     drawLogicTagAt(
         tag = tag,

@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 private data class ExperienceRun(val experience: PlayExperienceMetadata, val session: PlaySession)
 
 @Composable
-fun PlayPage(onBack: () -> Unit) {
+fun PlayPage(onBack: () -> Unit, onSaveGame: (Game) -> Unit) {
     var experiences by remember { mutableStateOf(emptyList<PlayExperienceMetadata>()) }
     LaunchedEffect(Unit) {
         experiences =
@@ -38,7 +38,7 @@ fun PlayPage(onBack: () -> Unit) {
             }
     }
 
-    PlayPage(experiences, onBack) { metadata ->
+    PlayPage(experiences, onBack, onSaveGame) { metadata ->
         runCatching {
             getExperiences(metadata.communityId)
                 .firstOrNull { it.id == metadata.id }
@@ -50,7 +50,11 @@ fun PlayPage(onBack: () -> Unit) {
 }
 
 @Composable
-fun PlayPage(experiences: List<Experience>, onBack: () -> Unit) {
+fun PlayPage(
+    experiences: List<Experience>,
+    onBack: () -> Unit,
+    onSaveGame: (Game) -> Unit,
+) {
     val metadata = experiences.mapIndexed { index, experience ->
         PlayExperienceMetadata(
             id = index.toLong(),
@@ -59,7 +63,7 @@ fun PlayPage(experiences: List<Experience>, onBack: () -> Unit) {
             gameCount = experience.games.size,
         )
     }
-    PlayPage(metadata, onBack) { selection ->
+    PlayPage(metadata, onBack, onSaveGame) { selection ->
         experiences[selection.id.toInt()].games
     }
 }
@@ -68,6 +72,7 @@ fun PlayPage(experiences: List<Experience>, onBack: () -> Unit) {
 private fun PlayPage(
     experiences: List<PlayExperienceMetadata>,
     onBack: () -> Unit,
+    onSaveGame: (Game) -> Unit,
     loadGames: suspend (PlayExperienceMetadata) -> List<Game>,
 ) {
     var run by remember { mutableStateOf<ExperienceRun?>(null) }
@@ -99,6 +104,7 @@ private fun PlayPage(
         PlayScreen(
             session = currentRun.session,
             onExit = { run = null },
+            onSaveGame = onSaveGame,
             onReplay = {
                 scope.launch {
                     val games = loadGames(currentRun.experience)

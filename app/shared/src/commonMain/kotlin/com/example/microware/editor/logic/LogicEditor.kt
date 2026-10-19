@@ -78,7 +78,7 @@ sealed interface LogicEditorPage {
     data class Editing(val index: Int?) : LogicEditorPage
 }
 
-private const val MaxActionSpeed = 100
+private const val MaxActionSpeed = 3000
 
 internal class LogicEditorState {
     val dragController = DragController<Logic>()

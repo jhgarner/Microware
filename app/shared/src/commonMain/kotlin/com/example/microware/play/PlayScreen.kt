@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,20 +28,28 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.microware.Palette
+import com.example.microware.game.model.Game
 import com.example.microware.game.runtime.GameResult
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawBackIcon
 import com.example.microware.ui.icons.drawLoseIcon
 import com.example.microware.ui.icons.drawPlayIcon
+import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.ui.icons.drawTapIcon
 import com.example.microware.ui.icons.drawWinIcon
 import com.example.microware.ui.layout.insets
 
 @Composable
-internal fun PlayScreen(session: PlaySession, onExit: () -> Unit, onReplay: () -> Unit) {
+internal fun PlayScreen(
+    session: PlaySession,
+    onExit: () -> Unit,
+    onReplay: () -> Unit,
+    onSaveGame: (Game) -> Unit,
+) {
     val phase = session.phase
     val shownPhase = (phase as? PlayPhase.Paused)?.previous ?: phase
+    var gameSaved by remember(session, session.game.id) { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { session.pause() }
     SystemBackHandler {
         when (phase) {
@@ -95,7 +107,15 @@ internal fun PlayScreen(session: PlaySession, onExit: () -> Unit, onReplay: () -
                 is PlayPhase.Paused -> Unit
             }
             if (phase is PlayPhase.Paused) {
-                PauseOverlay(onResume = session::resume, onExit = onExit)
+                PauseOverlay(
+                    onResume = session::resume,
+                    onExit = onExit,
+                    gameSaved = gameSaved,
+                    onSaveGame = {
+                        onSaveGame(session.game)
+                        gameSaved = true
+                    },
+                )
             }
         }
     }
@@ -107,16 +127,27 @@ private fun PhaseArtwork(size: Dp = 160.dp, draw: DrawScope.() -> Unit) {
 }
 
 @Composable
-private fun PauseOverlay(onResume: () -> Unit, onExit: () -> Unit) {
+private fun PauseOverlay(
+    onResume: () -> Unit,
+    onExit: () -> Unit,
+    gameSaved: Boolean,
+    onSaveGame: () -> Unit,
+) {
     Box(
         Modifier.fillMaxSize().background(Palette.OffWhite.color.copy(alpha = .95f)),
         contentAlignment = Alignment.Center,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            IconButton(description = "Resume run", modifier = Modifier.size(88.dp), onClick = onResume) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            IconButton(description = "Resume run", modifier = Modifier.size(80.dp), onClick = onResume) {
                 drawPlayIcon()
             }
-            IconButton(description = "Exit run", modifier = Modifier.size(88.dp), onClick = onExit) {
+            IconButton(
+                description = if (gameSaved) "Game saved" else "Save game",
+                modifier = Modifier.size(80.dp),
+                enabled = !gameSaved,
+                onClick = onSaveGame,
+            ) { drawSaveIcon(it) }
+            IconButton(description = "Exit run", modifier = Modifier.size(80.dp), onClick = onExit) {
                 drawBackIcon()
             }
         }

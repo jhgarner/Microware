@@ -5,15 +5,18 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Text
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -29,7 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
@@ -384,11 +387,73 @@ private fun ValueIndicator(
             }
             drawPath(path, color)
         }
-        Text(
+        BasicText(
+            modifier = Modifier.padding(4.dp).padding(bottom = 4.dp),
             text = value?.toString() ?: "∞",
-            color = Palette.OffWhite.color,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.offset(y = (-3).dp),
+            color = { Palette.OffWhite.color },
+            autoSize = TextAutoSize.StepBased(),
+            maxLines = 1,
+        )
+    }
+}
+
+@Preview
+@Composable
+fun SliderPreviews() {
+    Column {
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 1,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 2,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 10,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 88,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 200,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 999,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 1000,
+            maxValue = 2000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 9999,
+            maxValue = 10000,
+            onValueChange = {},
+        )
+        IntegerSliderControl(
+            dimension = IntegerSliderDimension.Speed,
+            value = 99999,
+            maxValue = 100000,
+            onValueChange = {},
         )
     }
 }

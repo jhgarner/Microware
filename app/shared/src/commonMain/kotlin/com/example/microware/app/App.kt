@@ -81,7 +81,14 @@ fun App() {
                         }
                     }
 
-                    HomeNavigation.Play -> PlayPage(onBack = { navigation = null })
+                    HomeNavigation.Play -> PlayPage(
+                        onBack = { navigation = null },
+                        onSaveGame = { game ->
+                            gameStore.dispatch { games ->
+                                games.adding(game.copy(dbId = null).newId())
+                            }
+                        },
+                    )
 
                     HomeNavigation.Community -> {
                         SystemBackHandler { navigation = null }
