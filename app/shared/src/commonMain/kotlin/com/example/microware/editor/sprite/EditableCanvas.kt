@@ -46,6 +46,7 @@ import com.example.microware.game.sprite.tiled
 import com.example.microware.game.sprite.transparent
 import com.example.microware.ui.gestures.racing
 import com.example.microware.ui.gestures.sequence
+import com.example.microware.ui.layout.insets
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
@@ -180,6 +181,7 @@ private fun Content(
 ) {
     Box(
         modifier = Modifier
+            .padding(start = insets.rightDp(), end = insets.leftDp(), bottom = insets.bottomDp())
             .fillMaxSize()
             .onSizeChanged { viewportSizeState.value = it },
     ) {

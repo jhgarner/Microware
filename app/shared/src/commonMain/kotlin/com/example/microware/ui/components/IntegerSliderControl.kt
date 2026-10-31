@@ -1,13 +1,18 @@
 package com.example.microware.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,18 +20,29 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -35,11 +51,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import com.example.microware.Palette
 import com.example.microware.ui.icons.drawDecrementIcon
 import com.example.microware.ui.icons.drawIncrementIcon
+import com.example.microware.util.toDp
 import com.example.microware.util.toPx
+import kotlinx.coroutines.delay
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 private val SliderHeight = 72.dp
 private val ValueIndicatorWidth = 36.dp
@@ -50,7 +74,7 @@ private val SliderThumbHeight = 28.dp
 private val SliderThumbWidth = 4.dp
 private val SliderHorizontalPadding = 20.dp
 private val IncrementButtonWidth = 36.dp
-private val IncrementButtonHeight = 48.dp
+private val IncrementButtonHeight = 42.dp
 
 enum class IntegerSliderDimension {
     Width,
@@ -278,6 +302,34 @@ private fun IntegerSlider(
 ) {
     val horizontalPaddingPx = SliderHorizontalPadding.toPx()
     val latestOnValueChange = rememberUpdatedState(onValueChange)
+    val fractionAnim = remember { Animatable(0f) }
+    var fraction by remember { mutableStateOf(0f) }
+    var animateNextFractionChange by remember { mutableStateOf(false) }
+    LaunchedEffect(fraction, animateNextFractionChange) {
+        if (animateNextFractionChange) {
+            fractionAnim.animateTo(fraction, tween(durationMillis = 180))
+        } else {
+            fractionAnim.snapTo(fraction)
+        }
+        animateNextFractionChange = false
+    }
+    var zoomStep by remember { mutableStateOf(0) }
+    val zoomMaxS = remember { mutableStateOf(maxValue) }
+    val oldZoomMaxS = remember { mutableStateOf(maxValue) }
+    val zoomMinS = remember { mutableStateOf(minValue) }
+    val oldZoomMinS = remember { mutableStateOf(minValue) }
+    var zoomMax by zoomMaxS
+    var oldZoomMax by oldZoomMaxS
+    var zoomMin by zoomMinS
+    var oldZoomMin by oldZoomMinS
+    if (value != null && value < zoomMin) {
+        zoomMax -= zoomMin - value
+        zoomMin = value
+    }
+    if (value != null && value > zoomMax) {
+        zoomMin += value - zoomMax
+        zoomMax = value
+    }
 
     BoxWithConstraints(
         modifier = modifier
@@ -285,15 +337,16 @@ private fun IntegerSlider(
             .height(SliderHeight)
             .pointerInput(minValue, maxValue) {
                 awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown()
                     fun updateFromPosition(position: Offset) {
                         val usableWidth = size.width - horizontalPaddingPx * 2f
                         val fraction = ((position.x - horizontalPaddingPx) / usableWidth)
                             .coerceIn(0f, 1f)
-                        val lastIndex = maxValue - minValue + if (allowInfinity) 1 else 0
+                        val lastIndex =
+                            zoomMax - zoomMin + if (allowInfinity && zoomMax == maxValue) 1 else 0
                         val index = (fraction * lastIndex).roundToInt().coerceIn(0, lastIndex)
                         latestOnValueChange.value(
-                            if (allowInfinity && index == lastIndex) null else index + minValue,
+                            if (allowInfinity && zoomMax == maxValue && index == lastIndex) null else index + zoomMin,
                         )
                     }
 
@@ -318,16 +371,50 @@ private fun IntegerSlider(
         val bubbleHeightPx = ValueIndicatorHeight.toPx()
         val trackStart = horizontalPaddingPx
         val trackEnd = maxWidth.toPx() - horizontalPaddingPx
-        val lastIndex = maxValue - minValue + if (allowInfinity) 1 else 0
-        val selectedIndex = if (value == null) lastIndex else value - minValue
-        val fraction = if (lastIndex == 0) 0f else selectedIndex.toFloat() / lastIndex
+        val lastIndex = zoomMax - zoomMin + if (allowInfinity && zoomMax == maxValue) 1 else 0
+        val selectedIndex = if (value == null) lastIndex else value - zoomMin
+        fraction = if (lastIndex == 0) 0f else selectedIndex.toFloat() / lastIndex
+        val fraction = fractionAnim.value
         val thumbX = trackStart + (trackEnd - trackStart) * fraction
         val trackY = SliderTrackY.toPx()
         val trackThickness = SliderTrackThickness.toPx()
         val thumbHeight = SliderThumbHeight.toPx()
         val thumbWidth = SliderThumbWidth.toPx()
 
+        val dotT = remember(zoomMin, zoomMax, minValue, maxValue) { Animatable(0f) }
+        LaunchedEffect(dotT) {
+            val zoomMinThisStep = zoomMin
+            val zoomMaxThisStep = zoomMax
+            try {
+                dotT.animateTo(1f, tween(durationMillis = 180))
+            } finally {
+                oldZoomMin = zoomMinThisStep
+                oldZoomMax = zoomMaxThisStep
+            }
+        }
+        val t = dotT.value
+        val oldZoomMin = oldZoomMinS.value
+        val zoomMin = zoomMinS.value
+        val oldZoomMax = oldZoomMaxS.value
+        val zoomMax = zoomMaxS.value
+
         Canvas(modifier = Modifier.fillMaxSize()) {
+            drawEdgeDots(
+                color = activeColor.color,
+                false,
+                t,
+                oldZoomMin,
+                zoomMin,
+                minValue,
+            )
+            drawEdgeDots(
+                color = inactiveColor.color,
+                true,
+                t,
+                oldZoomMax,
+                zoomMax,
+                maxValue,
+            )
             drawRoundRect(
                 color = inactiveColor.color,
                 topLeft = Offset(trackStart, trackY - trackThickness / 2f),
@@ -348,6 +435,7 @@ private fun IntegerSlider(
                 cap = StrokeCap.Round,
             )
         }
+        DrawTicks(activeColor, inactiveColor, zoomMin, zoomMax, value)
         ValueIndicator(
             value = value,
             color = activeColor.color,
@@ -357,7 +445,163 @@ private fun IntegerSlider(
                     (trackY - thumbHeight / 2f - bubbleHeightPx).roundToInt(),
                 )
             },
+            onZoomIn = {
+                val diff = maxValue - minValue
+                zoomStep++
+                val newHalfDiff = (diff / (10f.pow(zoomStep)) / 2).roundToInt()
+                animateNextFractionChange = true
+                if (newHalfDiff > 0) {
+                    zoomMaxS.value = min(maxValue, (value ?: maxValue) + newHalfDiff)
+                    zoomMinS.value = max(minValue, (value ?: maxValue) - newHalfDiff)
+                } else {
+                    zoomStep--
+                }
+            },
+            onZoomOut = {
+                val diff = maxValue - minValue
+                zoomStep--
+                val newHalfDiff = (diff / (10f.pow(zoomStep)) / 2).roundToInt()
+                animateNextFractionChange = true
+                if (zoomStep > 0) {
+                    zoomMaxS.value = min(maxValue, (value ?: maxValue) + newHalfDiff)
+                    zoomMinS.value = max(minValue, (value ?: maxValue) - newHalfDiff)
+                } else {
+                    zoomStep = 0
+                    zoomMaxS.value = maxValue
+                    zoomMinS.value = minValue
+                }
+            },
         )
+    }
+}
+
+@Composable
+private fun BoxWithConstraintsScope.DrawTicks(
+    activeColor: Palette,
+    inactiveColor: Palette,
+    zoomMin: Int,
+    zoomMax: Int,
+    value: Int?,
+) {
+    val alpha = remember(zoomMin, zoomMax) { Animatable(1f) }
+    LaunchedEffect(alpha) {
+        delay(1500.milliseconds)
+        alpha.animateTo(0f, tween(durationMillis = 500))
+    }
+    val value = value ?: zoomMax
+    val padding = SliderHorizontalPadding.toPx()
+    val trackY = SliderTrackY.toPx()
+    val tickWidth = SliderThumbWidth.toPx() / 2
+    val tickHeight = SliderThumbHeight.toPx() / 2
+    val distance = zoomMax - zoomMin
+    val fraction = (value - zoomMin).toFloat() / distance
+    val y = SliderTrackY + SliderTrackThickness
+    val range = 0..<min(distance + 1, 5)
+    for (i in range) {
+        if (abs(fraction - i / range.last().toFloat()) < .1f) continue
+        val tickSize = (maxWidth.toPx() - padding * 2f) / range.last()
+        val labelWidth = tickSize / 2f
+        val tickAt = padding + i * tickSize
+        val tickValue = if (i == range.last) zoomMax else zoomMin + (distance * i / range.last())
+        Box(
+            contentAlignment = Alignment.BottomCenter,
+            modifier = Modifier.width(labelWidth.toDp()).fillMaxHeight()
+                .offset {
+                    IntOffset(
+                        (tickAt - labelWidth / 2).roundToInt(),
+                        0,
+                    )
+                }
+                .graphicsLayer {
+                    this.alpha = alpha.value
+                }
+                .drawBehind {
+                    val color = if (tickValue < value) activeColor else inactiveColor
+                    drawLine(
+                        color = color.color,
+                        start = Offset(size.width / 2, trackY - tickHeight / 2f),
+                        end = Offset(size.width / 2, trackY + tickHeight / 2f),
+                        strokeWidth = tickWidth,
+                        cap = StrokeCap.Round,
+                    )
+                },
+        ) {
+            BasicText(
+                modifier = Modifier.height(this@DrawTicks.maxHeight - y),
+                text = tickValue.toString(),
+                color = { Palette.Black.color },
+                autoSize = TextAutoSize.StepBased(),
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private fun DrawScope.drawEdgeDots(
+    color: Color,
+    flip: Boolean,
+    t: Float,
+    oldZoom: Int,
+    newZoom: Int,
+    limit: Int,
+) {
+    val trackStart = SliderHorizontalPadding.toPx()
+    val trackY = SliderTrackY.toPx()
+    val trackThickness = SliderTrackThickness.toPx()
+    val maxWidth = size.width
+    val width = trackStart
+    val trackEnd = maxWidth - trackStart
+    val visibleThickStart = if (flip) trackEnd + width / 7f else trackStart - width / 1.5f
+    val visibleThinStart = if (flip) size.width - width / 4f else 0f
+
+    if (oldZoom != limit) {
+        val diff = when {
+            (oldZoom < newZoom) -> -1
+            (oldZoom > newZoom) -> 1
+            else -> 0
+        }
+        val thickStart = lerp(visibleThickStart, visibleThickStart + diff * width, t)
+        val thinStart = lerp(visibleThinStart, visibleThinStart + diff * width, t)
+
+        clipRect {
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(thickStart, trackY - trackThickness / 2f),
+                size = Size(width / 2, trackThickness),
+                cornerRadius = CornerRadius(trackThickness / 2f),
+            )
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(thinStart, trackY - trackThickness / 2f),
+                size = Size(width / 4, trackThickness),
+                cornerRadius = CornerRadius(trackThickness / 2f),
+            )
+        }
+    }
+
+    if (newZoom != limit) {
+        val diff = when {
+            (oldZoom < newZoom) -> 1
+            (oldZoom > newZoom) -> -1
+            else -> 0
+        }
+        val thickStart = lerp(visibleThickStart + diff * width, visibleThickStart, t)
+        val thinStart = lerp(visibleThinStart + diff * width, visibleThinStart, t)
+
+        clipRect {
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(thickStart, trackY - trackThickness / 2f),
+                size = Size(width / 2, trackThickness),
+                cornerRadius = CornerRadius(trackThickness / 2f),
+            )
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(thinStart, trackY - trackThickness / 2f),
+                size = Size(width / 4, trackThickness),
+                cornerRadius = CornerRadius(trackThickness / 2f),
+            )
+        }
     }
 }
 
@@ -366,11 +610,77 @@ private fun ValueIndicator(
     value: Int?,
     color: Color,
     modifier: Modifier = Modifier,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
 ) {
     Box(
         modifier = modifier.size(ValueIndicatorWidth, ValueIndicatorHeight),
         contentAlignment = Alignment.Center,
     ) {
+        IconButton(
+            modifier = Modifier.size(ValueIndicatorHeight).offset {
+                IntOffset(
+                    (8 - ValueIndicatorWidth.toPx()).roundToInt(),
+                    (-12f).roundToInt(),
+                )
+            },
+            onClick = onZoomOut,
+        ) {
+            val width = size.width
+            drawCircle(
+                color,
+                radius = width * .9f,
+                center = Offset(width * .20f, width * .2f),
+                style = Stroke(width = 4f),
+            )
+            drawLine(
+                color,
+                start = Offset(width * .8f, width * .8f),
+                end = Offset(width * 1.5f, width * 1.5f),
+                strokeWidth = 4f,
+            )
+            drawLine(
+                color,
+                start = Offset(width * -.25f, width * .25f),
+                end = Offset(width * .7f, width * .25f),
+                strokeWidth = 4f,
+            )
+        }
+        IconButton(
+            modifier = Modifier.size(ValueIndicatorHeight).offset {
+                IntOffset(
+                    (ValueIndicatorWidth.toPx() - 8).roundToInt(),
+                    (-12f).roundToInt(),
+                )
+            },
+            onClick = onZoomIn,
+        ) {
+            val width = size.width
+            drawCircle(
+                color,
+                radius = width * .9f,
+                center = Offset(width * .20f, width * .2f),
+                style = Stroke(width = 4f),
+            )
+            drawLine(
+                color,
+                start = Offset(width * .8f, width * .8f),
+                end = Offset(width * 1.5f, width * 1.5f),
+                strokeWidth = 4f,
+            )
+            drawLine(
+                color,
+                start = Offset(width * -.30f, width * .2f),
+                end = Offset(width * .7f, width * .2f),
+                strokeWidth = 4f,
+            )
+            drawLine(
+                color,
+                start = Offset(width * .20f, width * -.3f),
+                end = Offset(width * .2f, width * .7f),
+                strokeWidth = 4f,
+            )
+        }
         Canvas(modifier = Modifier.fillMaxSize()) {
             val arrowHeight = size.height * 0.2f
             drawRoundRect(
@@ -400,60 +710,52 @@ private fun ValueIndicator(
 @Preview
 @Composable
 fun SliderPreviews() {
-    Column {
+    @Composable
+    fun control(value: Int?, maxValue: Int) {
+        var v by remember { mutableStateOf(value) }
         IntegerSliderControl(
             dimension = IntegerSliderDimension.Speed,
+            value = v,
+            maxValue = maxValue,
+            onValueChange = { v = it },
+        )
+    }
+    Column(modifier = Modifier.background(color = Palette.OffWhite.color)) {
+        control(
             value = 1,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 2,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 10,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 88,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 200,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 999,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 1000,
             maxValue = 2000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 9999,
             maxValue = 10000,
-            onValueChange = {},
         )
-        IntegerSliderControl(
-            dimension = IntegerSliderDimension.Speed,
+        control(
             value = 99999,
             maxValue = 100000,
-            onValueChange = {},
         )
     }
 }

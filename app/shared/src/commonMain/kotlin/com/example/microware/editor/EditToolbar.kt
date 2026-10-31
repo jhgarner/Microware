@@ -3,6 +3,7 @@ package com.example.microware.editor
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +16,7 @@ import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.TrashHandle
 import com.example.microware.ui.gestures.DragSource
 import com.example.microware.ui.gestures.DragTarget
+import com.example.microware.ui.layout.insets
 import com.example.microware.util.Identifiable
 import kotlinx.collections.immutable.PersistentList
 
@@ -97,7 +99,7 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
         handleType = if (dragTarget.offer == null) HandleType.Create else HandleType.Edit,
         state = createState,
         setExpanded = { setExpanded(fromEdge(it, setExpanded)) },
-    ) { Column(Modifier.fillMaxSize()) { editorPanel(it) } }
+    ) { Column(Modifier.padding(top = insets.topDp()).fillMaxSize()) { editorPanel(it) } }
 
     val libraryState = when {
         offer != null -> DrawerHandleState.Dragging(
@@ -120,5 +122,5 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
         handleType = HandleType.Library,
         state = libraryState,
         setExpanded = { setExpanded(fromEdge(it, setExpanded)) },
-    ) { libraryPanel(it) }
+    ) { Column(modifier = Modifier.padding(insets.topDp()).fillMaxSize()) { libraryPanel(it) } }
 }

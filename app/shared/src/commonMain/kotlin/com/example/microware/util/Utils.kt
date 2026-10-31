@@ -41,6 +41,9 @@ inline fun Dp.roundToPx(): Int = with(density) { roundToPx() }
 @Composable
 inline fun Int.toDp(): Dp = with(density) { toDp() }
 
+@Composable
+inline fun Float.toDp(): Dp = with(density) { toDp() }
+
 inline fun <T> MutableState<T>.modify(f: (T) -> T) {
     value = f(value)
 }

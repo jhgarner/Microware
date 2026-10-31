@@ -137,8 +137,8 @@ internal fun LogicEditorContent(
                     .fillMaxWidth()
                     .weight(1f)
                     .padding(
-                        start = insets.leftDp(),
-                        end = insets.rightDp(),
+                        start = 8.dp,
+                        end = 8.dp,
                     ),
             ) {
                 LogicTable(
@@ -203,8 +203,8 @@ internal fun LogicBuilder(
         modifier = Modifier
             .fillMaxSize()
             .padding(
-                start = insets.leftDp() + 8.dp,
-                end = insets.rightDp() + 8.dp,
+                start = 8.dp,
+                end = 8.dp,
                 bottom = insets.bottomDp() + 8.dp,
             ),
     ) {

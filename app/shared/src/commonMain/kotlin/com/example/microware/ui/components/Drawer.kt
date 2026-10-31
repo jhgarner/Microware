@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -69,25 +68,6 @@ fun <Data> Drawer(
             HandleEdge.Right -> Offset(handleSizePx, 0f)
             HandleEdge.Bottom -> Offset(0f, handleSizePx)
         }
-        val contentPadding = when (placement) {
-            HandleEdge.Left -> PaddingValues(
-                start = insets.leftDp(),
-                top = insets.topDp(),
-                bottom = insets.bottomDp(),
-            )
-
-            HandleEdge.Right -> PaddingValues(
-                end = insets.rightDp(),
-                top = insets.topDp(),
-                bottom = insets.bottomDp(),
-            )
-
-            HandleEdge.Bottom -> PaddingValues(
-                start = insets.leftDp(),
-                end = insets.rightDp(),
-                bottom = insets.bottomDp(),
-            )
-        }
         val slideX = remember { Animatable(closedOffset.x) }
         val slideY = remember { Animatable(closedOffset.y) }
         LaunchedEffect(state == null) {
@@ -122,9 +102,7 @@ fun <Data> Drawer(
                 .background(Palette.OffWhite.color, panelShape)
                 .padding(12.dp),
         ) {
-            Box(modifier = Modifier.padding(contentPadding)) {
-                state?.let { content(it.data) }
-            }
+            state?.let { content(it.data) }
         }
     }
 }
