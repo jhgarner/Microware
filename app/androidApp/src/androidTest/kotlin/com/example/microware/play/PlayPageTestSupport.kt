@@ -20,10 +20,11 @@ import com.example.microware.Palette
 import com.example.microware.app.PublishGame
 import com.example.microware.community.Avatar
 import com.example.microware.community.Banner
-import com.example.microware.community.BannerHeight
-import com.example.microware.community.BannerWidth
+import com.example.microware.core.BannerHeight
+import com.example.microware.core.BannerWidth
 import com.example.microware.community.Community
 import com.example.microware.community.DurableId
+import com.example.microware.core.Model
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Game
@@ -35,10 +36,10 @@ import com.example.microware.game.model.World
 import com.example.microware.game.sprite.Sprite
 import com.example.microware.ui.layout.Insets
 import com.example.microware.ui.layout.LocalInsets
-import com.example.microware.util.Id
 import kotlinx.collections.immutable.persistentListOf
 
-internal fun experienceWith(vararg games: Game) = Experience(
+internal fun experienceWith(vararg games: Game, dbId: Long = 0L) = Experience(
+    dbId = dbId,
     banner = Banner(
         Sprite.pattern(BannerWidth, BannerHeight) { index ->
             val x = index % BannerWidth / 8
@@ -104,6 +105,7 @@ internal fun survivalGame(escapeHazard: Boolean = true): Game {
 }
 
 internal fun communityWith(code: Long, experience: Experience) = Community(
+    dbId = code,
     code = DurableId(code),
     icon = Avatar(Sprite.solid(32, 32, Palette.Purple)),
     memberBanner = experience.banner,
@@ -122,10 +124,10 @@ internal fun PlayPageTestContent(
                 .fillMaxSize()
                 .background(Palette.OffWhite.color)) {
                 if (lifecycleOwner == null) {
-                    PlayPage(experiences, onBack)
+                    PlayPage(experiences, onBack, onSaveGame = {})
                 } else {
                     CompositionLocalProvider(LocalLifecycleOwner provides lifecycleOwner) {
-                        PlayPage(experiences, onBack)
+                        PlayPage(experiences, onBack, onSaveGame = {})
                     }
                 }
             }
@@ -137,7 +139,7 @@ internal fun PlayPageTestContent(
 internal fun PublishToPlayTestContent(
     initialCommunities: List<Community>,
     game: Game,
-    onPublished: (DurableId, Id) -> Unit,
+    onPublished: (Long) -> Unit,
 ) {
     var communities by remember { mutableStateOf(initialCommunities) }
     var showingPlay by remember { mutableStateOf(false) }
@@ -151,22 +153,34 @@ internal fun PublishToPlayTestContent(
                     PlayPage(
                         communities.flatMap { it.experiences },
                         onBack = { showingPlay = false },
+                        onSaveGame = {},
                     )
                 } else {
                     PublishGame(
-                        communities = communities,
-                        game = game,
-                        onPublish = { communityCode, experienceId ->
-                            onPublished(communityCode, experienceId)
+                        publishables = communities.map { community ->
+                            Model.PublishableExperience(
+                                community = Model.CommunityMetadata(
+                                    id = community.dbId,
+                                    code = community.code.bits,
+                                    icon = community.icon.sprite.toModel(),
+                                    banner = community.memberBanner.sprite.toModel(),
+                                ),
+                                experiences = community.experiences.map { experience ->
+                                    Model.ExperienceMetadata(experience.dbId, experience.banner.sprite.toModel())
+                                },
+                            )
+                        },
+                        publishedAt = emptySet(),
+                        onPublish = { experienceId ->
+                            onPublished(experienceId)
                             communities = communities.map { community ->
-                                if (community.code == communityCode) {
-                                    community.publish(experienceId, game)
-                                } else {
-                                    community
-                                }
+                                community.copy(experiences = community.experiences.map { experience ->
+                                    if (experience.dbId == experienceId) experience.publish(game) else experience
+                                })
                             }
                             showingPlay = true
                         },
+                        onUnpublish = {},
                     )
                 }
             }

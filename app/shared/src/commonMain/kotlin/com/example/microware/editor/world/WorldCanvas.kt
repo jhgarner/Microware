@@ -58,11 +58,12 @@ internal fun WorldEditorContent(
 ) {
     val offer = state.dragController.offer
     val toolbarHeight = HandleSize + TrashGap
+    var worldOffset by remember { mutableStateOf(Offset(0f, 0f)) }
 
     Column(modifier = modifier) {
         BoxWithConstraints(
             modifier = Modifier
-                .padding(start = insets.leftDp(), end = insets.rightDp(), top = insets.topDp())
+                .padding(start = insets.leftDp(), end = insets.rightDp())
                 .fillMaxWidth()
                 .weight(1f)
                 .zIndex(if (offer != null) 1f else 0f)
@@ -71,7 +72,7 @@ internal fun WorldEditorContent(
                     dragController = state.dragController,
                     onGiven = { offer ->
                         val localOffset =
-                            (offer.offset - state.worldOriginInWindow - offer.localOffset) / state.worldScale
+                            (offer.offset - state.worldOriginInWindow - offer.localOffset - worldOffset) / state.worldScale
                         val obj = world.clamped(offer.obj.copy(offset = localOffset))
                         handler { world ->
                             if (offer.from is World) {
@@ -95,11 +96,12 @@ internal fun WorldEditorContent(
             val worldHeight = (WorldHeight * scale).roundToInt()
             val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
             val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
+            worldOffset = Offset(worldLeft.toFloat(), worldTop.toFloat())
 
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawRect(
                     Palette.Black.color,
-                    topLeft = Offset(worldLeft.toFloat(), worldTop.toFloat()),
+                    topLeft = worldOffset,
                     size = Size(worldWidth.toFloat(), worldHeight.toFloat()),
                     style = Stroke(width = 2f),
                 )
@@ -117,7 +119,7 @@ internal fun WorldEditorContent(
 
             offer?.apply {
                 WorldSprite(
-                    obj = obj.copy(offset = (offset - state.worldOriginInWindow - localOffset) / state.worldScale),
+                    obj = obj.copy(offset = (offset - state.worldOriginInWindow - localOffset - worldOffset) / state.worldScale),
                     origin = IntOffset(worldLeft, worldTop),
                     scale = scale,
                     from = Unit,

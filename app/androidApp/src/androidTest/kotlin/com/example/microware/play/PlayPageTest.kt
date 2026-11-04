@@ -21,10 +21,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.runtime.mutableStateListOf
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso
-import com.example.microware.community.DurableId
 import com.example.microware.game.runtime.GameResult
 import com.example.microware.game.runtime.Player
-import com.example.microware.util.Id
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -183,24 +181,20 @@ class PlayPageTest {
     }
 
     @Test
-    fun publishingRoutesTheCommunityAndExperienceAndEnablesThatBannerForPlay() {
-        val firstExperience = experienceWith()
-        val targetExperience = experienceWith()
+    fun publishingUsesTheExperienceDatabaseIdAndEnablesThatBannerForPlay() {
+        val firstExperience = experienceWith(dbId = 10L)
+        val targetExperience = experienceWith(dbId = 20L)
         val communities = listOf(
             communityWith(1L, firstExperience),
             communityWith(2L, targetExperience),
         )
-        val publishedCommunity = AtomicReference<DurableId>()
-        val publishedExperience = AtomicReference<Id>()
+        val publishedExperience = AtomicReference<Long>()
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
             PublishToPlayTestContent(
                 initialCommunities = communities,
                 game = startWinGame(),
-                onPublished = { communityCode, experienceId ->
-                    publishedCommunity.set(communityCode)
-                    publishedExperience.set(experienceId)
-                },
+                onPublished = { publishedExperience.set(it) },
             )
         }
 
@@ -208,8 +202,7 @@ class PlayPageTest {
             .performClick()
         advanceFrame()
 
-        assertEquals(communities[1].code, publishedCommunity.get())
-        assertEquals(targetExperience.id, publishedExperience.get())
+        assertEquals(targetExperience.dbId, publishedExperience.get())
         composeRule.onAllNodesWithContentDescription("Play experience")[0].assertIsNotEnabled()
         composeRule.onAllNodesWithContentDescription("Play experience")[1].assertIsEnabled()
         composeRule.onAllNodesWithContentDescription("Play experience")[1].performClick()

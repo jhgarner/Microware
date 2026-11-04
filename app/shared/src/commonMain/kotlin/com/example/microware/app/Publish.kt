@@ -61,7 +61,7 @@ fun PublishGame(
         onPublish = { experienceId ->
             scope.launch {
                 val gameId = publishGame(experienceId, game)
-                if (gameId != game.dbId) {
+                if (!publishedAt.contains(experienceId) && gameId != game.dbId) {
                     setGameDbId(gameId)
                 }
                 refresh++
@@ -130,6 +130,7 @@ fun PublishGame(
                                     .fillMaxHeight(),
                             ) {
                                 IconButton(
+                                    description = "Update published game",
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth(),
@@ -138,6 +139,7 @@ fun PublishGame(
                                     drawSaveIcon()
                                 }
                                 IconButton(
+                                    description = "Unpublish game from experience",
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth(),
@@ -148,6 +150,7 @@ fun PublishGame(
                             }
                         } else {
                             IconButton(
+                                description = "Publish game to experience",
                                 modifier = Modifier
                                     .width(48.dp)
                                     .fillMaxHeight(),
