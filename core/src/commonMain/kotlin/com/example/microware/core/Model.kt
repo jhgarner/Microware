@@ -59,6 +59,8 @@ object Model {
     class ExperienceMetadata(
         val id: Long,
         val banner: Sprite,
+        val playable: Boolean = true,
+        val publishable: Boolean = true,
     )
 
     @Serializable
@@ -66,6 +68,8 @@ object Model {
         val id: Long?,
         val communityId: Long,
         val banner: Sprite,
+        val playable: Boolean = true,
+        val publishable: Boolean = true,
     ) {
         init {
             validateBanner(banner.width, banner.height)

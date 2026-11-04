@@ -66,11 +66,13 @@ suspend fun saveExperienceMetadata(
     id: Long?,
     communityId: Long,
     banner: Banner,
+    playable: Boolean,
+    publishable: Boolean,
 ): Long = client.post {
     url { server("experienceMetadata") }
     this.header("userUuid", user.uuid.toHexString())
     contentType(ContentType.Application.Json)
-    setBody(Model.SaveExperienceMetadata(id, communityId, banner.sprite.toModel()))
+    setBody(Model.SaveExperienceMetadata(id, communityId, banner.sprite.toModel(), playable, publishable))
 }.body()
 
 suspend fun publishGame(experienceId: Long, game: Game): Long = client.post {

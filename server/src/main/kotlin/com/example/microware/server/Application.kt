@@ -45,14 +45,21 @@ private fun prepareDb() {
         SchemaUtils.create(Tables.Action)
         SchemaUtils.create(Tables.Obj)
     }
+    migrateExperienceFlags()
+}
 
+internal fun migrateExperienceFlags() {
+    transaction {
+        exec("ALTER TABLE EXPERIENCE ADD COLUMN IF NOT EXISTS PLAYABLE BOOLEAN DEFAULT TRUE NOT NULL")
+        exec("ALTER TABLE EXPERIENCE ADD COLUMN IF NOT EXISTS PUBLISHABLE BOOLEAN DEFAULT TRUE NOT NULL")
+    }
 }
 
 fun Application.module() {
     install(ContentNegotiation) { json() }
     routing {
         query("/version") {
-            call.respond("1.0.3")
+            call.respond("1.0.4")
         }
         post("/publish") {
             val uuid = withUser()

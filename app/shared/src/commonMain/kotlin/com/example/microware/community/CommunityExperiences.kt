@@ -43,9 +43,12 @@ import com.example.microware.ui.components.HandleEdge
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.components.IconCheckbox
 import com.example.microware.ui.gestures.DragController
 import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.gestures.dragObserver
+import com.example.microware.ui.icons.drawPlayIcon
+import com.example.microware.ui.icons.drawPublishIcon
 import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
@@ -60,6 +63,8 @@ private data class ExperienceDraft(
     val communityId: Long,
     val banner: Banner,
     override val id: Id,
+    val playable: Boolean = true,
+    val publishable: Boolean = true,
 ) : Identifiable<ExperienceDraft> {
     override val self: ExperienceDraft get() = this
     override fun newId(id: Id) = copy(id = id)
@@ -70,6 +75,8 @@ private fun Model.ExperienceMetadata.toDraft(communityId: Long) = ExperienceDraf
     communityId = communityId,
     banner = Banner(banner.load()),
     id = Identifiable.nextId(),
+    playable = playable,
+    publishable = publishable,
 )
 
 private fun newExperienceDraft(communityId: Long) = ExperienceDraft(
@@ -141,6 +148,8 @@ internal fun CommunityExperiences(communityId: Long?) {
                             id = edited.serverId,
                             communityId = edited.communityId,
                             banner = edited.banner,
+                            playable = edited.playable,
+                            publishable = edited.publishable,
                         )
                         selectedDraft = null
                         refresh++
@@ -168,6 +177,18 @@ private fun ExperienceEditor(
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().height(64.dp)) {
+            IconCheckbox(
+                description = "Allow publishing into experience",
+                checked = draft.publishable,
+                onCheckedChange = { onChange(draft.copy(publishable = it)) },
+                modifier = Modifier.size(width = 104.dp, height = 64.dp),
+            ) { drawPublishIcon() }
+            IconCheckbox(
+                description = "Allow playing experience",
+                checked = draft.playable,
+                onCheckedChange = { onChange(draft.copy(playable = it)) },
+                modifier = Modifier.size(width = 104.dp, height = 64.dp),
+            ) { drawPlayIcon() }
             Spacer(Modifier.weight(1f))
             IconButton(
                 description = "Save experience",

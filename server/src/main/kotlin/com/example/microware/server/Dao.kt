@@ -180,6 +180,7 @@ object Dao {
                 .selectAll()
                 .where { Tables.CommunityUserJoin.user eq userId }
                 .andWhere { Tables.Community.id eq communityId }
+                .andWhere { Tables.Experience.playable eq true }
                 .orderBy(
                     Tables.Experience.index to SortOrder.ASC,
                 )
@@ -293,6 +294,7 @@ object Dao {
                 .select(Tables.CommunityUserJoin.user)
                 .where { Tables.CommunityUserJoin.user eq userId }
                 .andWhere { Tables.Experience.id eq experienceId }
+                .andWhere { Tables.Experience.publishable eq true }
                 .empty()
         require(isUserMember)
         val gameId = writeGame(userId, game)
@@ -337,6 +339,8 @@ object Dao {
                 Tables.Sprite.pixels,
                 Tables.Sprite.width,
                 Tables.Sprite.height,
+                Tables.Experience.playable,
+                Tables.Experience.publishable,
             )
             .where(Tables.Community.id eq communityId)
             .andWhere { Tables.CommunityUserJoin.user eq userId }
@@ -345,6 +349,8 @@ object Dao {
                 ExperienceMetadata(
                     id = it[Tables.Experience.id].value,
                     banner = it.toSprite(),
+                    playable = it[Tables.Experience.playable],
+                    publishable = it[Tables.Experience.publishable],
                 )
             }
     }
@@ -372,6 +378,8 @@ object Dao {
                 where = { (Tables.Experience.id eq id) and (Tables.Experience.community eq communityId) },
             ) {
                 it[banner] = newBanner
+                it[playable] = metadata.playable
+                it[publishable] = metadata.publishable
             }
             Tables.Sprite.deleteWhere { Tables.Sprite.id eq oldBanner }
             EntityID(id, Tables.Experience)
@@ -388,6 +396,8 @@ object Dao {
                 it[community] = communityId
                 it[index] = nextIndex
                 it[banner] = newBanner
+                it[playable] = metadata.playable
+                it[publishable] = metadata.publishable
             }
         }
         return experienceId
@@ -408,12 +418,20 @@ object Dao {
                 Tables.Sprite.pixels,
                 Tables.Sprite.width,
                 Tables.Sprite.height,
+                Tables.Experience.playable,
+                Tables.Experience.publishable,
             )
             .where(Tables.Community.id inList communities.map { it.id })
+            .andWhere { Tables.Experience.publishable eq true }
             .groupBy { it[Tables.Experience.community].value }
             .mapValues { entries ->
                 entries.value.map {
-                    ExperienceMetadata(id = it[Tables.Experience.id].value, banner = it.toSprite())
+                    ExperienceMetadata(
+                        id = it[Tables.Experience.id].value,
+                        banner = it.toSprite(),
+                        playable = it[Tables.Experience.playable],
+                        publishable = it[Tables.Experience.publishable],
+                    )
                 }
             }
         return communities

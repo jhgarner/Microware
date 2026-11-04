@@ -45,6 +45,8 @@ object Tables {
         val banner = spriteReference("banner")
         val community = cascadeReference("community", Community).index()
         val index = integer("index")
+        val playable = bool("playable").default(true)
+        val publishable = bool("publishable").default(true)
     }
 
     object Game : LongIdTable() {

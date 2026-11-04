@@ -27,7 +27,7 @@ fun PlayPage(onBack: () -> Unit, onSaveGame: (Game) -> Unit) {
         experiences =
             runCatching { getCommunityMetadata() }.getOrElse { listOf() }.flatMap { community ->
                 runCatching {
-                    getExperienceMetadatas(community.id).map { metadata ->
+                    getExperienceMetadatas(community.id).filter { it.playable }.map { metadata ->
                         PlayExperienceMetadata(
                             id = metadata.id,
                             communityId = community.id,
