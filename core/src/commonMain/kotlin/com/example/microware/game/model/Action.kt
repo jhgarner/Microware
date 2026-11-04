@@ -1,5 +1,6 @@
 package com.example.microware.game.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,7 +28,11 @@ sealed interface Trigger {
     object Start : Trigger
 
     @Serializable
-    data class Tap(val target: LogicTag) : Trigger
+    @SerialName("com.example.microware.game.model.Trigger.Tap")
+    data class Release(val target: LogicTag) : Trigger
+
+    @Serializable
+    data class Press(val target: LogicTag) : Trigger
 
     @Serializable
     data class Collision(val firstTarget: LogicTag, val secondTarget: LogicTag) : Trigger

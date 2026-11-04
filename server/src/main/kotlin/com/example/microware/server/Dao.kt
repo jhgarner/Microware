@@ -484,9 +484,14 @@ object Dao {
             it[index] = i
             it[variant] = when (val trigger = logic.trigger) {
                 Trigger.Start -> 0
-                is Trigger.Tap -> {
+                is Trigger.Release -> {
                     it[tapTarget] = trigger.target.tag
                     1
+                }
+
+                is Trigger.Press -> {
+                    it[tapTarget] = trigger.target.tag
+                    3
                 }
 
                 is Trigger.Collision -> {
@@ -553,11 +558,12 @@ private fun ResultRow.toSprite() = Sprite(
 
 private fun ResultRow.toTrigger(): Trigger = when (this[Tables.Trigger.variant]) {
     0 -> Trigger.Start
-    1 -> Trigger.Tap(LogicTag(this[Tables.Trigger.tapTarget]!!))
+    1 -> Trigger.Release(LogicTag(this[Tables.Trigger.tapTarget]!!))
     2 -> Trigger.Collision(
         firstTarget = LogicTag(this[Tables.Trigger.collisionFirstTarget]!!),
         secondTarget = LogicTag(this[Tables.Trigger.collisionSecondTarget]!!),
     )
+    3 -> Trigger.Press(LogicTag(this[Tables.Trigger.tapTarget]!!))
 
     else -> error("Unknown trigger variant")
 }

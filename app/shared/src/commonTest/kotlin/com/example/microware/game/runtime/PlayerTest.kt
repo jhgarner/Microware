@@ -39,33 +39,68 @@ class PlayerTest {
         val player = playerWithObjects(
             logics = listOf(
                 Logic(Trigger.Start, listOf(Action.Win)),
-                Logic(Trigger.Tap(tag), listOf(Action.Lose)),
+                Logic(Trigger.Release(tag), listOf(Action.Lose)),
             ),
             positions = mapOf(tag to Offset.Zero),
         )
 
-        player.tap(Offset(0.5f, 0.5f))
+        player.press(Offset(0.5f, 0.5f))
+        player.release()
         player.step(Player.GameDurationMillis)
 
         assertEquals(GameResult.Lost, player.result)
     }
 
     @Test
-    fun tapAfterDeadlineCannotChangeTheFinalResult() {
+    fun releaseAfterDeadlineCannotChangeTheFinalResult() {
         val tag = LogicTag(0)
         val player = playerWithObjects(
             logics = listOf(
                 Logic(Trigger.Start, listOf(Action.Win)),
-                Logic(Trigger.Tap(tag), listOf(Action.Lose)),
+                Logic(Trigger.Release(tag), listOf(Action.Lose)),
             ),
+            positions = mapOf(tag to Offset.Zero),
+        )
+        player.press(Offset(0.5f, 0.5f))
+        player.step(Player.GameDurationMillis)
+
+        player.release()
+
+        assertEquals(GameResult.Won, player.result)
+        assertEquals(WinState.Won, player.winState)
+    }
+
+    @Test
+    fun pressAndReleaseRunOnlyTheirOwnActions() {
+        val tag = LogicTag(0)
+        val player = playerWithObjects(
+            logics = listOf(
+                Logic(Trigger.Press(tag), listOf(Action.Win)),
+                Logic(Trigger.Release(tag), listOf(Action.Lose)),
+            ),
+            positions = mapOf(tag to Offset.Zero),
+        )
+
+        player.press(Offset(0.5f, 0.5f))
+        assertEquals(WinState.Won, player.winState)
+
+        player.release()
+        assertEquals(WinState.Lost, player.winState)
+    }
+
+    @Test
+    fun pressAfterDeadlineCannotChangeTheFinalResult() {
+        val tag = LogicTag(0)
+        val player = playerWithObjects(
+            logics = listOf(Logic(Trigger.Press(tag), listOf(Action.Win))),
             positions = mapOf(tag to Offset.Zero),
         )
         player.step(Player.GameDurationMillis)
 
-        player.tap(Offset(0.5f, 0.5f))
+        player.press(Offset(0.5f, 0.5f))
 
-        assertEquals(GameResult.Won, player.result)
-        assertEquals(WinState.Won, player.winState)
+        assertEquals(GameResult.Lost, player.result)
+        assertEquals(WinState.Playing, player.winState)
     }
 
     @Test

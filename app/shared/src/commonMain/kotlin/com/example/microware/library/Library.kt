@@ -134,7 +134,8 @@ private fun Logic.toStoredLogic(): StoredLogic = StoredLogic(
 
 private fun Trigger.toStoredTrigger(): StoredTrigger = when (this) {
     Trigger.Start -> StoredTrigger(type = "start")
-    is Trigger.Tap -> StoredTrigger(type = "tap", firstTag = target.tag)
+    is Trigger.Release -> StoredTrigger(type = "release", firstTag = target.tag)
+    is Trigger.Press -> StoredTrigger(type = "press", firstTag = target.tag)
     is Trigger.Collision -> StoredTrigger(
         type = "collision",
         firstTag = firstTarget.tag,
@@ -175,7 +176,8 @@ private fun StoredLogic.toLogic(): Logic = Logic(
 
 private fun StoredTrigger.toTrigger(): Trigger = when (type) {
     "start" -> Trigger.Start
-    "tap" -> Trigger.Tap(LogicTag(requireNotNull(firstTag)))
+    "tap", "release" -> Trigger.Release(LogicTag(requireNotNull(firstTag)))
+    "press" -> Trigger.Press(LogicTag(requireNotNull(firstTag)))
     "collision" -> Trigger.Collision(
         firstTarget = LogicTag(requireNotNull(firstTag)),
         secondTarget = LogicTag(requireNotNull(secondTag)),

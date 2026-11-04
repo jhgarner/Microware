@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ import com.example.microware.ui.icons.drawArrowIcon
 import com.example.microware.ui.icons.drawCollisionIcon
 import com.example.microware.ui.icons.drawDirectionIcon
 import com.example.microware.ui.icons.drawDownArrowIcon
+import com.example.microware.ui.icons.drawDownIcon
 import com.example.microware.ui.icons.drawLoseIcon
 import com.example.microware.ui.icons.drawMoveIcon
 import com.example.microware.ui.icons.drawMoveToIcon
@@ -212,7 +214,7 @@ internal fun LogicBuilder(
         val compactButtonSize = 48.dp
         val compactRowHeight = compactButtonSize
         val largeButtonSize = minOf(
-            (maxWidth - largeTriggerSpacing * 2) / 3,
+            (maxWidth - largeTriggerSpacing * 3) / 4,
             maxHeight,
         )
         val initialTriggerAreaHeight = if (detailsVisible) compactRowHeight else largeButtonSize
@@ -272,7 +274,8 @@ internal fun LogicBuilder(
                 buttonHeight = triggerButtonHeight.value.dp,
                 buttonSpacing = triggerButtonSpacing.value.dp,
                 onStartSelected = { updateTrigger(Trigger.Start) },
-                onTapSelected = { updateTrigger(Trigger.Tap(defaultTag)) },
+                onPressSelected = { updateTrigger(Trigger.Press(defaultTag)) },
+                onReleaseSelected = { updateTrigger(Trigger.Release(defaultTag)) },
                 onCollisionSelected = {
                     updateTrigger(Trigger.Collision(defaultTag, defaultTag))
                 },
@@ -373,54 +376,52 @@ private fun TriggerButtons(
     buttonHeight: Dp,
     buttonSpacing: Dp,
     onStartSelected: () -> Unit,
-    onTapSelected: () -> Unit,
+    onPressSelected: () -> Unit,
+    onReleaseSelected: () -> Unit,
     onCollisionSelected: () -> Unit,
 ) {
-    if (layout == TriggerLayout.Large) {
-        Row(
-            modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(
-                buttonSpacing,
-                Alignment.CenterHorizontally,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TriggerButton(
-                description = "Game start trigger",
-                selected = trigger is Trigger.Start,
-                modifier = Modifier.size(buttonWidth, buttonHeight),
-                onClick = onStartSelected,
-            )
-            TriggerButton(
-                description = "Tap trigger",
-                selected = trigger is Trigger.Tap,
-                modifier = Modifier.size(buttonWidth, buttonHeight),
-                onClick = onTapSelected,
-            )
-            TriggerButton(
-                description = "Collision trigger",
-                selected = trigger is Trigger.Collision,
-                modifier = Modifier.size(buttonWidth, buttonHeight),
-                onClick = onCollisionSelected,
-            )
-        }
+    val buttonModifier = if (layout == TriggerLayout.Large) {
+        Modifier.size(buttonWidth, buttonHeight)
     } else {
-        Row(
-            modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(
-                buttonSpacing,
-                Alignment.CenterHorizontally,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TriggerButton("Game start trigger", trigger is Trigger.Start, onClick = onStartSelected)
-            TriggerButton("Tap trigger", trigger is Trigger.Tap, onClick = onTapSelected)
-            TriggerButton(
-                "Collision trigger",
-                trigger is Trigger.Collision,
-                onClick = onCollisionSelected,
-            )
-        }
+        Modifier.size(48.dp)
+    }
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(
+            buttonSpacing,
+            Alignment.CenterHorizontally,
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TriggerButton(
+            description = "Game start trigger",
+            selected = trigger is Trigger.Start,
+            modifier = buttonModifier,
+            onClick = onStartSelected,
+            icon = { drawStartIcon(it) },
+        )
+        TriggerButton(
+            description = "Press trigger",
+            selected = trigger is Trigger.Press,
+            modifier = buttonModifier,
+            onClick = onPressSelected,
+            icon = { drawDownIcon(it) },
+        )
+        TriggerButton(
+            description = "Release trigger",
+            selected = trigger is Trigger.Release,
+            modifier = buttonModifier,
+            onClick = onReleaseSelected,
+            icon = { drawTapIcon(it) },
+        )
+        TriggerButton(
+            description = "Collision trigger",
+            selected = trigger is Trigger.Collision,
+            modifier = buttonModifier,
+            onClick = onCollisionSelected,
+            icon = { drawCollisionIcon(it) },
+        )
     }
 }
 
@@ -430,20 +431,15 @@ private fun TriggerButton(
     selected: Boolean,
     modifier: Modifier = Modifier.size(48.dp),
     onClick: () -> Unit,
+    icon: DrawScope.(Float) -> Unit,
 ) {
     IconButton(
         description = description,
         modifier = modifier,
         selected = selected,
         onClick = onClick,
-    ) { time ->
-        when {
-            description.startsWith("Collision") -> drawCollisionIcon(time)
-            description.startsWith("Game") -> drawStartIcon(time)
-            description.startsWith("Tap") -> drawTapIcon(time)
-            else -> drawCollisionIcon(time)
-        }
-    }
+        icon = icon,
+    )
 }
 
 @Composable
@@ -459,9 +455,16 @@ private fun TriggerParameters(
     ) {
         when (trigger) {
             Trigger.Start -> Unit
-            is Trigger.Tap -> LogicTagPicker(
+            is Trigger.Press -> LogicTagPicker(
                 selectedTag = trigger.target,
-                onSelectTag = { it?.let { tag -> onChange(Trigger.Tap(tag)) } },
+                onSelectTag = { it?.let { tag -> onChange(Trigger.Press(tag)) } },
+                usedTags = usedTags,
+                allowClear = false,
+            )
+
+            is Trigger.Release -> LogicTagPicker(
+                selectedTag = trigger.target,
+                onSelectTag = { it?.let { tag -> onChange(Trigger.Release(tag)) } },
                 usedTags = usedTags,
                 allowClear = false,
             )

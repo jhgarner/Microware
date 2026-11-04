@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,10 +17,11 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.example.microware.Palette
 
 @Composable
 internal fun Icon(size: Dp = 40.dp, draw: DrawScope.() -> Unit) {
-    Canvas(modifier = Modifier.size(size).clipToBounds()) {
+    Canvas(modifier = Modifier.size(size).clipToBounds().background(Palette.OffWhite.color)) {
         draw()
     }
 }
@@ -40,7 +42,7 @@ internal fun Animated(
             repeatMode = RepeatMode.Restart,
         ),
     )
-    Canvas(modifier = Modifier.size(size)) {
+    Canvas(modifier = Modifier.size(size).background(Palette.OffWhite.color)) {
         draw(animatedProgress)
     }
 }

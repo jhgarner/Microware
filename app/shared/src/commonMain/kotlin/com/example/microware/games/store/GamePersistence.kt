@@ -159,7 +159,8 @@ private fun GameStoredLogic.toLogic(): Logic = Logic(
 
 private fun Trigger.toStoredTrigger(): GameStoredTrigger = when (this) {
     Trigger.Start -> GameStoredTrigger(type = "start")
-    is Trigger.Tap -> GameStoredTrigger(type = "tap", firstTag = target.tag)
+    is Trigger.Release -> GameStoredTrigger(type = "release", firstTag = target.tag)
+    is Trigger.Press -> GameStoredTrigger(type = "press", firstTag = target.tag)
     is Trigger.Collision -> GameStoredTrigger(
         type = "collision",
         firstTag = firstTarget.tag,
@@ -169,7 +170,8 @@ private fun Trigger.toStoredTrigger(): GameStoredTrigger = when (this) {
 
 private fun GameStoredTrigger.toTrigger(): Trigger = when (type) {
     "start" -> Trigger.Start
-    "tap" -> Trigger.Tap(LogicTag(requireNotNull(firstTag)))
+    "tap", "release" -> Trigger.Release(LogicTag(requireNotNull(firstTag)))
+    "press" -> Trigger.Press(LogicTag(requireNotNull(firstTag)))
     "collision" -> Trigger.Collision(
         firstTarget = LogicTag(requireNotNull(firstTag)),
         secondTarget = LogicTag(requireNotNull(secondTag)),

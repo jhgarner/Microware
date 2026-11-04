@@ -1,7 +1,8 @@
 package com.example.microware.game.runtime
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -50,6 +51,8 @@ class Player(
     var colliding: Set<Colliding> = setOf(),
     private val random: Random = Random.Default,
 ) {
+    private var pointerLocation: Offset? = null
+    private var pressedObjects: Set<LogicTag> = emptySet()
     private var fractionalElapsedMs = 0.0
     private var hasDeliveredResult = false
     private var cachedScale = Float.NaN
@@ -90,6 +93,7 @@ class Player(
             val substep = remaining.coerceAtMost(MaxSimulationStepMillis)
             move(substep)
             resolveCollisions()
+            resolvePointerContacts()
             timeMs += substep
             remaining -= substep
         }
@@ -102,17 +106,32 @@ class Player(
         step(wholeMilliseconds)
     }
 
-    fun tap(location: Offset) {
+    fun press(location: Offset) = movePointer(location)
+
+    fun release() = movePointer(null)
+
+    fun movePointer(location: Offset?) {
         if (timeMs >= GameDurationMillis) return
+        pointerLocation = location
+        resolvePointerContacts()
+    }
+
+    private fun resolvePointerContacts() {
+        val location = pointerLocation
+        val touching = if (location == null) emptySet() else objects
+            .filterValues { it.rect().contains(location) }
+            .keys.toSet()
+        val entered = touching - pressedObjects
+        val exited = pressedObjects - touching
+        pressedObjects = touching
 
         for (logic in logics) {
-            if (logic.trigger is Trigger.Tap) {
-                objects[logic.trigger.target]?.let { obj ->
-                    if (obj.rect().contains(location)) {
-                        logic.actions.forEach { runAction(it) }
-                    }
-                }
+            val triggered = when (val trigger = logic.trigger) {
+                is Trigger.Press -> trigger.target in entered
+                is Trigger.Release -> trigger.target in exited
+                else -> false
             }
+            if (triggered) logic.actions.forEach { runAction(it) }
         }
     }
 
@@ -263,8 +282,24 @@ class Player(
                 .onSizeChanged { canvasSize = it }
                 .pointerInput(this@Player, canvasSize, active) {
                     if (active) {
-                        detectTapGestures { location ->
-                            gameLocation(location, canvasSize)?.let(::tap)
+                        try {
+                            awaitEachGesture {
+                                val down = awaitFirstDown()
+                                down.consume()
+                                movePointer(gameLocation(down.position, canvasSize))
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val pointer = event.changes.first { it.id == down.id }
+                                    if (pointer.pressed) {
+                                        movePointer(gameLocation(pointer.position, canvasSize))
+                                    } else {
+                                        release()
+                                    }
+                                    pointer.consume()
+                                } while (pointer.pressed)
+                            }
+                        } finally {
+                            release()
                         }
                     }
                 },

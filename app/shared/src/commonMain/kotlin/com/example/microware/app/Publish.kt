@@ -55,6 +55,34 @@ fun PublishGame(
         }
     }
 
+    PublishGame(
+        publishables = publishables,
+        publishedAt = publishedAt,
+        onPublish = { experienceId ->
+            scope.launch {
+                val gameId = publishGame(experienceId, game)
+                if (gameId != game.dbId) {
+                    setGameDbId(gameId)
+                }
+                refresh++
+            }
+        },
+        onUnpublish = { experienceId ->
+            scope.launch {
+                game.dbId?.let { unpublishGame(experienceId, it) }
+                refresh++
+            }
+        },
+    )
+}
+
+@Composable
+fun PublishGame(
+    publishables: List<Model.PublishableExperience>,
+    publishedAt: Set<Long>,
+    onPublish: (Long) -> Unit,
+    onUnpublish: (Long) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -105,12 +133,7 @@ fun PublishGame(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth(),
-                                    onClick = {
-                                        scope.launch {
-                                            publishGame(experience.id, game)
-                                            refresh++
-                                        }
-                                    },
+                                    onClick = { onPublish(experience.id) },
                                 ) {
                                     drawSaveIcon()
                                 }
@@ -118,12 +141,7 @@ fun PublishGame(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth(),
-                                    onClick = {
-                                        scope.launch {
-                                            game.dbId?.let { unpublishGame(experience.id, it) }
-                                            refresh++
-                                        }
-                                    },
+                                    onClick = { onUnpublish(experience.id) },
                                 ) {
                                     drawTrashIcon()
                                 }
@@ -133,15 +151,7 @@ fun PublishGame(
                                 modifier = Modifier
                                     .width(48.dp)
                                     .fillMaxHeight(),
-                                onClick = {
-                                    scope.launch {
-                                        val gameId = publishGame(experience.id, game)
-                                        if (gameId != game.dbId) {
-                                            setGameDbId(gameId)
-                                        }
-                                        refresh++
-                                    }
-                                },
+                                onClick = { onPublish(experience.id) },
                             ) {
                                 drawSaveIcon()
                             }

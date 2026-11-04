@@ -226,11 +226,12 @@ private class DbTrigger(
 ) {
     fun toTrigger(): Trigger = when (this.variant) {
         0 -> Trigger.Start
-        1 -> Trigger.Tap(LogicTag(tapTarget ?: 0))
+        1 -> Trigger.Release(LogicTag(tapTarget ?: 0))
         2 -> Trigger.Collision(
             LogicTag(collisionFirstTarget ?: 0),
             LogicTag(collisionSecondTarget ?: 0),
         )
+        3 -> Trigger.Press(LogicTag(tapTarget ?: 0))
 
         else -> Trigger.Start
     }
@@ -238,7 +239,8 @@ private class DbTrigger(
 
 private fun fromTrigger(game: Long, index: Int, trigger: Trigger): DbTrigger = when (trigger) {
     Trigger.Start -> DbTrigger(game, index, variant = 0)
-    is Trigger.Tap -> DbTrigger(game, index, variant = 1, tapTarget = trigger.target.tag)
+    is Trigger.Release -> DbTrigger(game, index, variant = 1, tapTarget = trigger.target.tag)
+    is Trigger.Press -> DbTrigger(game, index, variant = 3, tapTarget = trigger.target.tag)
     is Trigger.Collision -> DbTrigger(
         game, index,
         variant = 2,

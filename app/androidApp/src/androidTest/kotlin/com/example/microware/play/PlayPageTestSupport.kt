@@ -70,7 +70,7 @@ internal fun tapWinGame(): Game {
     val world = untaggedWorld.assignLogicTag(untaggedWorld.objects.single().id, tag)
     return Game(
         world = world,
-        logics = persistentListOf(Logic(Trigger.Tap(tag), listOf(Action.Win))),
+        logics = persistentListOf(Logic(Trigger.Release(tag), listOf(Action.Win))),
     )
 }
 

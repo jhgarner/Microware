@@ -8,31 +8,41 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.microware.Palette
+import kotlin.math.min
+import kotlin.math.pow
 
 const val TAP_START = 0f
 const val TAP_DOWN = .3f
 
 fun DrawScope.drawTapCircle(t: Float) {
-    val touchPoint = Offset(size.width * .5f, size.height * .2f)
+    val touchPoint = Offset(size.width * .5f, size.height * .35f)
     val radScale = animate(t, 1.0f) {
-        anim(1.0f, .3f)
-        anim(1.4f, .2f)
+        anim(1.0f, .2f)
+        anim(0.8f, .1f)
+        hold(.3f)
+        anim(1.3f, .2f)
         anim(1.0f, .2f)
     }
     val strokeWidth = size.width / 20
+    val outerCircleSize = size.minDimension * .38f * radScale
     drawCircle(
         Palette.Cyan.color,
-        size.minDimension * .18f * radScale,
+        outerCircleSize,
         touchPoint,
-        style = Stroke(strokeWidth),
+    )
+
+    drawCircle(
+        Palette.OffWhite.color,
+        min(size.minDimension * .28f * radScale.pow(4), outerCircleSize * .9f),
+        touchPoint,
     )
 }
 
 fun DrawScope.drawTapHand(t: Float) {
     val fingerMove = animate(t) {
         anim(0f, .2f)
-        anim(.1f, .1f)
-        anim(.1f, .3f)
+        anim(.2f, .1f)
+        hold(.3f)
         anim(0f, .2f)
     }
     val finger = Path().apply {
@@ -68,6 +78,12 @@ fun DrawScope.drawTapIcon(t: Float = TAP_START) {
     drawTapHand(t)
 }
 
+fun DrawScope.drawDownIcon(t: Float = 0f) {
+    val t = (t + TAP_DOWN) % 1f
+    drawTapCircle(t)
+    drawTapHand(t)
+}
+
 @Preview
 @Composable
 fun StartOfHand() = Icon { drawTapHand(TAP_START) }
@@ -79,6 +95,10 @@ fun TapOfHand() = Icon { drawTapHand(TAP_DOWN) }
 @Preview
 @Composable
 fun FullTapAnimation() = Animated { drawTapIcon(it) }
+
+@Preview
+@Composable
+fun FullDownAnimation() = Animated { drawDownIcon(it) }
 
 @Preview
 @Composable

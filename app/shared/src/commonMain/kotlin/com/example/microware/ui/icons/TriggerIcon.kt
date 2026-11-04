@@ -9,7 +9,8 @@ import com.example.microware.game.model.Trigger
 
 internal fun DrawScope.drawTrigger(trigger: Trigger) = when (trigger) {
     Trigger.Start -> drawStartIcon()
-    is Trigger.Tap -> drawTapIcon()
+    is Trigger.Press -> drawDownIcon()
+    is Trigger.Release -> drawTapIcon()
     is Trigger.Collision -> drawCollisionIcon()
 }
 
@@ -18,7 +19,8 @@ internal fun DrawScope.drawTrigger(trigger: Trigger) = when (trigger) {
 fun TriggerIconsPreview() {
     Row {
         Icon { drawTrigger(Trigger.Start) }
-        Icon { drawTrigger(Trigger.Tap(LogicTag(0))) }
+        Icon { drawTrigger(Trigger.Press(LogicTag(0))) }
+        Icon { drawTrigger(Trigger.Release(LogicTag(0))) }
         Icon { drawTrigger(Trigger.Collision(LogicTag(0), LogicTag(1))) }
     }
 }
