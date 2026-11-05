@@ -11,7 +11,6 @@ enum class Palette(val code: Int, val color: Color) {
     Rust(4, Color(0xFFAB5236)),
     DarkGray(5, Color(0xFF5F574F)),
     LightGray(6, Color(0xFFC2C3C7)),
-    OffWhite(7, Color(0xFFFFF1E8)),
     Red(8, Color(0xFFFF004D)),
     Orange(9, Color(0xFFFFA300)),
     Yellow(10, Color(0xFFFFEC27)),
@@ -20,6 +19,7 @@ enum class Palette(val code: Int, val color: Color) {
     Purple(13, Color(0xFF83769C)),
     Pink(14, Color(0xFFFF77A8)),
     Tan(15, Color(0xFFFFCCAA)),
+    OffWhite(7, Color(0xFFFFF1E8)),
     Clear(16, Color(0x00000000));
 
     companion object {

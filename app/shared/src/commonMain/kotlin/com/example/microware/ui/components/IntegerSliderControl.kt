@@ -82,6 +82,10 @@ enum class IntegerSliderDimension {
     X,
     Y,
     Speed,
+    BrushSize;
+
+    val label: String
+        get() = if (this == BrushSize) "Brush size" else name
 }
 
 @Composable
@@ -116,7 +120,7 @@ fun IntegerSliderControl(
                 color = activeColor.color,
             )
             IconButton(
-                description = "Decrease ${dimension.name.lowercase()}",
+                description = "Decrease ${dimension.label.lowercase()}",
                 onClick = {
                     onValueChange(
                         if (value == null) maxValue else (finiteValue!! - 1).coerceAtLeast(minValue),
@@ -139,7 +143,7 @@ fun IntegerSliderControl(
             modifier = Modifier.weight(1f),
         )
         IconButton(
-            description = "Increase ${dimension.name.lowercase()}",
+            description = "Increase ${dimension.label.lowercase()}",
             onClick = {
                 onValueChange(
                     if (finiteValue!! < maxValue) finiteValue + 1 else null,
@@ -163,7 +167,7 @@ private fun RowScope.DimensionIcon(
             .size(24.dp)
             .align(Alignment.CenterVertically)
             .semantics {
-                contentDescription = dimension.name
+                contentDescription = dimension.label
             },
     ) {
         val strokeWidth = 2.dp.toPx()
@@ -172,6 +176,10 @@ private fun RowScope.DimensionIcon(
         val arrowSize = size.minDimension * 0.18f
 
         when (dimension) {
+            IntegerSliderDimension.BrushSize -> {
+                drawCircle(color, radius = size.minDimension * .3f)
+            }
+
             IntegerSliderDimension.Width, IntegerSliderDimension.X -> {
                 drawLine(
                     color = color,

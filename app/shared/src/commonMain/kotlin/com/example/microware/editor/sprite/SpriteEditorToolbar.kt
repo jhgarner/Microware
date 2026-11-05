@@ -166,9 +166,10 @@ private fun ToolButton(
 fun SpriteColorPicker(
     selectedColor: Palette,
     onSelectColor: (Palette) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
-    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
+    Row(modifier = modifier.horizontalScroll(scrollState)) {
         for (color in Palette.entries) {
             ColorPickerButton(color, selectedColor == color) {
                 onSelectColor(color)

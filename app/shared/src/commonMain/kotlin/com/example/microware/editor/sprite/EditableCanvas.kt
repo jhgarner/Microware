@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -99,6 +100,7 @@ fun EditableCanvas(
 ) {
     var selectedTool by remember(editorKey) { mutableStateOf(tools.first()) }
     var selectedColor by remember(editorKey) { mutableStateOf(Palette.Navy) }
+    var brush by remember(editorKey) { mutableStateOf(PixelBrush()) }
     val boundsState = remember(editorKey) { mutableStateOf(SpriteBounds.original(sprite)) }
     val panState = remember(editorKey) { mutableStateOf(Offset.Zero) }
     val zoomState = remember(editorKey) { mutableStateOf(1f) }
@@ -124,8 +126,19 @@ fun EditableCanvas(
             }
         }
         when (selectedTool) {
-            SpriteEditorTool.Pen, SpriteEditorTool.Bucket ->
-                SpriteColorPicker(selectedColor) { selectedColor = it }
+            SpriteEditorTool.Pen, SpriteEditorTool.Bucket -> Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (selectedTool == SpriteEditorTool.Pen) {
+                    BrushOptions(brush) { brush = it }
+                }
+                SpriteColorPicker(
+                    selectedColor = selectedColor,
+                    onSelectColor = { selectedColor = it },
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
             SpriteEditorTool.Resize -> ResizeOptions(
                 canReset = boundsState.value != SpriteBounds.original(sprite),
@@ -155,6 +168,7 @@ fun EditableCanvas(
             Content(
                 selectedTool = selectedTool,
                 selectedColor = selectedColor,
+                brush = brush,
                 sprite = sprite,
                 draft = draft,
                 boundsState = boundsState,
@@ -171,6 +185,7 @@ fun EditableCanvas(
 private fun Content(
     selectedTool: SpriteEditorTool,
     selectedColor: Palette,
+    brush: PixelBrush,
     sprite: Sprite,
     draft: MutableSpriteDraft,
     boundsState: MutableState<SpriteBounds>,
@@ -196,6 +211,7 @@ private fun Content(
             SpriteEditorTool.Pen, SpriteEditorTool.Bucket -> SpriteCanvas(
                 selectedTool = selectedTool,
                 selectedColor = selectedColor,
+                brush = brush,
                 draft = draft,
                 commit = commit,
                 panState = panState,
@@ -340,6 +356,7 @@ private fun BackgroundCanvas(
 private fun SpriteCanvas(
     selectedTool: SpriteEditorTool,
     selectedColor: Palette,
+    brush: PixelBrush,
     draft: MutableSpriteDraft,
     commit: (Sprite) -> Unit,
     panState: MutableState<Offset>,
@@ -355,7 +372,20 @@ private fun SpriteCanvas(
         modifier = Modifier
             .fillMaxSize()
             .clipToBounds()
-            .pointerInput(selectedColor, selectedTool) {
+            .pointerInput(selectedColor, selectedTool, brush) {
+                fun paintCells(cells: List<Cell>, visited: MutableSet<Cell> = mutableSetOf()) {
+                    val edits = cells.flatMap { brush.cellsAt(it) }.mapNotNull { cell ->
+                        if (draft.inBounds(cell.row, cell.col) && visited.add(cell)) {
+                            Sprite.Edits.Write(cell.row, cell.col, selectedColor)
+                        } else {
+                            null
+                        }
+                    }
+                    if (edits.isNotEmpty()) {
+                        draft.apply(Sprite.Edits.WriteMany(edits))
+                    }
+                }
+
                 fun cellAt(position: Offset): Cell {
                     val frame = draft.frame
                     val spriteSize = fittedSize(
@@ -377,10 +407,8 @@ private fun SpriteCanvas(
                 racing {
                     if (selectedTool == SpriteEditorTool.Pen) sequence {
                         val cell = cellAt(expectTap().position)
-                        if (draft.inBounds(cell.row, cell.col)) {
-                            draft.apply(Sprite.Edits.Write(cell.row, cell.col, selectedColor))
-                            commit.value(draft.toSprite())
-                        }
+                        paintCells(listOf(cell))
+                        commit.value(draft.toSprite())
                     }
                     if (selectedTool == SpriteEditorTool.Bucket) sequence {
                         val cell = cellAt(expectTap().position)
@@ -394,18 +422,7 @@ private fun SpriteCanvas(
                         followDrag { change ->
                             change.consume()
                             val currentCell = cellAt(change.position)
-                            previousCell?.let { previous ->
-                                val edits = cellsBetween(previous, currentCell).mapNotNull { cell ->
-                                    if (draft.inBounds(cell.row, cell.col) && visited.add(cell)) {
-                                        Sprite.Edits.Write(cell.row, cell.col, selectedColor)
-                                    } else {
-                                        null
-                                    }
-                                }
-                                if (edits.isNotEmpty()) {
-                                    draft.apply(Sprite.Edits.WriteMany(edits))
-                                }
-                            }
+                            paintCells(cellsBetween(previousCell ?: currentCell, currentCell), visited)
                             previousCell = currentCell
                         }
                         commit.value(draft.toSprite())
