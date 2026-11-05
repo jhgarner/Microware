@@ -2,9 +2,12 @@ name: Build signed Android APK
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - '**'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -69,3 +72,15 @@ jobs:
           path: app/androidApp/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" app/androidApp/build/outputs/apk/release/*.apk --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" app/androidApp/build/outputs/apk/release/*.apk \
+              --verify-tag --generate-notes
+          fi
