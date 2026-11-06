@@ -10,7 +10,6 @@ import androidx.compose.ui.geometry.Offset
 import com.example.microware.editor.ExpandedSide
 import com.example.microware.editor.Toolbar
 import com.example.microware.editor.sprite.EditableCanvas
-import com.example.microware.editor.sprite.MutableSpriteDraft
 import com.example.microware.game.events.WorldEvent
 import com.example.microware.game.model.Obj
 import com.example.microware.game.model.World
@@ -88,13 +87,10 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                     setExpanded(Expanded.Editor(newObj, setExpanded))
                     handler { world -> world.upsertObject(newObj) }
                 },
-                resize = { bounds ->
+                resize = { resizedSprite, offset ->
                     val newObj = obj.copy(
-                        offset = obj.offset + Offset(
-                            bounds.left.toFloat(),
-                            bounds.top.toFloat(),
-                        ),
-                        sprite = MutableSpriteDraft(obj.sprite).resize(bounds).toSprite(),
+                        offset = offset,
+                        sprite = resizedSprite,
                     )
                     setExpanded(Expanded.Editor(world.clamped(newObj), setExpanded))
                     handler { world -> world.upsertObject(newObj) }
@@ -115,6 +111,7 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                     handler { world -> world.assignLogicTag(obj.id, logicTag) }
                 },
                 editorKey = obj.id,
+                spriteOffset = obj.offset,
             )
         },
         libraryPanel = {

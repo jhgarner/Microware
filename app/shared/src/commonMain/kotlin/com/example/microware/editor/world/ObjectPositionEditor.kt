@@ -36,6 +36,12 @@ internal fun ObjectPositionEditor(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        ObjectPositionPreviewCanvas(
+            world = world,
+            selectedObject = obj,
+            position = position,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        )
         IntegerSliderControl(
             dimension = IntegerSliderDimension.X,
             value = position.x,
@@ -55,12 +61,6 @@ internal fun ObjectPositionEditor(
                 position = position.copy(y = checkNotNull(value))
                 onPositionChange(position)
             },
-        )
-        ObjectPositionPreviewCanvas(
-            world = world,
-            selectedObject = obj,
-            position = position,
-            modifier = Modifier.fillMaxWidth().weight(1f),
         )
     }
 }

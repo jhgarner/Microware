@@ -201,7 +201,7 @@ private fun ExperienceEditor(
         EditableCanvas(
             sprite = draft.banner.sprite,
             commit = { onChange(draft.copy(banner = Banner(it))) },
-            resize = {},
+            resize = { _, _ -> },
             modifier = Modifier.weight(1f),
             editorKey = draft.id,
             tools = listOf(SpriteEditorTool.Pen, SpriteEditorTool.Bucket),

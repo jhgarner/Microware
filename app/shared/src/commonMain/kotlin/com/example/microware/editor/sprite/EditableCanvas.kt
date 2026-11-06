@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -89,9 +90,10 @@ private fun cellsBetween(start: Cell, end: Cell): List<Cell> {
 fun EditableCanvas(
     sprite: Sprite,
     commit: (Sprite) -> Unit,
-    resize: (SpriteBounds) -> Unit,
+    resize: (sprite: Sprite, offset: Offset) -> Unit,
     modifier: Modifier = Modifier,
     editorKey: Any = Unit,
+    spriteOffset: Offset = Offset.Zero,
     tools: List<SpriteEditorTool> = SpriteEditorTool.entries,
     showLogicTagPicker: Boolean = true,
     logicTag: LogicTag? = null,
@@ -106,22 +108,54 @@ fun EditableCanvas(
     val zoomState = remember(editorKey) { mutableStateOf(1f) }
     val viewportSizeState = remember(editorKey) { mutableStateOf(IntSize.Zero) }
     val draft = remember(editorKey) { MutableSpriteDraft(sprite) }
-    LaunchedEffect(sprite) {
+    val history = remember(editorKey) { SpriteEditHistory(sprite) }
+    LaunchedEffect(editorKey, sprite) {
+        history.synchronize(sprite)
         draft.synchronize(sprite)
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            SpriteToolPicker(
-                selectedTool = selectedTool,
-                onSelectTool = { selectedTool = it },
-                tools = tools,
+    fun applyChange(change: SpriteEditChange) {
+        val resizeChange = change.resize
+        if (resizeChange != null) {
+            rebaseViewportForResize(
+                sprite = draft.toSprite(),
+                bounds = resizeChange.bounds,
+                viewportSize = viewportSizeState.value,
+                panState = panState,
+                zoomState = zoomState,
             )
-            if (showLogicTagPicker) {
-                LogicTagPicker(
-                    selectedTag = logicTag,
-                    onSelectTag = onLogicTagChange,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            resize(change.sprite, resizeChange.offset)
+        } else {
+            commit(change.sprite)
+        }
+        draft.synchronize(change.sprite)
+        boundsState.value = SpriteBounds.original(change.sprite)
+    }
+
+    Column(
+        modifier = modifier.fillMaxSize().padding(
+            start = insets.leftDp(),
+            end = insets.rightDp(),
+            bottom = insets.bottomDp(),
+        ),
+    ) {
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            if (selectedTool == SpriteEditorTool.Position) {
+                positionEditor()
+            } else {
+                Content(
+                    selectedTool = selectedTool,
+                    selectedColor = selectedColor,
+                    brush = brush,
+                    sprite = sprite,
+                    draft = draft,
+                    boundsState = boundsState,
+                    panState = panState,
+                    zoomState = zoomState,
+                    viewportSizeState = viewportSizeState,
+                    commit = { edited ->
+                        if (history.record(edited)) commit(edited)
+                    },
                 )
             }
         }
@@ -144,39 +178,47 @@ fun EditableCanvas(
                 canReset = boundsState.value != SpriteBounds.original(sprite),
                 onReset = { boundsState.value = SpriteBounds.original(sprite) },
                 onConfirm = {
-                    val committedBounds = boundsState.value
-                    rebaseViewportForResize(
-                        sprite = sprite,
-                        bounds = committedBounds,
-                        viewportSize = viewportSizeState.value,
-                        panState = panState,
-                        zoomState = zoomState,
-                    )
-                    resize(committedBounds)
-                    boundsState.value = SpriteBounds(
-                        left = 0,
-                        top = 0,
-                        right = committedBounds.width,
-                        bottom = committedBounds.height,
-                    )
+                    val bounds = boundsState.value
+                    val resized = MutableSpriteDraft(history.current).resize(bounds).toSprite()
+                    if (history.record(resized, bounds, spriteOffset)) {
+                        applyChange(
+                            SpriteEditChange(
+                                sprite = resized,
+                                resize = SpriteResizeChange(
+                                    bounds,
+                                    spriteOffset + Offset(bounds.left.toFloat(), bounds.top.toFloat()),
+                                ),
+                            ),
+                        )
+                    }
                 },
             )
 
-            SpriteEditorTool.Position -> positionEditor()
+            SpriteEditorTool.Position -> Unit
         }
-        if (selectedTool != SpriteEditorTool.Position) {
-            Content(
-                selectedTool = selectedTool,
-                selectedColor = selectedColor,
-                brush = brush,
-                sprite = sprite,
-                draft = draft,
-                boundsState = boundsState,
-                panState = panState,
-                zoomState = zoomState,
-                viewportSizeState = viewportSizeState,
-                commit = commit,
+        SpriteToolPicker(
+            selectedTool = selectedTool,
+            onSelectTool = { selectedTool = it },
+            tools = tools,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SpriteHistoryControls(
+                canUndo = history.canUndo,
+                canRedo = history.canRedo,
+                onUndo = { applyChange(history.undo()) },
+                onRedo = { applyChange(history.redo()) },
             )
+            Spacer(Modifier.weight(1f))
+            if (showLogicTagPicker) {
+                LogicTagPicker(
+                    selectedTag = logicTag,
+                    onSelectTag = onLogicTagChange,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
         }
     }
 }
@@ -196,7 +238,6 @@ private fun Content(
 ) {
     Box(
         modifier = Modifier
-            .padding(start = insets.rightDp(), end = insets.leftDp(), bottom = insets.bottomDp())
             .fillMaxSize()
             .onSizeChanged { viewportSizeState.value = it },
     ) {

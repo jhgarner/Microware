@@ -177,7 +177,7 @@ internal fun CommunityEditor(
                             },
                         )
                     },
-                    resize = {},
+                    resize = { _, _ -> },
                     modifier = Modifier.weight(1f),
                     editorKey = draft.id,
                     tools = listOf(SpriteEditorTool.Pen, SpriteEditorTool.Bucket),
