@@ -59,7 +59,7 @@ fun Application.module() {
     install(ContentNegotiation) { json() }
     routing {
         query("/version") {
-            call.respond("1.0.4")
+            call.respond("1.0.5")
         }
         post("/publish") {
             val uuid = withUser()
