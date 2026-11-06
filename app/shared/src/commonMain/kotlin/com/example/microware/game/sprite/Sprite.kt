@@ -93,6 +93,8 @@ class Sprite private constructor(
         }
     }
 
+    operator fun get(row: Int, col: Int): Palette = Palette.fromCode(pixels.get(row * width + col))
+
     internal fun packedBytes(): ByteArray = pixels.copyBytes()
 
     internal fun paletteCodes(): ByteArray = ByteArray(width * height) { index ->

@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
 import com.example.microware.editor.logic.LogicTagPicker
+import com.example.microware.editor.sprite.selection.FloatingSelection
+import com.example.microware.editor.sprite.selection.SelectionCanvas
+import com.example.microware.editor.sprite.selection.SelectionOptions
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.sprite.Sprite
 import com.example.microware.game.sprite.SpriteBounds
@@ -109,9 +112,14 @@ fun EditableCanvas(
     val viewportSizeState = remember(editorKey) { mutableStateOf(IntSize.Zero) }
     val draft = remember(editorKey) { MutableSpriteDraft(sprite) }
     val history = remember(editorKey) { SpriteEditHistory(sprite) }
+    val selectionState = remember(editorKey) { mutableStateOf<FloatingSelection?>(null) }
     LaunchedEffect(editorKey, sprite) {
         history.synchronize(sprite)
         draft.synchronize(sprite)
+        if (selectionState.value?.composite() != sprite) selectionState.value = null
+    }
+    val recordAndCommit = { edited: Sprite ->
+        if (history.record(edited)) commit(edited)
     }
 
     fun applyChange(change: SpriteEditChange) {
@@ -153,9 +161,8 @@ fun EditableCanvas(
                     panState = panState,
                     zoomState = zoomState,
                     viewportSizeState = viewportSizeState,
-                    commit = { edited ->
-                        if (history.record(edited)) commit(edited)
-                    },
+                    selectionState = selectionState,
+                    commit = recordAndCommit,
                 )
             }
         }
@@ -173,6 +180,15 @@ fun EditableCanvas(
                     modifier = Modifier.weight(1f),
                 )
             }
+
+            SpriteEditorTool.Select -> SelectionOptions(
+                selection = selectionState.value,
+                onDeselect = { selectionState.value = null },
+                onChange = { changed ->
+                    selectionState.value = changed
+                    recordAndCommit(changed.composite())
+                },
+            )
 
             SpriteEditorTool.Resize -> ResizeOptions(
                 canReset = boundsState.value != SpriteBounds.original(sprite),
@@ -198,7 +214,10 @@ fun EditableCanvas(
         }
         SpriteToolPicker(
             selectedTool = selectedTool,
-            onSelectTool = { selectedTool = it },
+            onSelectTool = {
+                selectedTool = it
+                selectionState.value = null
+            },
             tools = tools,
         )
         Row(
@@ -234,6 +253,7 @@ private fun Content(
     panState: MutableState<Offset>,
     zoomState: MutableState<Float>,
     viewportSizeState: MutableState<IntSize>,
+    selectionState: MutableState<FloatingSelection?>,
     commit: (Sprite) -> Unit,
 ) {
     Box(
@@ -245,8 +265,7 @@ private fun Content(
             pan = panState.value,
             zoom = zoomState.value,
             sprite = sprite,
-            cropToSprite = selectedTool == SpriteEditorTool.Pen ||
-                    selectedTool == SpriteEditorTool.Bucket,
+            cropToSprite = selectedTool != SpriteEditorTool.Resize,
         )
         when (selectedTool) {
             SpriteEditorTool.Pen, SpriteEditorTool.Bucket -> SpriteCanvas(
@@ -257,6 +276,14 @@ private fun Content(
                 commit = commit,
                 panState = panState,
                 zoomState = zoomState,
+            )
+
+            SpriteEditorTool.Select -> SelectionCanvas(
+                sprite = sprite,
+                selectionState = selectionState,
+                panState = panState,
+                zoomState = zoomState,
+                commit = commit,
             )
 
             SpriteEditorTool.Resize -> SpriteResizeCanvas(
@@ -309,7 +336,7 @@ internal fun fittedSpriteSize(containerSize: Size, sprite: Sprite): Size {
     return fittedSize(containerSize, sprite.width, sprite.height)
 }
 
-private fun fittedSize(containerSize: Size, width: Int, height: Int): Size {
+internal fun fittedSize(containerSize: Size, width: Int, height: Int): Size {
     val pixelSize = min(
         containerSize.width / width,
         containerSize.height / height,
@@ -469,29 +496,10 @@ private fun SpriteCanvas(
                         commit.value(draft.toSprite())
                     }
                     sequence {
-                        var lastOffset: Offset? = null
-                        var lastSize: Float? = null
+                        val viewport = Size(size.width.toFloat(), size.height.toFloat())
                         val frame = draft.frame
-                        val spriteSize = fittedSize(
-                            Size(size.width.toFloat(), size.height.toFloat()),
-                            frame.width,
-                            frame.height,
-                        )
-                        val spriteOrigin = Offset(
-                            (size.width - spriteSize.width) / 2f,
-                            (size.height - spriteSize.height) / 2f,
-                        )
-                        followPinch { offset, size ->
-                            val lastOff = lastOffset ?: offset
-                            val lastSiz = lastSize ?: size
-                            val zoomFactor = size / lastSiz
-                            // Anchor zoom at focal point: keep content under fingers stationary
-                            panState.value += (offset - lastOff) +
-                                    (panState.value + spriteOrigin - lastOff) * (zoomFactor - 1)
-                            zoomState.value *= zoomFactor
-                            lastOffset = offset
-                            lastSize = size
-                        }
+                        val spriteOrigin = spriteGeometry(viewport, frame.width, frame.height).origin
+                        followPinchZoom(panState, zoomState, spriteOrigin)
                     }
                 }
             },

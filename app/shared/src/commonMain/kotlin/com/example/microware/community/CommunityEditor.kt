@@ -180,7 +180,7 @@ internal fun CommunityEditor(
                     resize = { _, _ -> },
                     modifier = Modifier.weight(1f),
                     editorKey = draft.id,
-                    tools = listOf(SpriteEditorTool.Pen, SpriteEditorTool.Bucket),
+                    tools = listOf(SpriteEditorTool.Pen, SpriteEditorTool.Bucket, SpriteEditorTool.Select),
                     showLogicTagPicker = false,
                     positionEditor = {},
                 )

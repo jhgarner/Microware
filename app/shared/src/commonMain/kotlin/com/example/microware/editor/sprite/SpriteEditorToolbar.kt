@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
+import com.example.microware.editor.sprite.selection.drawSelectToolIcon
 import com.example.microware.game.sprite.scaled
 import com.example.microware.game.sprite.tiled
 import com.example.microware.game.sprite.transparent
@@ -35,6 +36,7 @@ import com.example.microware.ui.icons.resizeIcon
 enum class SpriteEditorTool {
     Pen,
     Bucket,
+    Select,
     Resize,
     Position,
 }
@@ -53,6 +55,7 @@ fun SpriteToolPicker(
                 description = when (tool) {
                     SpriteEditorTool.Pen -> "Pen tool"
                     SpriteEditorTool.Bucket -> "Paint bucket tool"
+                    SpriteEditorTool.Select -> "Select tool"
                     SpriteEditorTool.Resize -> "Resize tool"
                     SpriteEditorTool.Position -> "Position tool"
                 },
@@ -76,6 +79,7 @@ fun SpriteToolPicker(
                         }
 
                         SpriteEditorTool.Bucket -> drawBucketToolIcon()
+                        SpriteEditorTool.Select -> drawSelectToolIcon()
                         SpriteEditorTool.Resize -> resizeIcon()
                         SpriteEditorTool.Position -> {
                             val center = Offset(size.width / 2f, size.height / 2f)
