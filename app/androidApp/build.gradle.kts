@@ -16,6 +16,9 @@ val hasReleaseSigning = listOf(
     releaseKeyPassword
 ).all { !it.isNullOrBlank() }
 
+val appVersion = providers.fileContents(rootProject.layout.projectDirectory.file("version.txt")).asText.get().trim()
+val (major, minor, patch) = appVersion.split(".").map(String::toInt)
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11
@@ -37,6 +40,7 @@ dependencies {
     androidTestImplementation(libs.compose.foundation)
     androidTestImplementation(libs.compose.material3)
     androidTestImplementation(libs.kotlinx.collections.immutable)
+    androidTestImplementation(libs.kotlinx.serialization.json)
 }
 
 android {
@@ -47,8 +51,8 @@ android {
         applicationId = "com.example.microware"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = major * 10_000 + minor * 100 + patch
+        versionName = appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -74,13 +78,21 @@ android {
         }
         release {
             signingConfig = signingConfigs.findByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+        create("minified") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".minified"
+            proguardFile("minified-test-rules.pro")
+        }
     }
+    testBuildType = if (providers.gradleProperty("minifiedTests").isPresent) "minified" else "debug"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

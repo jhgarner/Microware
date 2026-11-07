@@ -1,5 +1,6 @@
 package com.example.microware.server
 
+import com.example.microware.APP_VERSION
 import io.ktor.client.request.request
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpMethod
@@ -15,6 +16,6 @@ class ApplicationTest {
 
         val response = client.request("/version") { method = HttpMethod.Query }
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("1.0.3", response.bodyAsText())
+        assertEquals(APP_VERSION, response.bodyAsText())
     }
 }

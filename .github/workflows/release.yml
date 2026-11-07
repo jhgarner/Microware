@@ -1,10 +1,12 @@
-name: Build signed Android APK
+name: Release
 
 on:
   workflow_dispatch:
   push:
-    tags:
-      - '**'
+    branches:
+      - main
+    paths:
+      - version.txt
 
 permissions:
   contents: write
@@ -17,11 +19,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Read version
+        run: |
+          tag="v$(tr -d '[:space:]' < version.txt)"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::Tag $tag already exists. Bump version.txt to release."
+            exit 1
+          fi
+          printf 'TAG=%s\n' "$tag" >> "$GITHUB_ENV"
+
       - name: Set up Java
         uses: actions/setup-java@v6
         with:
           distribution: zulu
           java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -33,18 +47,22 @@ jobs:
             ln -s "$ANDROID_SDK_ROOT/platforms/android-37.0" "$ANDROID_SDK_ROOT/platforms/android-37"
           fi
 
-      - name: Check signing secrets
+      - name: Check secrets
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MICROWARE_DEPLOY_URL: ${{ secrets.MICROWARE_DEPLOY_URL }}
+          MICROWARE_DEPLOY_TOKEN: ${{ secrets.MICROWARE_DEPLOY_TOKEN }}
         run: |
           for secret_name in \
             ANDROID_KEYSTORE_BASE64 \
             ANDROID_KEYSTORE_PASSWORD \
             ANDROID_KEY_ALIAS \
-            ANDROID_KEY_PASSWORD; do
+            ANDROID_KEY_PASSWORD \
+            MICROWARE_DEPLOY_URL \
+            MICROWARE_DEPLOY_TOKEN; do
             if [ -z "${!secret_name}" ]; then
               echo "::error::Missing repository secret: $secret_name"
               exit 1
@@ -58,29 +76,29 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/microware-release.jks"
           printf 'ANDROID_KEYSTORE_PATH=%s/microware-release.jks\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
 
-      - name: Build release APK
+      - name: Build release APK and server jar
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew :app:androidApp:assembleRelease
+        run: ./gradlew :app:androidApp:assembleRelease :server:buildFatJar
 
-      - name: Upload signed APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: microware-release-apk
-          path: app/androidApp/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          retention-days: 30
+      - name: Collect release files
+        run: |
+          mkdir release
+          cp app/androidApp/build/outputs/apk/release/*.apk "release/microware-$TAG.apk"
+          cp "server/build/libs/server-microware-$TAG.jar" release/
 
       - name: Publish GitHub release
-        if: github.event_name == 'push' && github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" release/* --target "$GITHUB_SHA" --generate-notes
+
+      - name: Deploy server
+        env:
+          MICROWARE_DEPLOY_URL: ${{ secrets.MICROWARE_DEPLOY_URL }}
+          MICROWARE_DEPLOY_TOKEN: ${{ secrets.MICROWARE_DEPLOY_TOKEN }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" app/androidApp/build/outputs/apk/release/*.apk --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" app/androidApp/build/outputs/apk/release/*.apk \
-              --verify-tag --generate-notes
-          fi
+          curl --fail --silent --show-error --request POST \
+            --header "X-Microware-Token: $MICROWARE_DEPLOY_TOKEN" \
+            "$MICROWARE_DEPLOY_URL"

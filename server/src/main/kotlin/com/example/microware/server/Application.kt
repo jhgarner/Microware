@@ -1,5 +1,6 @@
 package com.example.microware.server
 
+import com.example.microware.APP_VERSION
 import com.example.microware.core.Model
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -59,7 +60,7 @@ fun Application.module() {
     install(ContentNegotiation) { json() }
     routing {
         query("/version") {
-            call.respond("1.0.5")
+            call.respond(APP_VERSION)
         }
         post("/publish") {
             val uuid = withUser()

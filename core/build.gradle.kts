@@ -7,6 +7,28 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
+val appVersion = providers.fileContents(rootProject.layout.projectDirectory.file("version.txt")).asText.map { it.trim() }
+
+val generateVersion by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/version")
+    val version = appVersion
+    inputs.property("version", version)
+    outputs.dir(outputDir)
+    doLast {
+        outputDir.get().file("com/example/microware/Version.kt").asFile.apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                |package com.example.microware
+                |
+                |const val APP_VERSION = "${version.get()}"
+                |
+                """.trimMargin()
+            )
+        }
+    }
+}
+
 kotlin {
     iosArm64()
     iosSimulatorArm64()
@@ -39,6 +61,9 @@ kotlin {
     }
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(generateVersion)
+        }
         commonMain.dependencies {
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.kotlinx.serialization.json)

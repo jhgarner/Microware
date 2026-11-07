@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.example.microware.APP_VERSION
 import com.example.microware.community.Banner
 import com.example.microware.community.DrawBanner
 import com.example.microware.community.defaultBanner
@@ -54,7 +55,7 @@ fun Home(navigate: (HomeNavigation) -> Unit) {
             importantMessage = {
                 Text("The server is not responding. The app will probably not work. $version")
             }
-        } else if (version != "1.0.5") {
+        } else if (version != APP_VERSION) {
             importantMessage = {
                 val uriHandler = LocalUriHandler.current
                 Text("To continue, update your app by downloading the latest apk file. The app will likely crash without it.")

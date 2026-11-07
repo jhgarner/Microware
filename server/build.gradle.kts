@@ -4,7 +4,14 @@ plugins {
 }
 
 group = "com.example.microware"
-version = "1.0.0"
+version = providers.fileContents(rootProject.layout.projectDirectory.file("version.txt")).asText.get().trim()
+
+ktor {
+    fatJar {
+        archiveFileName = "server-microware-v$version.jar"
+    }
+}
+
 application {
     mainClass = "com.example.microware.server.ApplicationKt"
 }
