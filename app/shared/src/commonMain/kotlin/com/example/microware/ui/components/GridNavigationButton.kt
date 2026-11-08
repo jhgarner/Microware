@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -28,11 +29,13 @@ internal fun GridNavigationButton(
     modifier: Modifier = Modifier,
 ) {
     Canvas(
-        modifier = modifier.clickable(
-            enabled = enabled,
-            role = Role.Button,
-            onClick = onClick,
-        ),
+        modifier = modifier
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .alpha(if (enabled) 1f else .5f),
     ) {
         val strokeWidth = 2.dp.toPx()
         val inset = strokeWidth / 2f
