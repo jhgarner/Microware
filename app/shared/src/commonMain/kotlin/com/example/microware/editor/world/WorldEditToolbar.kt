@@ -57,7 +57,6 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
     world: World,
     handler: (WorldEvent) -> Unit,
     willBeDeleted: MutableState<Boolean>,
-    onExpandedChange: (Boolean) -> Unit,
 ) {
     Toolbar(
         dragTarget = dragTarget,
@@ -67,7 +66,6 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
         fromEdge = Expanded::fromEdge,
         dropOnEditor = Expanded::Editor,
         expandToEdge = { it.edge() },
-        onExpandedChange = onExpandedChange,
         handler = { action -> handler { world -> world.copy(objects = action(world.objects)) } },
         garbagePanel = { source, garbage ->
             ObjectTable(

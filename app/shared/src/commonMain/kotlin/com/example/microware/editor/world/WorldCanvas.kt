@@ -1,6 +1,7 @@
 package com.example.microware.editor.world
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +21,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.toOffset
 import com.example.microware.Palette
 import com.example.microware.game.events.WorldEvent
 import com.example.microware.game.model.Obj
@@ -30,6 +31,7 @@ import com.example.microware.game.model.WorldWidth
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.TrashGap
 import com.example.microware.ui.gestures.DragController
+import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.gestures.dropTarget
 import com.example.microware.ui.gestures.obj
 import com.example.microware.ui.layout.insets
@@ -41,9 +43,6 @@ import kotlin.math.roundToInt
 internal class WorldEditorState {
     val dragController = DragController<Obj>()
     val mutableWillBeDeleted = mutableStateOf(false)
-    var worldOriginInWindow by mutableStateOf(Offset.Zero)
-    var worldScale by mutableStateOf(1f)
-    var toolbarExpanded by mutableStateOf(false)
 }
 
 @Composable
@@ -58,31 +57,13 @@ internal fun WorldEditorContent(
 ) {
     val offer = state.dragController.offer
     val toolbarHeight = HandleSize + TrashGap
-    var worldOffset by remember { mutableStateOf(Offset(0f, 0f)) }
 
     Column(modifier = modifier) {
         BoxWithConstraints(
             modifier = Modifier
                 .padding(start = insets.leftDp(), end = insets.rightDp())
                 .fillMaxWidth()
-                .weight(1f)
-                .zIndex(if (offer != null) 1f else 0f)
-                .onGloballyPositioned { state.worldOriginInWindow = it.positionInWindow() }
-                .dropTarget(
-                    dragController = state.dragController,
-                    onGiven = { offer ->
-                        val localOffset =
-                            (offer.offset - state.worldOriginInWindow - offer.localOffset - worldOffset) / state.worldScale
-                        val obj = world.clamped(offer.obj.copy(offset = localOffset))
-                        handler { world ->
-                            if (offer.from is World) {
-                                world.updateObject(obj)
-                            } else {
-                                world.addObject(obj.newId())
-                            }
-                        }
-                    },
-                ),
+                .weight(1f),
         ) {
             val availableWidth = maxWidth.roundToPx()
             val availableHeight = maxHeight.roundToPx()
@@ -91,40 +72,66 @@ internal fun WorldEditorContent(
                 availableHeight.toFloat() / WorldHeight,
             )
             val scale = if (fitScale >= 1f) floor(fitScale) else fitScale
-            state.worldScale = scale
             val worldWidth = (WorldWidth * scale).roundToInt()
             val worldHeight = (WorldHeight * scale).roundToInt()
-            val worldLeft = ((availableWidth - worldWidth) / 2).coerceAtLeast(0)
-            val worldTop = ((availableHeight - worldHeight) / 2).coerceAtLeast(0)
-            worldOffset = Offset(worldLeft.toFloat(), worldTop.toFloat())
+            val origin = IntOffset(
+                ((availableWidth - worldWidth) / 2).coerceAtLeast(0),
+                ((availableHeight - worldHeight) / 2).coerceAtLeast(0),
+            )
+            var boxInWindow by remember { mutableStateOf(Offset.Zero) }
 
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawRect(
-                    Palette.Black.color,
-                    topLeft = worldOffset,
-                    size = Size(worldWidth.toFloat(), worldHeight.toFloat()),
-                    style = Stroke(width = 2f),
-                )
-            }
-            for (obj in world.objects) {
-                WorldSprite(
-                    obj = obj,
-                    origin = IntOffset(worldLeft, worldTop),
-                    scale = scale,
-                    opacity = if (offer?.obj?.id == obj.id && state.mutableWillBeDeleted.value) .5f else 1f,
-                    from = world,
-                    dragController = state.dragController,
-                )
+            fun Offer<Obj>.placedObj(): Obj {
+                val spriteSize = Size(obj.sprite.width * scale, obj.sprite.height * scale)
+                val topLeft = topLeftFor(spriteSize) - boxInWindow - origin.toOffset()
+                return obj.copy(offset = topLeft / scale)
             }
 
-            offer?.apply {
-                WorldSprite(
-                    obj = obj.copy(offset = (offset - state.worldOriginInWindow - localOffset - worldOffset) / state.worldScale),
-                    origin = IntOffset(worldLeft, worldTop),
-                    scale = scale,
-                    from = Unit,
-                    opacity = 0.5f,
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { boxInWindow = it.positionInWindow() }
+                    .dropTarget(
+                        dragController = state.dragController,
+                        onGiven = { offer ->
+                            val obj = world.clamped(offer.placedObj())
+                            handler { world ->
+                                if (offer.from is World) {
+                                    world.updateObject(obj)
+                                } else {
+                                    world.addObject(obj.newId())
+                                }
+                            }
+                        },
+                    ),
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        Palette.Black.color,
+                        topLeft = origin.toOffset(),
+                        size = Size(worldWidth.toFloat(), worldHeight.toFloat()),
+                        style = Stroke(width = 2f),
+                    )
+                }
+                for (obj in world.objects) {
+                    WorldSprite(
+                        obj = obj,
+                        origin = origin,
+                        scale = scale,
+                        opacity = if (offer?.obj?.id == obj.id && state.mutableWillBeDeleted.value) .5f else 1f,
+                        from = world,
+                        dragController = state.dragController,
+                    )
+                }
+
+                offer?.let {
+                    WorldSprite(
+                        obj = it.placedObj(),
+                        origin = origin,
+                        scale = scale,
+                        from = Unit,
+                        opacity = 0.5f,
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(toolbarHeight + insets.bottomDp()))

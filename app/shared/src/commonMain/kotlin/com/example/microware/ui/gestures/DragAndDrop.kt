@@ -1,36 +1,49 @@
 package com.example.microware.ui.gestures
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.PointerId
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.round
 import com.example.microware.game.model.Obj
-import com.example.microware.util.modify
-import kotlin.math.roundToInt
 
+/**
+ * An item being dragged. [pointer] is in window coordinates and [grip] is the point that was
+ * pressed as a fraction of the source's size, so any ghost can keep the same spot under the
+ * finger whatever size it is drawn at.
+ */
 data class Offer<T>(
-    val offset: Offset,
-    val size: IntSize,
-    val localOffset: Offset,
     val item: T,
     val from: Any,
-)
+    val pointer: Offset,
+    val grip: Offset,
+) {
+    fun topLeftFor(size: Size): Offset =
+        pointer - Offset(grip.x * size.width, grip.y * size.height)
+}
 
 val Offer<Obj>.obj: Obj
     get() = item
+
+class Press<T>(
+    val pointer: PointerId,
+    val item: T,
+    val from: Any,
+    val grip: Offset,
+)
 
 data class DropTargetCallbacks<T>(
     val onStart: () -> Unit = {},
@@ -54,75 +67,64 @@ interface DragTarget<T> {
     fun updateDropTargetBounds(target: DropTarget<T>, bounds: Rect)
 }
 
-class Source<T>(
-    fromState: MutableState<Any>,
-    boundsState: MutableState<Rect>,
-    itemState: MutableState<T>,
-) {
-    var from by fromState
-    var bounds by boundsState
-    var item by itemState
-}
-
-@Composable
-fun <T> rememberSource(from: Any, item: T): Source<T> = remember {
-    Source(
-        mutableStateOf(from),
-        mutableStateOf(Rect.Zero), mutableStateOf(item),
-    )
-}.also {
-    it.from = from
-    it.item = item
-}
-
 interface DragSource<T> {
-    fun registerDragSource(source: Source<T>)
-    fun unregisterDragSource(source: Source<T>)
+    fun press(press: Press<T>)
 }
 
 class DragController<T> : DragTarget<T>, DragSource<T> {
-    var offerState: MutableState<MutableState<Offer<T>>?> = mutableStateOf(null)
-    var rootCoordinates: MutableState<LayoutCoordinates?> = mutableStateOf(null)
-    val dropTargets = mutableListOf<DropTarget<T>>()
-    private val dragSources = mutableListOf<Source<T>>()
+    override var offer by mutableStateOf<Offer<T>?>(null)
+        private set
     override var hoveredDropTarget: DropTarget<T>? = null
+        private set
+    private val dropTargets = mutableListOf<DropTarget<T>>()
+    private var lastPress: Press<T>? = null
 
-    override val offer: Offer<T>?
-        get() = offerState.value?.value
-
-    internal fun setRootCoordinates(coordinates: LayoutCoordinates) {
-        rootCoordinates.value = coordinates
+    override fun press(press: Press<T>) {
+        lastPress = press
     }
+
+    internal fun takePress(pointer: PointerId): Press<T>? =
+        lastPress?.takeIf { it.pointer == pointer }.also { lastPress = null }
 
     override fun registerDropTarget(target: DropTarget<T>) {
         dropTargets += target
-        offerState.value?.value?.offset?.let { updateHoveredDropTarget(it) }
+        refreshHover()
     }
 
     override fun unregisterDropTarget(target: DropTarget<T>) {
         dropTargets.remove(target)
-        offerState.value?.value?.offset?.let { updateHoveredDropTarget(it) }
+        refreshHover()
     }
 
     override fun updateDropTargetBounds(target: DropTarget<T>, bounds: Rect) {
         target.bounds = bounds
-        offerState.value?.value?.offset?.let { updateHoveredDropTarget(it) }
+        refreshHover()
     }
 
-    override fun registerDragSource(source: Source<T>) {
-        dragSources += source
+    internal fun dragTo(press: Press<T>, pointer: Offset) {
+        val current = offer
+        offer = current?.copy(pointer = pointer)
+            ?: Offer(press.item, press.from, pointer, press.grip)
+        if (current == null) dropTargets.forEach { it.callbacks.onStart() }
+        refreshHover()
     }
 
-    internal fun topmostDragSourceAt(offset: Offset): Source<T>? =
-        dragSources.lastOrNull { it.bounds.contains(offset) }
-
-    override fun unregisterDragSource(source: Source<T>) {
-        dragSources.remove(source)
+    internal fun drop(press: Press<T>, pointer: Offset) {
+        dragTo(press, pointer)
+        offer?.let { offer -> hoveredDropTarget?.callbacks?.onGiven(offer) }
     }
 
-    fun updateHoveredDropTarget(offset: Offset) {
+    internal fun endDrag() {
+        if (offer == null) return
+        dropTargets.forEach { it.callbacks.onEnd() }
+        hoveredDropTarget = null
+        offer = null
+    }
+
+    private fun refreshHover() {
+        val pointer = offer?.pointer ?: return
         val newTarget = dropTargets
-            .filter { it.bounds.contains(offset) }
+            .filter { it.bounds.contains(pointer) }
             .minByOrNull { it.bounds.width * it.bounds.height }
         if (newTarget === hoveredDropTarget) return
 
@@ -132,72 +134,65 @@ class DragController<T> : DragTarget<T>, DragSource<T> {
     }
 }
 
+/**
+ * Marks this element as draggable. Compose's hit testing decides whether a press reaches it, so
+ * anything drawn on top that handles input (drawers, the scrim, buttons) shields it.
+ */
 fun <T> Modifier.dragSource(
-    dragController: DragSource<T>,
+    source: DragSource<T>,
     from: Any,
     item: T,
-): Modifier = composed {
-    val source = rememberSource(from, item)
-    DisposableEffect(dragController, source) {
-        dragController.registerDragSource(source)
-        onDispose { dragController.unregisterDragSource(source) }
+): Modifier = pointerInput(source, from, item) {
+    awaitPointerEventScope {
+        while (true) {
+            awaitPointerEvent().changes
+                .filter { it.changedToDownIgnoreConsumed() }
+                .forEach { down ->
+                    val grip = Offset(down.position.x / size.width, down.position.y / size.height)
+                    source.press(Press(down.id, item, from, grip))
+                }
+        }
     }
-    onGloballyPositioned { source.bounds = it.boundsInWindow() }
 }
 
-fun <T> Modifier.dragObserver(
-    dragController: DragController<T>,
-    canStartDrag: (Any) -> Boolean = { true },
-): Modifier = composed {
-    val layout = dragController.rootCoordinates
-    val currentCanStartDrag = rememberUpdatedState(canStartDrag)
-    pointerInput(dragController) {
+/**
+ * Runs drags for the [dragSource]s inside this element. Sources are always descendants, so they
+ * see each press first and this only has to pick up the one they reported.
+ */
+fun <T> Modifier.dragObserver(dragController: DragController<T>): Modifier = composed {
+    val layout = remember { LayoutHolder() }
+    onGloballyPositioned { layout.coordinates = it }.pointerInput(dragController) {
+        fun Offset.inWindow() = layout.coordinates.localToWindow(this)
+
         racing {
             sequence {
-                val localToWindow = layout.value?.let { it::localToWindow } ?: { it }
-                val initial = expectDown()
-                val initialOffset = localToWindow(initial.position)
-                val source = dragController.topmostDragSourceAt(initialOffset)
-                    ?.takeIf { currentCanStartDrag.value(it.from) }
-                    ?: unexpected(initial)
-                var started = false
+                val down = expectDown()
+                val press = dragController.takePress(down.id) ?: unexpected(down)
                 try {
-                    val lastChange = followDrag(initial) { change ->
+                    val up = followDrag(down) { change ->
                         change.consume()
-                        val offset = localToWindow(change.position)
-                        if (!started) {
-                            started = true
-                            dragController.offerState.value = mutableStateOf(
-                                Offer(
-                                    offset = offset,
-                                    size = IntSize(
-                                        source.bounds.width.roundToInt(),
-                                        source.bounds.height.roundToInt()
-                                    ),
-                                    localOffset = offset - source.bounds.topLeft,
-                                    item = source.item,
-                                    from = source.from,
-                                )
-                            )
-                            dragController.dropTargets.forEach { it.callbacks.onStart() }
-                        } else {
-                            dragController.offerState.value?.modify { it.copy(offset = offset) }
-                        }
-                        dragController.updateHoveredDropTarget(offset)
+                        dragController.dragTo(press, change.position.inWindow())
                     }
-                    val lastOffset = localToWindow(lastChange.position)
-                    dragController.offerState.value?.modify { it.copy(offset = lastOffset) }
-                    dragController.updateHoveredDropTarget(lastOffset)
-                    dragController.offerState.value?.let { (offer, _) ->
-                        dragController.hoveredDropTarget?.callbacks?.onGiven(offer)
-                    }
+                    dragController.drop(press, up.position.inWindow())
                 } finally {
-                    dragController.dropTargets.forEach { it.callbacks.onEnd() }
-                    dragController.offerState.value = null
+                    dragController.endDrag()
                 }
             }
         }
-    }.onGloballyPositioned { dragController.setRootCoordinates(it) }
+    }
+}
+
+private class LayoutHolder {
+    lateinit var coordinates: LayoutCoordinates
+}
+
+/** Places this element so the offer's grip point sits under the pointer, wherever its parent is. */
+fun Modifier.followPointer(offer: Offer<*>): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height) {
+        val size = Size(placeable.width.toFloat(), placeable.height.toFloat())
+        coordinates?.let { placeable.place(it.windowToLocal(offer.topLeftFor(size)).round()) }
+    }
 }
 
 fun <T> Modifier.dropTarget(

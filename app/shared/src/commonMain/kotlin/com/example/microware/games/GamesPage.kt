@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import com.example.microware.Palette
 import com.example.microware.game.events.GamesEvent
 import com.example.microware.game.model.Game
@@ -55,7 +54,6 @@ import com.example.microware.ui.gestures.dragObserver
 import com.example.microware.ui.gestures.dropTarget
 import com.example.microware.ui.layout.insets
 import com.example.microware.util.Id
-import com.example.microware.util.toDp
 import kotlinx.collections.immutable.persistentListOf
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -73,6 +71,10 @@ internal fun BoxWithConstraintsScope.GamesPage(
     val dragController = remember { DragController<Game>() }
     val offered = dragController.offer
     var wouldDelete by remember { mutableStateOf(false) }
+    val ghostAlpha by animateFloatAsState(
+        if (wouldDelete) .5f else 1f,
+        tween(durationMillis = 180),
+    )
     val (trashDrawerOpen, setTrashDrawerOpen) = remember { mutableStateOf(false) }.apply {
         if (offered != null) value = false
     }
@@ -109,6 +111,7 @@ internal fun BoxWithConstraintsScope.GamesPage(
                         handler { it.addingAt(targetIndex, restoredGame) }
                     },
                     itemSize = DpSize(128.dp, 256.dp),
+                    ghost = { Box(Modifier.alpha(ghostAlpha)) { GamePreview(it) } },
                     preview = { GamePreview(it) },
                 )
             }
@@ -156,19 +159,6 @@ internal fun BoxWithConstraintsScope.GamesPage(
         )
 
         this@GamesPage.ButtonHandle(HandleType.Library)
-
-        val draggedGame = offered?.item
-        if (draggedGame != null) {
-            val alpha by animateFloatAsState(
-                if (wouldDelete) .5f else 1f,
-                tween(durationMillis = 180),
-            )
-            GameDragGhost(
-                game = draggedGame,
-                offer = offered,
-                alpha = alpha,
-            )
-        }
     }
 }
 
@@ -215,31 +205,6 @@ private fun GamesTrashPanel(
         itemSize = DpSize(96.dp, 192.dp),
         preview = { GamePreview(it) },
     )
-}
-
-@Composable
-private fun GameDragGhost(
-    game: Game,
-    offer: Offer<Game>,
-    alpha: Float,
-) {
-    Box(
-        modifier = Modifier
-            .offset {
-                IntOffset(
-                    (offer.offset.x - offer.localOffset.x).roundToInt(),
-                    (offer.offset.y - offer.localOffset.y).roundToInt(),
-                )
-            }
-            .size(
-                width = offer.size.width.toDp(),
-                height = offer.size.height.toDp(),
-            )
-            .alpha(alpha)
-            .zIndex(0.5f),
-    ) {
-        GamePreview(game)
-    }
 }
 
 @Composable

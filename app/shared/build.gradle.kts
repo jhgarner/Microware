@@ -99,6 +99,7 @@ kotlin {
         jvmTest.dependencies {
             implementation(libs.kotlin.testJunit)
             implementation(compose.desktop.currentOs)
+            implementation(libs.compose.ui.test.junit4)
             implementation(libs.roborazzi.desktopPreviewScannerSupport)
             implementation(libs.composablePreviewScanner.android)
         }

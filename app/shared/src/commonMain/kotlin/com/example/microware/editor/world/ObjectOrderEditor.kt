@@ -12,30 +12,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.round
 import com.example.microware.Palette
 import com.example.microware.game.events.WorldEvent
 import com.example.microware.game.model.Obj
@@ -46,7 +36,6 @@ import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.TrashGap
 import com.example.microware.ui.icons.drawLogicTag
 import com.example.microware.ui.layout.insets
-import com.example.microware.util.toDp
 import kotlinx.collections.immutable.toPersistentList
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -65,69 +54,52 @@ internal fun ObjectOrderEditor(
 ) {
     val topFirstObjects = world.objects.asReversed()
 
-    var rootBounds by remember { mutableStateOf<Rect?>(null) }
-    Box(
-        modifier = Modifier.fillMaxSize()
-            .onGloballyPositioned { rootBounds = it.boundsInWindow() },
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(
+                start = insets.leftDp(),
+                top = insets.topDp(),
+                end = insets.rightDp(),
+            ),
     ) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(
-                    start = insets.leftDp(),
-                    top = insets.topDp(),
-                    end = insets.rightDp(),
-                ),
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth().weight(1f),
         ) {
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+            Grid(
+                items = topFirstObjects,
+                itemSize = DpSize(maxWidth - 16.dp, 72.dp + 16.dp),
+                dragSource = state.dragController,
+                dragTarget = state.dragController,
+                sourceId = ObjectOrderGridSource,
+                onMove = { id, targetIndex ->
+                    handler { world ->
+                        val topFirst = world.objects.asReversed()
+                        val sourceIndex = topFirst.indexOfFirst { it.id == id }
+                        if (sourceIndex == -1) return@handler world
+                        val game = topFirst[sourceIndex]
+                        val mutTopFirst = topFirst.toMutableList()
+                        mutTopFirst.removeAt(sourceIndex)
+                        mutTopFirst.add(targetIndex, game)
+                        world.copy(objects = mutTopFirst.reversed().toPersistentList())
+                    }
+                },
+                ghost = { ObjectOrderCard(it, world) },
             ) {
-                Grid(
-                    items = topFirstObjects,
-                    itemSize = DpSize(maxWidth - 16.dp, 72.dp + 16.dp),
-                    dragSource = state.dragController,
-                    dragTarget = state.dragController,
-                    sourceId = ObjectOrderGridSource,
-                    onMove = { id, targetIndex ->
-                        handler { world ->
-                            val topFirst = world.objects.asReversed()
-                            val sourceIndex = topFirst.indexOfFirst { it.id == id }
-                            if (sourceIndex == -1) return@handler world
-                            val game = topFirst[sourceIndex]
-                            val mutTopFirst = topFirst.toMutableList()
-                            mutTopFirst.removeAt(sourceIndex)
-                            mutTopFirst.add(targetIndex, game)
-                            world.copy(objects = mutTopFirst.reversed().toPersistentList())
-                        }
-                    },
-                ) {
-                    ObjectOrderCard(
-                        obj = it,
-                        world = world,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ObjectOrderCardHeight),
-                    )
-                }
-            }
-            Spacer(
-                modifier = Modifier.height(
-                    HandleSize + TrashGap + insets.bottomDp(),
-                ),
-            )
-        }
-        state.dragController.offer?.let { offer ->
-            Box(
-                modifier = Modifier
-                    .size(offer.size.width.toDp(), offer.size.height.toDp())
-                    .offset {
-                        (offer.offset - (rootBounds?.topLeft
-                            ?: Offset.Zero) - offer.localOffset).round()
-                    },
-            ) {
-                ObjectOrderCard(offer.item, world, Modifier)
+                ObjectOrderCard(
+                    obj = it,
+                    world = world,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ObjectOrderCardHeight),
+                )
             }
         }
+        Spacer(
+            modifier = Modifier.height(
+                HandleSize + TrashGap + insets.bottomDp(),
+            ),
+        )
     }
 }
 

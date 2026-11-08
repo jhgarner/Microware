@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,10 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toIntSize
-import androidx.compose.ui.zIndex
 import com.example.microware.createCommunity
 import com.example.microware.getCommunityMetadata
 import com.example.microware.joinCommunity
@@ -34,14 +31,11 @@ import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.gestures.DragController
-import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.gestures.dragObserver
 import com.example.microware.ui.gestures.dropTarget
 import com.example.microware.updateCommunity
 import com.example.microware.util.insetPadding
-import com.example.microware.util.toDp
 import io.ktor.http.HttpStatusCode
-import kotlin.math.roundToInt
 
 private sealed interface CommunityPanel {
     data object Join : CommunityPanel
@@ -76,6 +70,15 @@ fun Communities() {
                             dragSource = dragController,
                             dragTarget = dragController,
                             onMove = { _, _ -> },
+                            ghost = { community ->
+                                Canvas(Modifier.fillMaxSize()) {
+                                    drawImage(
+                                        image = community.avatar.sprite.bitmap,
+                                        dstSize = size.toIntSize(),
+                                        filterQuality = FilterQuality.None,
+                                    )
+                                }
+                            },
                             preview = { community ->
                                 IconButton(
                                     description = "Edit community",
@@ -94,8 +97,6 @@ fun Communities() {
                     }
                     Spacer(Modifier.height(HandleSize))
                 }
-
-                dragController.offer?.let { CommunityDragGhost(it) }
 
                 val isDragging = dragController.offer != null
                 var isHovered by remember { mutableStateOf(false) }
@@ -153,26 +154,5 @@ fun Communities() {
                 if (!currentPanel.experiences) ButtonHandle(HandleType.Edit)
             }
         }
-    }
-}
-
-@Composable
-private fun CommunityDragGhost(offer: Offer<CommunityDraft>) {
-    Canvas(
-        modifier = Modifier
-            .offset {
-                IntOffset(
-                    (offer.offset.x - offer.localOffset.x).roundToInt(),
-                    (offer.offset.y - offer.localOffset.y).roundToInt(),
-                )
-            }
-            .size(width = offer.size.width.toDp(), height = offer.size.height.toDp())
-            .zIndex(.5f),
-    ) {
-        drawImage(
-            image = offer.item.avatar.sprite.bitmap,
-            dstSize = offer.size,
-            filterQuality = FilterQuality.None,
-        )
     }
 }

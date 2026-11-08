@@ -47,6 +47,7 @@ import com.example.microware.ui.gestures.DragTarget
 import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.gestures.dragSource
 import com.example.microware.ui.gestures.dropTarget
+import com.example.microware.ui.gestures.followPointer
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 
@@ -71,6 +72,7 @@ fun <T : Identifiable<T>> Grid(
     onMove: (Id, Int) -> Unit,
     sourceId: Any = Unit,
     onDrop: (Offer<T>, Int) -> Unit = { _, _ -> },
+    ghost: (@Composable (T) -> Unit)? = null,
     preview: @Composable (T) -> Unit,
 ) {
     val gridDropTarget = remember(sourceId) { GridDropTarget(sourceId) }
@@ -99,11 +101,11 @@ fun <T : Identifiable<T>> Grid(
         val canGoToPreviousPage = page > 0
         val canGoToNextPage = page < pageCount - 1
         val offer = dragTarget.offer
-        val offerOffset = offer?.offset
-        val isOverPreviousButton = offerOffset != null &&
-                previousButtonBounds?.contains(offerOffset) == true
-        val isOverNextButton = offerOffset != null &&
-                nextButtonBounds?.contains(offerOffset) == true
+        val offerPointer = offer?.pointer
+        val isOverPreviousButton = offerPointer != null &&
+                previousButtonBounds?.contains(offerPointer) == true
+        val isOverNextButton = offerPointer != null &&
+                nextButtonBounds?.contains(offerPointer) == true
         val hoveredDirection = when {
             isOverPreviousButton && canGoToPreviousPage -> GridPageDirection.Previous
             isOverNextButton && canGoToNextPage -> GridPageDirection.Next
@@ -137,7 +139,7 @@ fun <T : Identifiable<T>> Grid(
 
         LaunchedEffect(
             offer?.item?.id,
-            offer?.offset,
+            offer?.pointer,
             offer?.from,
             dragTarget.hoveredDropTarget?.to,
             items,
@@ -151,7 +153,7 @@ fun <T : Identifiable<T>> Grid(
             if (from.sourceId != sourceId || isOverNavigation) return@LaunchedEffect
 
             val targetIndex = if (dragTarget.hoveredDropTarget?.to == gridDropTarget) {
-                nearestGridSlot(slotBounds, offer.offset)?.let(pageStart::plus)
+                nearestGridSlot(slotBounds, offer.pointer)?.let(pageStart::plus)
                     ?: return@LaunchedEffect
             } else {
                 from.index
@@ -171,7 +173,7 @@ fun <T : Identifiable<T>> Grid(
                             if (!newOffer.originatesFromGrid(sourceId)) {
                                 onDrop(
                                     newOffer,
-                                    pageStart + nearestGridInsertionIndex(slotBounds, newOffer.offset),
+                                    pageStart + nearestGridInsertionIndex(slotBounds, newOffer.pointer),
                                 )
                             }
                         },
@@ -221,6 +223,10 @@ fun <T : Identifiable<T>> Grid(
                             }
                         }
                     }
+                }
+
+                if (offer != null && ghost != null) {
+                    Box(Modifier.followPointer(offer).size(itemSize)) { ghost(offer.item) }
                 }
             }
 

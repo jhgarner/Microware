@@ -157,7 +157,7 @@ private fun <T> GhostListSlot(
                 dragController = dragController,
                 onGiven = { offer ->
                     val targetIndex = bounds?.let {
-                        if (offer.offset.y < it.center.y) index else index + 1
+                        if (offer.pointer.y < it.center.y) index else index + 1
                     } ?: index
                     onDrop(offer, targetIndex)
                 },

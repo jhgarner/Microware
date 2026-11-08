@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -47,7 +46,6 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
     fromEdge: (HandleEdge?, (Expanded) -> Unit) -> Expanded?,
     dropOnEditor: (T, (Expanded) -> Unit) -> Expanded,
     expandToEdge: (Expanded) -> ExpandedSide<Data>,
-    onExpandedChange: (Boolean) -> Unit = {},
     handler: ((PersistentList<T>) -> PersistentList<T>) -> Unit,
     garbagePanel: @Composable (DragSource<T>, List<T>) -> Unit,
     editorPanel: @Composable (Data) -> Unit,
@@ -59,7 +57,6 @@ fun <T : Identifiable<T>, Data, Expanded> BoxWithConstraintsScope.Toolbar(
         if (offer != null) value = null
     }
     val expandedSide = expanded?.let { expandToEdge(it) }
-    SideEffect { onExpandedChange(expandedSide != null) }
 
     TrashHandle(
         dragTarget = dragTarget,

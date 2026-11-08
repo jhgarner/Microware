@@ -47,6 +47,7 @@ internal fun BoxWithConstraintsScope.LogicTable(
     sourceId: Any,
     onMove: (Id, Int) -> Unit = { _, _ -> },
     onDrop: (Offer<Logic>, Int) -> Unit = { _, _ -> },
+    showsGhost: Boolean = false,
 ) {
     Grid(
         items = items,
@@ -59,6 +60,7 @@ internal fun BoxWithConstraintsScope.LogicTable(
         sourceId = sourceId,
         onMove = onMove,
         onDrop = onDrop,
+        ghost = if (showsGhost) { logic -> LogicCard(logic, Modifier.fillMaxSize()) } else null,
     ) { logic ->
         LogicCard(logic, Modifier.fillMaxSize())
     }

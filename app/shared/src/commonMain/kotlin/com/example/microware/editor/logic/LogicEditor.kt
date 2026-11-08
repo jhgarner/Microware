@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,13 +29,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.round
 import com.example.microware.Palette
 import com.example.microware.game.events.LogicEvent
 import com.example.microware.game.events.LogicsEvent
@@ -67,7 +63,6 @@ import com.example.microware.ui.icons.drawTrashIcon
 import com.example.microware.ui.icons.drawWinIcon
 import com.example.microware.ui.layout.insets
 import com.example.microware.util.Id
-import com.example.microware.util.toDp
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -101,7 +96,6 @@ internal fun LogicEditorContent(
 ) {
     val dragController = state.dragController
     val editingIndex = (page as? LogicEditorPage.Editing)?.index
-    var rootBounds by remember { mutableStateOf<(Offset) -> Offset>({ it }) }
 
     fun applyLogicsChange(updatedLogics: List<Logic>) {
         handler { updatedLogics.toPersistentList() }
@@ -130,40 +124,26 @@ internal fun LogicEditorContent(
         applyLogicsChange(updatedLogics)
     }
 
-    Box(
-        modifier = modifier.onGloballyPositioned { rootBounds = it::windowToLocal },
-    ) {
-        Column {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(
-                        start = 8.dp,
-                        end = 8.dp,
-                    ),
-            ) {
-                LogicTable(
-                    items = logics,
-                    dragController = dragController,
-                    sourceId = LogicListDragSource,
-                    onMove = ::handleLogicMove,
-                    onDrop = { offer, targetIndex -> handleLogicDrop(offer.item, targetIndex) },
-                )
-            }
-            Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
+    Column(modifier) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(
+                    start = 8.dp,
+                    end = 8.dp,
+                ),
+        ) {
+            LogicTable(
+                items = logics,
+                dragController = dragController,
+                sourceId = LogicListDragSource,
+                onMove = ::handleLogicMove,
+                onDrop = { offer, targetIndex -> handleLogicDrop(offer.item, targetIndex) },
+                showsGhost = true,
+            )
         }
-        dragController.offer?.let { offer ->
-            Box(
-                modifier = Modifier
-                    .size(offer.size.width.toDp(), offer.size.height.toDp())
-                    .offset {
-                        (rootBounds(offer.offset) - offer.localOffset).round()
-                    },
-            ) {
-                LogicCard(offer.item, Modifier.fillMaxSize())
-            }
-        }
+        Spacer(Modifier.height(HandleSize + TrashGap + insets.bottomDp()))
     }
 }
 
