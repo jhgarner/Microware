@@ -36,6 +36,7 @@ import com.example.microware.game.model.WorldWidth
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.ButtonHandle
 import com.example.microware.ui.components.DrawerButtonState
+import com.example.microware.ui.components.EmptyDesert
 import com.example.microware.ui.components.Grid
 import com.example.microware.ui.components.HandleEdge
 import com.example.microware.ui.components.HandlePresentation
@@ -114,6 +115,7 @@ internal fun BoxWithConstraintsScope.GamesPage(
                     ghost = { Box(Modifier.alpha(ghostAlpha)) { GamePreview(it) } },
                     preview = { GamePreview(it) },
                 )
+                EmptyDesert(visible = games.isEmpty())
             }
             Spacer(Modifier.height(HandleSize + TrashGap))
         }

@@ -1,7 +1,6 @@
 package com.example.microware.community
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,11 +28,13 @@ import com.example.microware.ui.components.HandlePresentation
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.components.LoadingContent
 import com.example.microware.ui.gestures.DragController
 import com.example.microware.ui.gestures.dragObserver
 import com.example.microware.ui.gestures.dropTarget
 import com.example.microware.updateCommunity
 import com.example.microware.util.insetPadding
+import com.example.microware.util.produceLoadable
 import io.ktor.http.HttpStatusCode
 
 private sealed interface CommunityPanel {
@@ -44,12 +44,10 @@ private sealed interface CommunityPanel {
 
 @Composable
 fun Communities() {
-    var communities by remember { mutableStateOf(listOf<CommunityDraft>()) }
     var refresh by remember { mutableStateOf(0) }
     var panel by remember { mutableStateOf(listOf<CommunityPanel>()) }
-
-    LaunchedEffect(refresh) {
-        communities = runCatching { getCommunityMetadata() }.getOrElse { listOf() }
+    val communities = produceLoadable(refresh) {
+        runCatching { getCommunityMetadata() }.getOrElse { listOf() }
             .map { it.toCommunityDraft() }
     }
     SystemBackHandler(enabled = panel.isNotEmpty()) { panel = panel.dropLast(1) }
@@ -63,9 +61,9 @@ fun Communities() {
                 Column(
                     modifier = Modifier.dragObserver(dragController).insetPadding(),
                 ) {
-                    Box(Modifier.weight(1f)) {
+                    LoadingContent(communities, Modifier.weight(1f)) { loaded ->
                         Grid(
-                            items = communities,
+                            items = loaded,
                             itemSize = DpSize(100.dp, 100.dp),
                             dragSource = dragController,
                             dragTarget = dragController,

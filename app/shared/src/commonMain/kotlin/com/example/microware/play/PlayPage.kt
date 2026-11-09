@@ -1,7 +1,6 @@
 package com.example.microware.play
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -16,26 +15,27 @@ import com.example.microware.getCommunityMetadata
 import com.example.microware.getExperienceMetadatas
 import com.example.microware.getExperiences
 import com.example.microware.platform.SystemBackHandler
+import com.example.microware.util.Loadable
+import com.example.microware.util.map
+import com.example.microware.util.produceLoadable
 import kotlinx.coroutines.launch
 
 private data class ExperienceRun(val experience: PlayExperienceMetadata, val session: PlaySession)
 
 @Composable
 fun PlayPage(onBack: () -> Unit, onSaveGame: (Game) -> Unit) {
-    var experiences by remember { mutableStateOf(emptyList<PlayExperienceMetadata>()) }
-    LaunchedEffect(Unit) {
-        experiences =
-            runCatching { getCommunityMetadata() }.getOrElse { listOf() }.flatMap { community ->
-                runCatching {
-                    getExperienceMetadatas(community.id).filter { it.playable }.map { metadata ->
-                        PlayExperienceMetadata(
-                            id = metadata.id,
-                            communityId = community.id,
-                            banner = runCatching { Banner(metadata.banner.load()) }.getOrElse { defaultBanner() },
-                        )
-                    }
-                }.getOrElse { listOf() }
-            }
+    val experiences = produceLoadable {
+        runCatching { getCommunityMetadata() }.getOrElse { listOf() }.flatMap { community ->
+            runCatching {
+                getExperienceMetadatas(community.id).filter { it.playable }.map { metadata ->
+                    PlayExperienceMetadata(
+                        id = metadata.id,
+                        communityId = community.id,
+                        banner = runCatching { Banner(metadata.banner.load()) }.getOrElse { defaultBanner() },
+                    )
+                }
+            }.getOrElse { listOf() }
+        }
     }
 
     PlayPage(experiences, onBack, onSaveGame) { metadata ->
@@ -63,14 +63,14 @@ fun PlayPage(
             gameCount = experience.games.size,
         )
     }
-    PlayPage(metadata, onBack, onSaveGame) { selection ->
+    PlayPage(Loadable.Loaded(metadata), onBack, onSaveGame) { selection ->
         experiences[selection.id.toInt()].games
     }
 }
 
 @Composable
 private fun PlayPage(
-    experiences: List<PlayExperienceMetadata>,
+    experiences: Loadable<List<PlayExperienceMetadata>>,
     onBack: () -> Unit,
     onSaveGame: (Game) -> Unit,
     loadGames: suspend (PlayExperienceMetadata) -> List<Game>,
@@ -83,8 +83,10 @@ private fun PlayPage(
     if (currentRun == null) {
         SystemBackHandler(onBack = onBack)
         PickExperience(
-            experiences = experiences.map { metadata ->
-                if (metadata.id in emptyExperiences) metadata.copy(gameCount = 0) else metadata
+            experiences = experiences.map { loaded ->
+                loaded.map { metadata ->
+                    if (metadata.id in emptyExperiences) metadata.copy(gameCount = 0) else metadata
+                }
             },
             onBack = onBack,
             loading = loadingExperience != null,

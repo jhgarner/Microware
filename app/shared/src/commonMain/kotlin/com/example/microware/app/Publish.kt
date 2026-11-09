@@ -32,10 +32,12 @@ import com.example.microware.publishGame
 import com.example.microware.publishableExperiences
 import com.example.microware.publishedAt
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.components.LoadingContent
 import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.ui.icons.drawTrashIcon
 import com.example.microware.ui.layout.insets
 import com.example.microware.unpublishGame
+import com.example.microware.util.produceLoadable
 import kotlinx.coroutines.launch
 
 @Composable
@@ -45,35 +47,36 @@ fun PublishGame(
 ) {
     val scope = rememberCoroutineScope()
     var refresh by remember { mutableStateOf(0) }
-    var publishables by remember { mutableStateOf(listOf<Model.PublishableExperience>()) }
     var publishedAt by remember { mutableStateOf(setOf<Long>()) }
+    val publishables = produceLoadable(refresh) { publishableExperiences() }
 
     LaunchedEffect(refresh) {
-        publishables = publishableExperiences()
         if (game.dbId != null) {
             publishedAt = runCatching { publishedAt(game.dbId).toSet() }.getOrElse { setOf() }
         }
     }
 
-    PublishGame(
-        publishables = publishables,
-        publishedAt = publishedAt,
-        onPublish = { experienceId ->
-            scope.launch {
-                val gameId = publishGame(experienceId, game)
-                if (!publishedAt.contains(experienceId) && gameId != game.dbId) {
-                    setGameDbId(gameId)
+    LoadingContent(publishables, Modifier.fillMaxSize()) { loaded ->
+        PublishGame(
+            publishables = loaded,
+            publishedAt = publishedAt,
+            onPublish = { experienceId ->
+                scope.launch {
+                    val gameId = publishGame(experienceId, game)
+                    if (!publishedAt.contains(experienceId) && gameId != game.dbId) {
+                        setGameDbId(gameId)
+                    }
+                    refresh++
                 }
-                refresh++
-            }
-        },
-        onUnpublish = { experienceId ->
-            scope.launch {
-                game.dbId?.let { unpublishGame(experienceId, it) }
-                refresh++
-            }
-        },
-    )
+            },
+            onUnpublish = { experienceId ->
+                scope.launch {
+                    game.dbId?.let { unpublishGame(experienceId, it) }
+                    refresh++
+                }
+            },
+        )
+    }
 }
 
 @Composable

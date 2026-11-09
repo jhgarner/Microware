@@ -1,7 +1,6 @@
 package com.example.microware.community
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +39,7 @@ import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.HandleType
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.IconCheckbox
+import com.example.microware.ui.components.LoadingContent
 import com.example.microware.ui.gestures.DragController
 import com.example.microware.ui.gestures.dragObserver
 import com.example.microware.ui.icons.drawPlayIcon
@@ -49,6 +48,7 @@ import com.example.microware.ui.icons.drawSaveIcon
 import com.example.microware.util.Id
 import com.example.microware.util.Identifiable
 import com.example.microware.util.insetPadding
+import com.example.microware.util.produceLoadable
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -83,21 +83,20 @@ private fun newExperienceDraft(communityId: Long) = ExperienceDraft(
 
 @Composable
 internal fun CommunityExperiences(communityId: Long?) {
-    var experiences by remember(communityId) { mutableStateOf(emptyList<ExperienceDraft>()) }
     var selectedDraft by remember(communityId) { mutableStateOf<ExperienceDraft?>(null) }
     var refresh by remember { mutableStateOf(0) }
     val dragController = remember { DragController<ExperienceDraft>() }
-    LaunchedEffect(communityId, refresh) {
-        experiences = communityId?.let { id ->
+    val experiences = produceLoadable(communityId, refresh) {
+        communityId?.let { id ->
             runCatching { getExperienceMetadatas(id).map { it.toDraft(id) } }.getOrElse { listOf() }
         }.orEmpty()
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().dragObserver(dragController)) {
         Column(Modifier.fillMaxSize().insetPadding()) {
-            Box(Modifier.weight(1f)) {
+            LoadingContent(experiences, Modifier.weight(1f)) { loaded ->
                 Grid(
-                    items = experiences,
+                    items = loaded,
                     itemSize = DpSize(120.dp, 64.dp),
                     dragSource = dragController,
                     dragTarget = dragController,

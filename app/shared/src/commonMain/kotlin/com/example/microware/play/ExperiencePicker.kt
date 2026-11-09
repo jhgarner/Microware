@@ -1,8 +1,6 @@
 package com.example.microware.play
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,22 +11,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toIntSize
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.components.LoadingContent
 import com.example.microware.ui.icons.drawBackIcon
-import com.example.microware.ui.icons.drawHomePlayIcon
 import com.example.microware.ui.layout.insets
+import com.example.microware.util.Loadable
 
 @Composable
 fun PickExperience(
-    experiences: List<PlayExperienceMetadata>,
+    experiences: Loadable<List<PlayExperienceMetadata>>,
     onBack: () -> Unit,
     loading: Boolean,
     pick: (PlayExperienceMetadata) -> Unit,
@@ -42,19 +39,13 @@ fun PickExperience(
         IconButton(description = "Back from play", modifier = Modifier.size(52.dp), onClick = onBack) {
             drawBackIcon()
         }
-        if (experiences.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.size(120.dp).semantics { contentDescription = "No experiences to play yet" }) {
-                    drawHomePlayIcon(0f)
-                }
-            }
-        } else {
+        LoadingContent(experiences, Modifier.weight(1f).fillMaxWidth()) { loaded ->
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                itemsIndexed(experiences, key = { _, experience -> experience.id }) { index, experience ->
+                itemsIndexed(loaded, key = { _, experience -> experience.id }) { index, experience ->
                     IconButton(
                         description = "Play experience",
                         modifier = Modifier.fillMaxWidth().height(112.dp).semantics {
