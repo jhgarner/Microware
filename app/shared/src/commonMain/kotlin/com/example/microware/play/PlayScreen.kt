@@ -1,5 +1,7 @@
 package com.example.microware.play
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +35,7 @@ import com.example.microware.game.runtime.GameResult
 import com.example.microware.platform.SystemBackHandler
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.icons.drawBackIcon
+import com.example.microware.ui.icons.drawCheckmarkIcon
 import com.example.microware.ui.icons.drawLoseIcon
 import com.example.microware.ui.icons.drawPlayIcon
 import com.example.microware.ui.icons.drawSaveIcon
@@ -49,7 +52,6 @@ internal fun PlayScreen(
 ) {
     val phase = session.phase
     val shownPhase = (phase as? PlayPhase.Paused)?.previous ?: phase
-    var gameSaved by remember(session, session.game.id) { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { session.pause() }
     SystemBackHandler {
         when (phase) {
@@ -91,18 +93,22 @@ internal fun PlayScreen(
                     applyInsets = false,
                     onFinished = { session.finish(shownPhase.player, it) },
                 )
+
                 PlayPhase.Ready -> PhaseArtwork {
                     drawTapIcon(session.phaseProgress)
                 }
+
                 is PlayPhase.Feedback -> PhaseArtwork {
                     if (shownPhase.result == GameResult.Won) {
                         drawCircle(Palette.Green.color, size.minDimension * .48f)
                         drawWinIcon(session.phaseProgress)
                     } else drawLoseIcon()
                 }
+
                 PlayPhase.SpeedUp -> PhaseArtwork {
                     drawSpeedIcon(arrowCount = session.speedTier + 1, t = session.phaseProgress)
                 }
+
                 PlayPhase.GameOver -> RunFinished(session.score, onReplay, onExit)
                 is PlayPhase.Paused -> Unit
             }
@@ -110,10 +116,8 @@ internal fun PlayScreen(
                 PauseOverlay(
                     onResume = session::resume,
                     onExit = onExit,
-                    gameSaved = gameSaved,
                     onSaveGame = {
                         onSaveGame(session.game)
-                        gameSaved = true
                     },
                 )
             }
@@ -130,24 +134,44 @@ private fun PhaseArtwork(size: Dp = 160.dp, draw: DrawScope.() -> Unit) {
 private fun PauseOverlay(
     onResume: () -> Unit,
     onExit: () -> Unit,
-    gameSaved: Boolean,
     onSaveGame: () -> Unit,
 ) {
+    val saveAnimation = remember { Animatable(0f) }
+    var saved by remember { mutableStateOf(0) }
+    LaunchedEffect(saved) {
+        if (saved == 0) return@LaunchedEffect
+        saveAnimation.snapTo(0f)
+        saveAnimation.animateTo(1f, tween(durationMillis = 1000))
+    }
     Box(
         Modifier.fillMaxSize().background(Palette.OffWhite.color.copy(alpha = .95f)),
         contentAlignment = Alignment.Center,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            IconButton(description = "Resume run", modifier = Modifier.size(80.dp), onClick = onResume) {
+            IconButton(
+                description = "Resume run",
+                modifier = Modifier.size(80.dp),
+                onClick = onResume,
+            ) {
                 drawPlayIcon()
             }
             IconButton(
-                description = if (gameSaved) "Game saved" else "Save game",
+                description = "Save game",
                 modifier = Modifier.size(80.dp),
-                enabled = !gameSaved,
-                onClick = onSaveGame,
-            ) { drawSaveIcon(it) }
-            IconButton(description = "Exit run", modifier = Modifier.size(80.dp), onClick = onExit) {
+                enabled = true,
+                onClick = { saved++; onSaveGame() },
+            ) {
+                if (saveAnimation.value == 0f || saveAnimation.value == 1f) {
+                    drawSaveIcon(it)
+                } else {
+                    drawCheckmarkIcon(saveAnimation.value)
+                }
+            }
+            IconButton(
+                description = "Exit run",
+                modifier = Modifier.size(80.dp),
+                onClick = onExit,
+            ) {
                 drawBackIcon()
             }
         }
@@ -168,10 +192,18 @@ private fun RunFinished(score: Int, onReplay: () -> Unit, onExit: () -> Unit) {
             PhaseArtwork(artworkSize) { drawWinIcon() }
             PlayNumber(score, Modifier.size(numberSize), description = "Final score $score")
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                IconButton(description = "Replay run", modifier = Modifier.size(buttonSize), onClick = onReplay) {
+                IconButton(
+                    description = "Replay run",
+                    modifier = Modifier.size(buttonSize),
+                    onClick = onReplay,
+                ) {
                     drawReplayIcon(it)
                 }
-                IconButton(description = "Back to experiences", modifier = Modifier.size(buttonSize), onClick = onExit) {
+                IconButton(
+                    description = "Back to experiences",
+                    modifier = Modifier.size(buttonSize),
+                    onClick = onExit,
+                ) {
                     drawBackIcon()
                 }
             }

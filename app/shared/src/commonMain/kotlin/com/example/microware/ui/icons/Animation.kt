@@ -66,20 +66,20 @@ data class AnimBuilder<T>(
 }
 
 fun animate(t: Float, initial: Float = 0f, builder: AnimBuilder<Float>.() -> Unit): Float =
-    animate(t, initial, builder, ::lerp)
+    animate(t, initial, ::lerp, builder)
 
 fun animate(
     t: Float,
     initial: Offset,
     builder: AnimBuilder<Offset>.() -> Unit,
 ): Offset =
-    animate(t, initial, builder, ::lerp)
+    animate(t, initial, ::lerp, builder)
 
 fun <T> animate(
     t: Float,
     initial: T,
-    builder: AnimBuilder<T>.() -> Unit,
     lerp: (T, T, Float) -> T,
+    builder: AnimBuilder<T>.() -> Unit,
 ): T {
     val state = AnimBuilder(initial, mutableListOf(), lerp)
     state.builder()
