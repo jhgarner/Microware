@@ -29,7 +29,7 @@ data class Game(
                 Model.Obj(
                     offset = it.offset.toModel(),
                     sprite = it.sprite.toModel(),
-                    tag = world.logicTags.flip()[it.id]?.tag,
+                    tags = world.logicTagsFor(it.id).map(LogicTag::tag).toSet(),
                 )
             },
         ),
@@ -41,7 +41,7 @@ fun Model.Game.fromModel(): Game {
     var logicTags = BiMap<LogicTag, Id>()
     val objects = world.objects.map { obj ->
         val id = nextId()
-        obj.tag?.let { logicTags = logicTags.add(LogicTag(it), id) }
+        obj.tags.forEach { logicTags = logicTags.add(LogicTag(it), id) }
         Obj(offset = obj.offset.toUi(), sprite = obj.sprite.load(), id = id)
     }
     return Game(

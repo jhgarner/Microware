@@ -68,32 +68,35 @@ object Tables {
         val sprite = spriteReference("sprite")
         val xOffset = float("xOffset")
         val yOffset = float("yOffset")
-        val tag = integer("tag").nullable()
+        val tags = tagSet("tags")
     }
 
     object Trigger : LongIdTable() {
         val game = cascadeReference("game", Game).index()
         val index = integer("index")
         val variant = integer("variant")
-        val tapTarget = integer("tapTarget").nullable()
-        val collisionFirstTarget = integer("collisionFirstTarget").nullable()
-        val collisionSecondTarget = integer("collisionSecondTarget").nullable()
+        val tapTargetTags = tagSet("tapTargetTags")
+        val collisionFirstTargetTags = tagSet("collisionFirstTargetTags")
+        val collisionSecondTargetTags = tagSet("collisionSecondTargetTags")
     }
 
     object Action : Table() {
         val trigger = cascadeReference("trigger", Trigger).index()
         val index = integer("index")
         val variant = integer("variant")
-        val moveMover = integer("moveMover").nullable()
+        val moveMoverTags = tagSet("moveMoverTags")
         val moveTarget = integer("moveTarget").nullable()
         val moveSpeed = integer("moveSpeed").nullable()
-        val moveToMover = integer("moveToMover").nullable()
-        val moveToTarget = integer("moveToTarget").nullable()
+        val moveToMoverTags = tagSet("moveToMoverTags")
+        val moveToTargetTags = tagSet("moveToTargetTags")
         val moveToSpeed = integer("moveToSpeed").nullable()
-        val moveWithinMover = integer("moveWithinMover").nullable()
-        val moveWithinTarget = integer("moveWithinTarget").nullable()
+        val moveWithinMoverTags = tagSet("moveWithinMoverTags")
+        val moveWithinTargetTags = tagSet("moveWithinTargetTags")
         val moveWithinSpeed = integer("moveWithinSpeed").nullable()
     }
+
+    private fun Table.tagSet(name: String): Column<List<Int>> =
+        array<Int>(name).default(emptyList())
 
     private fun Table.spriteReference(name: String): Column<EntityID<Long>> =
         reference(name, Sprite, onDelete = ReferenceOption.RESTRICT)

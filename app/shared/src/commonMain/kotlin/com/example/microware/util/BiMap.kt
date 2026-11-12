@@ -1,21 +1,14 @@
 package com.example.microware.util
 
 class BiMap<L, R> private constructor(
-    private val lToR: Map<L, R> = mapOf(),
-    private val rToL: Map<R, L> = mapOf(),
-) : Map<L, R> by lToR {
-    constructor() : this(mapOf(), mapOf())
+    private val lToR: MultiMap<L, R>,
+    private val rToL: MultiMap<R, L>,
+) : Map<L, Set<R>> by lToR {
+    constructor() : this(MultiMap(), MultiMap())
 
-    fun add(l: L, r: R): BiMap<L, R> {
-        val lToR = rToL[r]?.let { lToR - it } ?: lToR
-        val rToL = lToR[l]?.let { rToL - it } ?: rToL
-        return BiMap(lToR + (l to r), rToL + (r to l))
-    }
+    fun add(l: L, r: R): BiMap<L, R> = BiMap(lToR.add(l, r), rToL.add(r, l))
 
-    fun remove(r: R): BiMap<L, R> {
-        val l = rToL[r]
-        return BiMap(l?.let { lToR - it } ?: lToR, rToL - r)
-    }
+    fun remove(l: L, r: R): BiMap<L, R> = BiMap(lToR.remove(l, r), rToL.remove(r, l))
 
     fun flip(): BiMap<R, L> = BiMap(rToL, lToR)
 }

@@ -12,14 +12,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
-import com.example.microware.game.model.Action
-import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
-import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Obj
-import com.example.microware.game.model.Trigger
 import com.example.microware.game.sprite.SpriteCodec
 import com.example.microware.game.sprite.StoredSprite
+import com.example.microware.games.store.GameStoredLogic
+import com.example.microware.games.store.toLogic
+import com.example.microware.games.store.toStoredLogic
 import com.example.microware.platform.AppStorage
 import com.example.microware.util.Identifiable
 import kotlinx.serialization.Serializable
@@ -41,7 +40,7 @@ private data class ObjStoredLibrary(
 
 @Serializable
 private data class LogicStoredLibrary(
-    val logics: List<StoredLogic> = emptyList(),
+    val logics: List<GameStoredLogic> = emptyList(),
 )
 
 
@@ -53,28 +52,6 @@ private data class StoredObj(
     val width: Int? = null,
     val height: Int? = null,
     val pixels: List<Int>? = null,
-)
-
-@Serializable
-private data class StoredLogic(
-    val trigger: StoredTrigger,
-    val actions: List<StoredAction>,
-)
-
-@Serializable
-private data class StoredTrigger(
-    val type: String,
-    val firstTag: Int? = null,
-    val secondTag: Int? = null,
-)
-
-@Serializable
-private data class StoredAction(
-    val type: String,
-    val moverTag: Int? = null,
-    val targetTag: Int? = null,
-    val direction: String? = null,
-    val speed: Int? = null,
 )
 
 private val libraryJson = Json { ignoreUnknownKeys = true }
@@ -125,89 +102,6 @@ private fun StoredObj.toObj(): Obj? {
         offset = Offset(offsetX, offsetY),
         sprite = decodedSprite,
     )
-}
-
-private fun Logic.toStoredLogic(): StoredLogic = StoredLogic(
-    trigger = trigger.toStoredTrigger(),
-    actions = actions.map { it.toStoredAction() },
-)
-
-private fun Trigger.toStoredTrigger(): StoredTrigger = when (this) {
-    Trigger.Start -> StoredTrigger(type = "start")
-    is Trigger.Release -> StoredTrigger(type = "release", firstTag = target.tag)
-    is Trigger.Press -> StoredTrigger(type = "press", firstTag = target.tag)
-    is Trigger.Collision -> StoredTrigger(
-        type = "collision",
-        firstTag = firstTarget.tag,
-        secondTag = secondTarget.tag,
-    )
-}
-
-private fun Action.toStoredAction(): StoredAction = when (this) {
-    is Action.Move -> StoredAction(
-        type = "move",
-        moverTag = mover.tag,
-        direction = target.name,
-        speed = speed,
-    )
-
-    is Action.MoveTo -> StoredAction(
-        type = "moveTo",
-        moverTag = mover.tag,
-        targetTag = target.tag,
-        speed = speed,
-    )
-
-    is Action.MoveWithin -> StoredAction(
-        type = "moveWithin",
-        moverTag = mover.tag,
-        targetTag = target.tag,
-        speed = speed,
-    )
-
-    Action.Win -> StoredAction(type = "win")
-    Action.Lose -> StoredAction(type = "lose")
-}
-
-private fun StoredLogic.toLogic(): Logic = Logic(
-    trigger = trigger.toTrigger(),
-    actions = actions.map { it.toAction() },
-)
-
-private fun StoredTrigger.toTrigger(): Trigger = when (type) {
-    "start" -> Trigger.Start
-    "tap", "release" -> Trigger.Release(LogicTag(requireNotNull(firstTag)))
-    "press" -> Trigger.Press(LogicTag(requireNotNull(firstTag)))
-    "collision" -> Trigger.Collision(
-        firstTarget = LogicTag(requireNotNull(firstTag)),
-        secondTarget = LogicTag(requireNotNull(secondTag)),
-    )
-
-    else -> error("Unknown trigger type: $type")
-}
-
-private fun StoredAction.toAction(): Action = when (type) {
-    "move" -> Action.Move(
-        mover = LogicTag(requireNotNull(moverTag)),
-        target = Direction.valueOf(requireNotNull(direction)),
-        speed = requireNotNull(speed),
-    )
-
-    "moveTo" -> Action.MoveTo(
-        mover = LogicTag(requireNotNull(moverTag)),
-        target = LogicTag(requireNotNull(targetTag)),
-        speed = speed,
-    )
-
-    "moveWithin" -> Action.MoveWithin(
-        mover = LogicTag(requireNotNull(moverTag)),
-        target = LogicTag(requireNotNull(targetTag)),
-        speed = speed,
-    )
-
-    "win" -> Action.Win
-    "lose" -> Action.Lose
-    else -> error("Unknown action type: $type")
 }
 
 @Composable

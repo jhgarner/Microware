@@ -6,14 +6,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface Action {
     @Serializable
-    class Move(val mover: LogicTag, val target: Direction, val speed: Int) : Action
+    class Move(val mover: TagFilter, val target: Direction, val speed: Int) : Action
 
     // If the speed is null, the mover will instantly teleport to its destination.
     @Serializable
-    class MoveTo(val mover: LogicTag, val target: LogicTag, val speed: Int?) : Action
+    class MoveTo(val mover: TagFilter, val target: TagFilter, val speed: Int?) : Action
 
     @Serializable
-    class MoveWithin(val mover: LogicTag, val target: LogicTag, val speed: Int?) : Action
+    class MoveWithin(val mover: TagFilter, val target: TagFilter, val speed: Int?) : Action
 
     @Serializable
     object Win : Action
@@ -29,13 +29,13 @@ sealed interface Trigger {
 
     @Serializable
     @SerialName("com.example.microware.game.model.Trigger.Tap")
-    data class Release(val target: LogicTag) : Trigger
+    data class Release(val target: TagFilter) : Trigger
 
     @Serializable
-    data class Press(val target: LogicTag) : Trigger
+    data class Press(val target: TagFilter) : Trigger
 
     @Serializable
-    data class Collision(val firstTarget: LogicTag, val secondTarget: LogicTag) : Trigger
+    data class Collision(val firstTarget: TagFilter, val secondTarget: TagFilter) : Trigger
 }
 
 @Serializable

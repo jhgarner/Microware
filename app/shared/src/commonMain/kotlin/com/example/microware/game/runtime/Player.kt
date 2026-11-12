@@ -33,8 +33,8 @@ import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Game
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
-import com.example.microware.game.model.World
 import com.example.microware.game.model.WorldHeight
 import com.example.microware.game.model.WorldWidth
 import com.example.microware.game.sprite.scaled
@@ -44,35 +44,35 @@ import kotlin.random.Random
 
 class Player(
     val logics: List<Logic>,
-    val objects: MutableMap<LogicTag, ObjectState> = mutableMapOf(),
-    val scenery: List<ObjectState> = emptyList(),
+    val objects: List<ObjectState> = emptyList(),
     var timeMs: Long = 0L,
     var winState: WinState = WinState.Playing,
-    var colliding: Set<Colliding> = setOf(),
     private val random: Random = Random.Default,
 ) {
+    private val taggedObjects = objects.filter { it.tags.isNotEmpty() }
     private var pointerLocation: Offset? = null
-    private var pressedObjects: Set<LogicTag> = emptySet()
+    private var touchedObjects: Set<ObjectState> = emptySet()
+    private var overlaps: Set<Overlap> = emptySet()
     private var fractionalElapsedMs = 0.0
     private var hasDeliveredResult = false
     private var cachedScale = Float.NaN
     private var cachedBackground: ImageBitmap? = null
-    private val cachedObjects = mutableMapOf<LogicTag, CachedBitmap>()
-    private val cachedScenery = mutableListOf<CachedBitmap>()
+    private var scaledBitmaps: List<ImageBitmap> = emptyList()
 
     constructor(game: Game, random: Random = Random.Default) : this(
         logics = game.logics,
-        objects = worldObj(game.world),
-        scenery = worldScenery(game.world),
+        objects = game.world.objects.map { obj ->
+            ObjectState(
+                bitmap = obj.sprite.bitmap,
+                offset = obj.offset,
+                tags = game.world.logicTagsFor(obj.id),
+            )
+        },
         random = random,
     )
 
     init {
-        for (logic in logics) {
-            if (logic.trigger is Trigger.Start) {
-                logic.actions.forEach { runAction(it) }
-            }
-        }
+        logics.filter { it.trigger is Trigger.Start }.forEach(::runActions)
     }
 
     val result: GameResult?
@@ -118,26 +118,26 @@ class Player(
 
     private fun resolvePointerContacts() {
         val location = pointerLocation
-        val touching = if (location == null) emptySet() else objects
-            .filterValues { it.rect().contains(location) }
-            .keys.toSet()
-        val entered = touching - pressedObjects
-        val exited = pressedObjects - touching
-        pressedObjects = touching
+        val touching = if (location == null) emptySet() else taggedObjects
+            .filter { it.rect().contains(location) }
+            .toSet()
+        val entered = touching - touchedObjects
+        val exited = touchedObjects - touching
+        touchedObjects = touching
 
         for (logic in logics) {
             val triggered = when (val trigger = logic.trigger) {
-                is Trigger.Press -> trigger.target in entered
-                is Trigger.Release -> trigger.target in exited
+                is Trigger.Press -> entered.any { it.matches(trigger.target) }
+                is Trigger.Release -> exited.any { it.matches(trigger.target) }
                 else -> false
             }
-            if (triggered) logic.actions.forEach { runAction(it) }
+            if (triggered) runActions(logic)
         }
     }
 
     private fun move(delta: Long) {
         val seconds = delta / 1000f
-        for (objectState in objects.values) {
+        for (objectState in taggedObjects) {
             val destination = objectState.destination
             if (destination == null) {
                 objectState.offset += objectState.velocity * seconds
@@ -155,38 +155,50 @@ class Player(
         }
     }
 
+    private fun runActions(logic: Logic) = logic.actions.forEach(::runAction)
+
     private fun runAction(action: Action) {
         when (action) {
             Action.Win -> winState = WinState.Won
             Action.Lose -> winState = WinState.Lost
-            is Action.Move -> {
-                objects[action.mover]?.apply {
-                    velocity = dirVec(action.target) * action.speed.toFloat()
-                    destination = null
-                }
+            is Action.Move -> for (mover in matching(action.mover)) {
+                mover.velocity = dirVec(action.target) * action.speed.toFloat()
+                mover.destination = null
             }
 
-            is Action.MoveTo -> {
-                val mover = objects[action.mover] ?: return
-                val target = objects[action.target] ?: return
+            is Action.MoveTo -> forEachMoverAndTarget(action.mover, action.target) { mover, target ->
                 moveTo(mover, target.offset, action.speed)
             }
 
-            is Action.MoveWithin -> {
-                val mover = objects[action.mover] ?: return
-                val target = objects[action.target] ?: return
-                val targetRect = target.rect()
-                val availableWidth = targetRect.width - mover.bitmap.width
-                val availableHeight = targetRect.height - mover.bitmap.height
-                if (availableWidth < 0f || availableHeight < 0f) return
-
-                val destination = Offset(
-                    x = targetRect.left + random.nextFloat() * availableWidth,
-                    y = targetRect.top + random.nextFloat() * availableHeight,
-                )
-                moveTo(mover, destination, action.speed)
+            is Action.MoveWithin -> forEachMoverAndTarget(action.mover, action.target) { mover, target ->
+                moveWithin(mover, target.rect(), action.speed)
             }
         }
+    }
+
+    private fun matching(filter: TagFilter): List<ObjectState> =
+        taggedObjects.filter { it.matches(filter) }
+
+    private fun forEachMoverAndTarget(
+        mover: TagFilter,
+        target: TagFilter,
+        move: (mover: ObjectState, target: ObjectState) -> Unit,
+    ) {
+        val targets = matching(target)
+        if (targets.isEmpty()) return
+        for (matchingMover in matching(mover)) move(matchingMover, targets.random(random))
+    }
+
+    private fun moveWithin(mover: ObjectState, bounds: Rect, speed: Int?) {
+        val availableWidth = bounds.width - mover.bitmap.width
+        val availableHeight = bounds.height - mover.bitmap.height
+        if (availableWidth < 0f || availableHeight < 0f) return
+
+        val destination = Offset(
+            x = bounds.left + random.nextFloat() * availableWidth,
+            y = bounds.top + random.nextFloat() * availableHeight,
+        )
+        moveTo(mover, destination, speed)
     }
 
     private fun moveTo(mover: ObjectState, destination: Offset, speed: Int?) {
@@ -207,28 +219,22 @@ class Player(
     }
 
     private fun resolveCollisions() {
-        val newColliding = mutableSetOf<Colliding>()
-        val objectEntries = objects.entries.toList()
-        for (firstIndex in objectEntries.indices) {
-            val (tag, obj) = objectEntries[firstIndex]
-            for (secondIndex in firstIndex + 1 until objectEntries.size) {
-                val (tag2, obj2) = objectEntries[secondIndex]
-                if (obj.rect().overlaps(obj2.rect())) {
-                    newColliding += Colliding.new(tag, tag2)
+        val currentOverlaps = buildSet {
+            for (firstIndex in taggedObjects.indices) {
+                val first = taggedObjects[firstIndex]
+                for (secondIndex in firstIndex + 1 until taggedObjects.size) {
+                    val second = taggedObjects[secondIndex]
+                    if (first.rect().overlaps(second.rect())) add(Overlap(first, second))
                 }
             }
         }
+        val started = currentOverlaps - overlaps
+        overlaps = currentOverlaps
 
         for (logic in logics) {
-            if (logic.trigger is Trigger.Collision) {
-                val trigger = Colliding.new(logic.trigger)
-                if (trigger in newColliding && trigger !in colliding) {
-                    logic.actions.forEach { runAction(it) }
-                }
-            }
+            val trigger = logic.trigger as? Trigger.Collision ?: continue
+            if (started.any { it.matches(trigger) }) runActions(logic)
         }
-
-        colliding = newColliding
     }
 
     @Composable
@@ -333,19 +339,9 @@ class Player(
             right = frame.rect.right,
             bottom = frame.rect.bottom,
         ) {
-            val drawOrder = buildList {
-                for (objectState in scenery) {
-                    cachedScenery.firstOrNull { it.source === objectState.bitmap }
-                        ?.let { add(RenderedObject(objectState, it.bitmap)) }
-                }
-                for ((tag, objectState) in objects) {
-                    cachedObjects[tag]?.let { add(RenderedObject(objectState, it.bitmap)) }
-                }
-            }.sortedBy { it.state.drawOrder }
-
-            for ((objectState, bitmap) in drawOrder) {
+            objects.forEachIndexed { index, objectState ->
                 drawImage(
-                    bitmap,
+                    scaledBitmaps[index],
                     topLeft = frame.origin + objectState.offset * frame.scale,
                 )
             }
@@ -359,31 +355,9 @@ class Player(
     }
 
     private fun updateBitmapCache(scale: Float) {
-        if (cachedScale != scale) {
-            cachedScale = scale
-            cachedObjects.clear()
-            cachedScenery.clear()
-        }
-
-        cachedObjects.keys.retainAll(objects.keys)
-        for ((tag, objectState) in objects) {
-            val cached = cachedObjects[tag]
-            if (cached == null || cached.source !== objectState.bitmap) {
-                cachedObjects[tag] = CachedBitmap(
-                    source = objectState.bitmap,
-                    bitmap = scaledBitmap(objectState.bitmap, scale),
-                )
-            }
-        }
-
-        for (objectState in scenery) {
-            if (cachedScenery.none { it.source === objectState.bitmap }) {
-                cachedScenery += CachedBitmap(
-                    source = objectState.bitmap,
-                    bitmap = scaledBitmap(objectState.bitmap, scale),
-                )
-            }
-        }
+        if (cachedScale == scale) return
+        cachedScale = scale
+        scaledBitmaps = objects.map { scaledBitmap(it.bitmap, scale) }
     }
 
     private fun scaledBitmap(bitmap: ImageBitmap, scale: Float): ImageBitmap {
@@ -397,45 +371,14 @@ class Player(
     companion object {
         internal const val GameDurationMillis = 3_000L
         private const val MaxSimulationStepMillis = 4L
-
-        private fun worldObj(world: World): MutableMap<LogicTag, ObjectState> {
-            val result = mutableMapOf<LogicTag, ObjectState>()
-            val tagByObjectId = world.logicTags.flip()
-            for ((drawOrder, obj) in world.objects.withIndex()) {
-                tagByObjectId[obj.id]?.let { tag ->
-                    result[tag] = ObjectState(
-                        bitmap = obj.sprite.bitmap,
-                        offset = obj.offset,
-                        velocity = Offset.Zero,
-                        drawOrder = drawOrder,
-                    )
-                }
-            }
-            return result
-        }
-
-        private fun worldScenery(world: World): List<ObjectState> {
-            val taggedObjectIds = world.logicTags.values.toSet()
-            return world.objects
-                .mapIndexedNotNull { drawOrder, obj ->
-                    if (obj.id in taggedObjectIds) {
-                        null
-                    } else {
-                        ObjectState(
-                            bitmap = obj.sprite.bitmap,
-                            offset = obj.offset,
-                            velocity = Offset.Zero,
-                            drawOrder = drawOrder,
-                        )
-                    }
-                }
-        }
     }
 }
 
-private data class CachedBitmap(val source: ImageBitmap, val bitmap: ImageBitmap)
-
-private data class RenderedObject(val state: ObjectState, val bitmap: ImageBitmap)
+private data class Overlap(val first: ObjectState, val second: ObjectState) {
+    fun matches(trigger: Trigger.Collision): Boolean =
+        first.matches(trigger.firstTarget) && second.matches(trigger.secondTarget) ||
+            first.matches(trigger.secondTarget) && second.matches(trigger.firstTarget)
+}
 
 private data class GameFrame(
     val origin: Offset,
@@ -515,28 +458,16 @@ private fun dirVec(direction: Direction): Offset = when (direction) {
     Direction.W -> Offset(-1f, 0f)
 }
 
-data class ObjectState(
+class ObjectState(
     val bitmap: ImageBitmap,
     var offset: Offset,
-    var velocity: Offset,
+    val tags: Set<LogicTag> = emptySet(),
+    var velocity: Offset = Offset.Zero,
     var destination: Offset? = null,
-    val drawOrder: Int = 0,
 ) {
     fun rect(): Rect = Rect(offset, Size(bitmap.width.toFloat(), bitmap.height.toFloat()))
+
+    fun matches(filter: TagFilter): Boolean = filter.matches(tags)
 }
 
 enum class WinState { Won, Playing, Lost }
-
-@ConsistentCopyVisibility
-data class Colliding private constructor(val a: LogicTag, val b: LogicTag) {
-    fun matches(trigger: Trigger.Collision): Boolean =
-        new(trigger.firstTarget, trigger.secondTarget) == this
-
-    companion object {
-        fun new(a: LogicTag, b: LogicTag): Colliding =
-            if (a.tag < b.tag) Colliding(a, b) else Colliding(b, a)
-
-        fun new(trigger: Trigger.Collision): Colliding =
-            new(trigger.firstTarget, trigger.secondTarget)
-    }
-}

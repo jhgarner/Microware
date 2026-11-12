@@ -34,7 +34,7 @@ import com.example.microware.game.sprite.Sprite
 import com.example.microware.ui.components.Grid
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.TrashGap
-import com.example.microware.ui.icons.drawLogicTag
+import com.example.microware.ui.icons.drawLogicTags
 import com.example.microware.ui.layout.insets
 import kotlinx.collections.immutable.toPersistentList
 import kotlin.math.min
@@ -123,10 +123,8 @@ private fun ObjectOrderCard(
             modifier = Modifier.size(72.dp),
             contentAlignment = Alignment.Center,
         ) {
-            world.logicTagFor(obj.id)?.let { tag ->
-                Canvas(Modifier.fillMaxSize().padding(4.dp)) {
-                    drawLogicTag(tag)
-                }
+            Canvas(Modifier.fillMaxSize().padding(4.dp)) {
+                drawLogicTags(world.logicTagsFor(obj.id))
             }
         }
         Canvas(Modifier.size(72.dp)) {

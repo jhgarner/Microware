@@ -7,6 +7,7 @@ import com.example.microware.game.model.Game
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Obj
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.World
 import com.example.microware.game.sprite.SpriteCodec
@@ -24,6 +25,17 @@ import kotlinx.serialization.json.Json
 
 private const val GamesStorageKey = "microware.games.v1"
 private const val CurrentGamesVersion = 1
+
+// The singular `tag` fields are only read: games saved before objects could carry
+// several tags stored exactly one tag in each of them.
+private fun storedTags(tags: Set<Int>, legacyTag: Int?): Set<LogicTag> =
+    (tags + listOfNotNull(legacyTag)).map(::LogicTag).toSet()
+
+private fun storedFilter(tags: Set<Int>, legacyTag: Int?) = TagFilter(storedTags(tags, legacyTag))
+
+private fun Set<LogicTag>.toStoredTags(): Set<Int> = map(LogicTag::tag).toSet()
+
+private fun TagFilter.toStoredTags(): Set<Int> = tags.toStoredTags()
 
 @Serializable
 internal data class StoredGames(
@@ -48,7 +60,8 @@ internal data class GameStoredObj(
     val offsetX: Float,
     val offsetY: Float,
     val sprite: StoredSprite,
-    val tag: Int?,
+    val tags: Set<Int> = emptySet(),
+    val tag: Int? = null,
 )
 
 @Serializable
@@ -60,6 +73,8 @@ internal data class GameStoredLogic(
 @Serializable
 internal data class GameStoredTrigger(
     val type: String,
+    val firstTags: Set<Int> = emptySet(),
+    val secondTags: Set<Int> = emptySet(),
     val firstTag: Int? = null,
     val secondTag: Int? = null,
 )
@@ -67,6 +82,8 @@ internal data class GameStoredTrigger(
 @Serializable
 internal data class GameStoredAction(
     val type: String,
+    val moverTags: Set<Int> = emptySet(),
+    val targetTags: Set<Int> = emptySet(),
     val moverTag: Int? = null,
     val targetTag: Int? = null,
     val direction: String? = null,
@@ -134,12 +151,12 @@ private fun Obj.toStoredObj(tags: BiMap<LogicTag, Id>): GameStoredObj = GameStor
     offsetX = offset.x,
     offsetY = offset.y,
     sprite = SpriteCodec.encode(sprite),
-    tag = tags.flip()[id]?.tag,
+    tags = tags.flip()[id].orEmpty().toStoredTags(),
 )
 
 private fun GameStoredObj.toObj(tags: Mut<BiMap<LogicTag, Id>>): Obj {
     val id = Identifiable.nextId()
-    tag?.let { tags[LogicTag(it)] = id }
+    storedTags(this.tags, tag).forEach { tags[it] = id }
     return Obj(
         id = id,
         offset = Offset(offsetX, offsetY),
@@ -147,34 +164,34 @@ private fun GameStoredObj.toObj(tags: Mut<BiMap<LogicTag, Id>>): Obj {
     )
 }
 
-private fun Logic.toStoredLogic(): GameStoredLogic = GameStoredLogic(
+internal fun Logic.toStoredLogic(): GameStoredLogic = GameStoredLogic(
     trigger = trigger.toStoredTrigger(),
     actions = actions.map(Action::toStoredAction),
 )
 
-private fun GameStoredLogic.toLogic(): Logic = Logic(
+internal fun GameStoredLogic.toLogic(): Logic = Logic(
     trigger = trigger.toTrigger(),
     actions = actions.map(GameStoredAction::toAction),
 )
 
 private fun Trigger.toStoredTrigger(): GameStoredTrigger = when (this) {
     Trigger.Start -> GameStoredTrigger(type = "start")
-    is Trigger.Release -> GameStoredTrigger(type = "release", firstTag = target.tag)
-    is Trigger.Press -> GameStoredTrigger(type = "press", firstTag = target.tag)
+    is Trigger.Release -> GameStoredTrigger(type = "release", firstTags = target.toStoredTags())
+    is Trigger.Press -> GameStoredTrigger(type = "press", firstTags = target.toStoredTags())
     is Trigger.Collision -> GameStoredTrigger(
         type = "collision",
-        firstTag = firstTarget.tag,
-        secondTag = secondTarget.tag,
+        firstTags = firstTarget.toStoredTags(),
+        secondTags = secondTarget.toStoredTags(),
     )
 }
 
 private fun GameStoredTrigger.toTrigger(): Trigger = when (type) {
     "start" -> Trigger.Start
-    "tap", "release" -> Trigger.Release(LogicTag(requireNotNull(firstTag)))
-    "press" -> Trigger.Press(LogicTag(requireNotNull(firstTag)))
+    "tap", "release" -> Trigger.Release(storedFilter(firstTags, firstTag))
+    "press" -> Trigger.Press(storedFilter(firstTags, firstTag))
     "collision" -> Trigger.Collision(
-        firstTarget = LogicTag(requireNotNull(firstTag)),
-        secondTarget = LogicTag(requireNotNull(secondTag)),
+        firstTarget = storedFilter(firstTags, firstTag),
+        secondTarget = storedFilter(secondTags, secondTag),
     )
 
     else -> error("Unknown trigger type: $type")
@@ -183,22 +200,22 @@ private fun GameStoredTrigger.toTrigger(): Trigger = when (type) {
 private fun Action.toStoredAction(): GameStoredAction = when (this) {
     is Action.Move -> GameStoredAction(
         type = "move",
-        moverTag = mover.tag,
+        moverTags = mover.toStoredTags(),
         direction = target.name,
         speed = speed,
     )
 
     is Action.MoveTo -> GameStoredAction(
         type = "moveTo",
-        moverTag = mover.tag,
-        targetTag = target.tag,
+        moverTags = mover.toStoredTags(),
+        targetTags = target.toStoredTags(),
         speed = speed,
     )
 
     is Action.MoveWithin -> GameStoredAction(
         type = "moveWithin",
-        moverTag = mover.tag,
-        targetTag = target.tag,
+        moverTags = mover.toStoredTags(),
+        targetTags = target.toStoredTags(),
         speed = speed,
     )
 
@@ -208,20 +225,20 @@ private fun Action.toStoredAction(): GameStoredAction = when (this) {
 
 private fun GameStoredAction.toAction(): Action = when (type) {
     "move" -> Action.Move(
-        mover = LogicTag(requireNotNull(moverTag)),
+        mover = storedFilter(moverTags, moverTag),
         target = Direction.valueOf(requireNotNull(direction)),
         speed = requireNotNull(speed),
     )
 
     "moveTo" -> Action.MoveTo(
-        mover = LogicTag(requireNotNull(moverTag)),
-        target = LogicTag(requireNotNull(targetTag)),
+        mover = storedFilter(moverTags, moverTag),
+        target = storedFilter(targetTags, targetTag),
         speed = speed,
     )
 
     "moveWithin" -> Action.MoveWithin(
-        mover = LogicTag(requireNotNull(moverTag)),
-        target = LogicTag(requireNotNull(targetTag)),
+        mover = storedFilter(moverTags, moverTag),
+        target = storedFilter(targetTags, targetTag),
         speed = speed,
     )
 

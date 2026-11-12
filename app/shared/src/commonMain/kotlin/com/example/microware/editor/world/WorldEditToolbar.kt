@@ -104,9 +104,9 @@ fun BoxWithConstraintsScope.WorldEditToolbar(
                         handler { world -> world.upsertObject(newObj) }
                     }
                 },
-                logicTag = world.logicTagFor(obj.id),
-                onLogicTagChange = { logicTag ->
-                    handler { world -> world.assignLogicTag(obj.id, logicTag) }
+                logicTags = world.logicTagsFor(obj.id),
+                onToggleLogicTag = { tag ->
+                    handler { world -> world.toggleLogicTag(obj.id, tag) }
                 },
                 editorKey = obj.id,
                 spriteOffset = obj.offset,

@@ -99,8 +99,8 @@ fun EditableCanvas(
     spriteOffset: Offset = Offset.Zero,
     tools: List<SpriteEditorTool> = SpriteEditorTool.entries,
     showLogicTagPicker: Boolean = true,
-    logicTag: LogicTag? = null,
-    onLogicTagChange: (LogicTag?) -> Unit = {},
+    logicTags: Set<LogicTag> = emptySet(),
+    onToggleLogicTag: (LogicTag) -> Unit = {},
     positionEditor: @Composable () -> Unit,
 ) {
     var selectedTool by remember(editorKey) { mutableStateOf(tools.first()) }
@@ -233,8 +233,8 @@ fun EditableCanvas(
             Spacer(Modifier.weight(1f))
             if (showLogicTagPicker) {
                 LogicTagPicker(
-                    selectedTag = logicTag,
-                    onSelectTag = onLogicTagChange,
+                    selectedTags = logicTags,
+                    onToggleTag = onToggleLogicTag,
                     modifier = Modifier.padding(8.dp),
                 )
             }

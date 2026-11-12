@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.IntSize
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.WorldHeight
 import com.example.microware.game.model.WorldWidth
@@ -32,14 +33,14 @@ class PlayerPointerInputTest {
         val target = LogicTag(0)
         val player = Player(
             logics = listOf(
-                Logic(Trigger.Press(target), listOf(Action.Win)),
-                Logic(Trigger.Release(target), listOf(Action.Lose)),
+                Logic(Trigger.Press(TagFilter(target)), listOf(Action.Win)),
+                Logic(Trigger.Release(TagFilter(target)), listOf(Action.Lose)),
             ),
-            objects = mutableMapOf(
-                target to ObjectState(
+            objects = listOf(
+                ObjectState(
                     bitmap = ImageBitmap(20, 20),
                     offset = Offset(50f, 50f),
-                    velocity = Offset.Zero,
+                    tags = setOf(target),
                 ),
             ),
         )

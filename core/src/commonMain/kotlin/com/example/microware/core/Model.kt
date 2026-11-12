@@ -18,7 +18,7 @@ object Model {
     class Offset(val x: Float, val y: Float)
 
     @Serializable
-    class Obj(val offset: Offset, val sprite: Sprite, val tag: Int?)
+    class Obj(val offset: Offset, val sprite: Sprite, val tags: Set<Int> = emptySet())
 
     @Serializable
     class World(val objects: List<Obj>) {

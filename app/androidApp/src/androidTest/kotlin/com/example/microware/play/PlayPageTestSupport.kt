@@ -30,6 +30,7 @@ import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Game
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Obj
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.World
@@ -71,7 +72,7 @@ internal fun tapWinGame(): Game {
     val world = untaggedWorld.assignLogicTag(untaggedWorld.objects.single().id, tag)
     return Game(
         world = world,
-        logics = persistentListOf(Logic(Trigger.Release(tag), listOf(Action.Win))),
+        logics = persistentListOf(Logic(Trigger.Release(TagFilter(tag)), listOf(Action.Win))),
     )
 }
 
@@ -93,13 +94,13 @@ internal fun survivalGame(escapeHazard: Boolean = true): Game {
                 listOf(
                     Action.Win,
                     Action.Move(
-                        runnerTag,
+                        TagFilter(runnerTag),
                         if (escapeHazard) Direction.E else Direction.W,
                         speed = 8,
                     ),
                 ),
             ),
-            Logic(Trigger.Collision(hazardTag, runnerTag), listOf(Action.Lose)),
+            Logic(Trigger.Collision(TagFilter(hazardTag), TagFilter(runnerTag)), listOf(Action.Lose)),
         ),
     )
 }

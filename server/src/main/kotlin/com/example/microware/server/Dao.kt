@@ -15,6 +15,7 @@ import com.example.microware.core.Model.World
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import org.jetbrains.exposed.v1.core.Alias
 import org.jetbrains.exposed.v1.core.JoinType
@@ -211,7 +212,7 @@ object Dao {
                     row[Tables.Obj.game].value to Obj(
                         offset = Offset(row[Tables.Obj.xOffset], row[Tables.Obj.yOffset]),
                         sprite = row.toSprite(),
-                        tag = row[Tables.Obj.tag],
+                        tags = row[Tables.Obj.tags].toSet(),
                     )
                 }
                 .groupBy({ it.first }, { it.second })
@@ -493,7 +494,7 @@ object Dao {
         it[sprite] = writeSprite(obj.sprite)
         it[xOffset] = obj.offset.x
         it[yOffset] = obj.offset.y
-        it[tag] = obj.tag
+        it[tags] = obj.tags.toList()
     }
 
     private fun writeLogic(gameId: EntityID<Long>, i: Int, logic: Logic) {
@@ -503,18 +504,18 @@ object Dao {
             it[variant] = when (val trigger = logic.trigger) {
                 Trigger.Start -> 0
                 is Trigger.Release -> {
-                    it[tapTarget] = trigger.target.tag
+                    it[tapTargetTags] = trigger.target.toColumn()
                     1
                 }
 
                 is Trigger.Press -> {
-                    it[tapTarget] = trigger.target.tag
+                    it[tapTargetTags] = trigger.target.toColumn()
                     3
                 }
 
                 is Trigger.Collision -> {
-                    it[collisionFirstTarget] = trigger.firstTarget.tag
-                    it[collisionSecondTarget] = trigger.secondTarget.tag
+                    it[collisionFirstTargetTags] = trigger.firstTarget.toColumn()
+                    it[collisionSecondTargetTags] = trigger.secondTarget.toColumn()
                     2
                 }
             }
@@ -527,22 +528,22 @@ object Dao {
                     Action.Win -> 0
                     Action.Lose -> 1
                     is Action.Move -> {
-                        it[moveMover] = action.mover.tag
+                        it[moveMoverTags] = action.mover.toColumn()
                         it[moveTarget] = action.target.ordinal
                         it[moveSpeed] = action.speed
                         2
                     }
 
                     is Action.MoveTo -> {
-                        it[moveToMover] = action.mover.tag
-                        it[moveToTarget] = action.target.tag
+                        it[moveToMoverTags] = action.mover.toColumn()
+                        it[moveToTargetTags] = action.target.toColumn()
                         it[moveToSpeed] = action.speed
                         3
                     }
 
                     is Action.MoveWithin -> {
-                        it[moveWithinMover] = action.mover.tag
-                        it[moveWithinTarget] = action.target.tag
+                        it[moveWithinMoverTags] = action.mover.toColumn()
+                        it[moveWithinTargetTags] = action.target.toColumn()
                         it[moveWithinSpeed] = action.speed
                         4
                     }
@@ -574,14 +575,18 @@ private fun ResultRow.toSprite() = Sprite(
     pixels = this[Tables.Sprite.pixels],
 )
 
+private fun TagFilter.toColumn(): List<Int> = tags.map(LogicTag::tag)
+
+private fun List<Int>.toTagFilter() = TagFilter(map(::LogicTag).toSet())
+
 private fun ResultRow.toTrigger(): Trigger = when (this[Tables.Trigger.variant]) {
     0 -> Trigger.Start
-    1 -> Trigger.Release(LogicTag(this[Tables.Trigger.tapTarget]!!))
+    1 -> Trigger.Release(this[Tables.Trigger.tapTargetTags].toTagFilter())
     2 -> Trigger.Collision(
-        firstTarget = LogicTag(this[Tables.Trigger.collisionFirstTarget]!!),
-        secondTarget = LogicTag(this[Tables.Trigger.collisionSecondTarget]!!),
+        firstTarget = this[Tables.Trigger.collisionFirstTargetTags].toTagFilter(),
+        secondTarget = this[Tables.Trigger.collisionSecondTargetTags].toTagFilter(),
     )
-    3 -> Trigger.Press(LogicTag(this[Tables.Trigger.tapTarget]!!))
+    3 -> Trigger.Press(this[Tables.Trigger.tapTargetTags].toTagFilter())
 
     else -> error("Unknown trigger variant")
 }
@@ -590,20 +595,20 @@ private fun ResultRow.toAction(): Action = when (this[Tables.Action.variant]) {
     0 -> Action.Win
     1 -> Action.Lose
     2 -> Action.Move(
-        mover = LogicTag(this[Tables.Action.moveMover]!!),
+        mover = this[Tables.Action.moveMoverTags].toTagFilter(),
         target = Direction.entries[this[Tables.Action.moveTarget]!!],
         speed = this[Tables.Action.moveSpeed]!!,
     )
 
     3 -> Action.MoveTo(
-        mover = LogicTag(this[Tables.Action.moveToMover]!!),
-        target = LogicTag(this[Tables.Action.moveToTarget]!!),
+        mover = this[Tables.Action.moveToMoverTags].toTagFilter(),
+        target = this[Tables.Action.moveToTargetTags].toTagFilter(),
         speed = this[Tables.Action.moveToSpeed],
     )
 
     4 -> Action.MoveWithin(
-        mover = LogicTag(this[Tables.Action.moveWithinMover]!!),
-        target = LogicTag(this[Tables.Action.moveWithinTarget]!!),
+        mover = this[Tables.Action.moveWithinMoverTags].toTagFilter(),
+        target = this[Tables.Action.moveWithinTargetTags].toTagFilter(),
         speed = this[Tables.Action.moveWithinSpeed],
     )
 

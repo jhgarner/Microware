@@ -1,7 +1,5 @@
 package com.example.microware.game.model
 
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,13 +9,39 @@ class TriggerSerializationTest {
     fun decodesLegacyTapSerialNameAsRelease() {
         val encoded = """{"type":"com.example.microware.game.model.Trigger.Tap","target":{"tag":7}}"""
 
-        assertEquals(Trigger.Release(LogicTag(7)), Json.decodeFromString<Trigger>(encoded))
+        assertEquals(
+            Trigger.Release(TagFilter(LogicTag(7))),
+            Json.decodeFromString<Trigger>(encoded),
+        )
     }
 
     @Test
-    fun pressTriggerRoundTrips() {
-        val trigger: Trigger = Trigger.Press(LogicTag(7))
+    fun decodesLegacySingleTagActionAsAOneTagFilter() {
+        val encoded =
+            """{"type":"com.example.microware.game.model.Action.MoveTo","mover":{"tag":1},"target":{"tag":2},"speed":null}"""
+
+        val action = Json.decodeFromString<Action>(encoded) as Action.MoveTo
+
+        assertEquals(TagFilter(LogicTag(1)), action.mover)
+        assertEquals(TagFilter(LogicTag(2)), action.target)
+    }
+
+    @Test
+    fun multiTagTriggerRoundTrips() {
+        val trigger: Trigger = Trigger.Collision(
+            TagFilter(LogicTag(7), LogicTag(9)),
+            TagFilter(LogicTag(3)),
+        )
 
         assertEquals(trigger, Json.decodeFromString<Trigger>(Json.encodeToString(trigger)))
+    }
+
+    @Test
+    fun togglingNeverEmptiesAFilter() {
+        val filter = TagFilter(LogicTag(1))
+
+        assertEquals(filter, filter.toggling(LogicTag(1)))
+        assertEquals(TagFilter(LogicTag(1), LogicTag(2)), filter.toggling(LogicTag(2)))
+        assertEquals(filter, filter.toggling(LogicTag(2)).toggling(LogicTag(2)))
     }
 }

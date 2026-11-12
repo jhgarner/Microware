@@ -24,11 +24,12 @@ import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.ui.components.Grid
 import com.example.microware.ui.gestures.DragController
 import com.example.microware.ui.gestures.Offer
-import com.example.microware.ui.icons.DrawLogicTag
+import com.example.microware.ui.icons.LogicTagRow
 import com.example.microware.ui.icons.drawAction
 import com.example.microware.ui.icons.drawArrowIcon
 import com.example.microware.ui.icons.drawTrigger
@@ -39,6 +40,8 @@ internal object LogicTrashDragSource
 internal object LogicLibraryDragSource
 
 private val LogicCardHeight = 60.dp
+private val LoneTagSize = 24.dp
+private val GroupedTagSize = 16.dp
 
 @Composable
 internal fun BoxWithConstraintsScope.LogicTable(
@@ -98,39 +101,27 @@ internal fun LogicCard(
                         drawAction(action)
                     }
                     when (action) {
-                        is Action.Move -> DrawLogicTag(
-                            action.mover,
-                            modifier = Modifier.size(24.dp),
+                        is Action.Move -> LogicTagRow(
+                            action.mover.tags,
+                            tagSize = if (action.mover.tags.size == 1) LoneTagSize else GroupedTagSize,
                         )
 
-                        is Action.MoveTo -> Column {
-                            DrawLogicTag(
-                                action.mover,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            DrawLogicTag(
-                                action.target,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-
-                        is Action.MoveWithin -> Column {
-                            DrawLogicTag(
-                                action.mover,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            DrawLogicTag(
-                                action.target,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-
+                        is Action.MoveTo -> MoverAndTargetTags(action.mover, action.target)
+                        is Action.MoveWithin -> MoverAndTargetTags(action.mover, action.target)
                         is Action.Win -> Unit
                         is Action.Lose -> Unit
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MoverAndTargetTags(mover: TagFilter, target: TagFilter) {
+    Column {
+        LogicTagRow(mover.tags, GroupedTagSize)
+        LogicTagRow(target.tags, GroupedTagSize)
     }
 }
 
@@ -142,12 +133,35 @@ fun PreviewCard() {
             trigger = Trigger.Start,
             actions = listOf(
                 Action.MoveTo(
-                    mover = LogicTag(2),
-                    target = LogicTag(2),
+                    mover = TagFilter(LogicTag(2)),
+                    target = TagFilter(LogicTag(2)),
                     speed = null,
                 ),
                 Action.Move(
-                    mover = LogicTag(2),
+                    mover = TagFilter(LogicTag(2)),
+                    target = Direction.N,
+                    speed = 20,
+                ),
+            ),
+        ),
+    )
+}
+
+@Preview
+@Composable
+fun PreviewMultiTagCard() {
+    val tags = listOf(3, 20, 37, 54, 11).map(::LogicTag)
+    LogicCard(
+        logic = Logic(
+            trigger = Trigger.Start,
+            actions = listOf(
+                Action.MoveTo(
+                    mover = TagFilter(tags.take(2).toSet()),
+                    target = TagFilter(tags.toSet()),
+                    speed = null,
+                ),
+                Action.Move(
+                    mover = TagFilter(tags.take(4).toSet()),
                     target = Direction.N,
                     speed = 20,
                 ),

@@ -40,6 +40,7 @@ import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.IconButton
@@ -159,7 +160,7 @@ internal fun LogicBuilder(
 ) {
     val updater = handler as? LogicBuildHandler.Update
     val initialLogic = updater?.logic
-    val defaultTag = usedTags.firstOrNull() ?: LogicTag(0)
+    val defaultTag = TagFilter(usedTags.firstOrNull() ?: LogicTag(0))
     var trigger by remember(initialLogic) { mutableStateOf(initialLogic?.trigger) }
     var actions by remember(initialLogic) { mutableStateOf(initialLogic?.actions.orEmpty()) }
     var triggerLayout by remember(initialLogic) {
@@ -435,34 +436,28 @@ private fun TriggerParameters(
     ) {
         when (trigger) {
             Trigger.Start -> Unit
-            is Trigger.Press -> LogicTagPicker(
-                selectedTag = trigger.target,
-                onSelectTag = { it?.let { tag -> onChange(Trigger.Press(tag)) } },
-                usedTags = usedTags,
-                allowClear = false,
-            )
+            is Trigger.Press -> TagFilterPicker(trigger.target, usedTags) {
+                onChange(Trigger.Press(it))
+            }
 
-            is Trigger.Release -> LogicTagPicker(
-                selectedTag = trigger.target,
-                onSelectTag = { it?.let { tag -> onChange(Trigger.Release(tag)) } },
-                usedTags = usedTags,
-                allowClear = false,
-            )
+            is Trigger.Release -> TagFilterPicker(trigger.target, usedTags) {
+                onChange(Trigger.Release(it))
+            }
 
-            is Trigger.Collision -> {
-                LogicTagPicker(
-                    selectedTag = trigger.firstTarget,
-                    onSelectTag = { it?.let { tag -> onChange(trigger.copy(firstTarget = tag)) } },
-                    usedTags = usedTags,
-                    allowClear = false,
-                )
+            is Trigger.Collision -> Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    8.dp,
+                    Alignment.CenterHorizontally,
+                ),
+            ) {
+                TagFilterPicker(trigger.firstTarget, usedTags) {
+                    onChange(trigger.copy(firstTarget = it))
+                }
                 Canvas(Modifier.size(28.dp)) { drawCollisionIcon() }
-                LogicTagPicker(
-                    selectedTag = trigger.secondTarget,
-                    onSelectTag = { it?.let { tag -> onChange(trigger.copy(secondTarget = tag)) } },
-                    usedTags = usedTags,
-                    allowClear = false,
-                )
+                TagFilterPicker(trigger.secondTarget, usedTags) {
+                    onChange(trigger.copy(secondTarget = it))
+                }
             }
         }
     }
@@ -507,22 +502,9 @@ private fun EditableActionCard(
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    LogicTagPicker(
-                        action.mover,
-                        {
-                            it?.let { tag ->
-                                onChange(
-                                    Action.Move(
-                                        tag,
-                                        action.target,
-                                        action.speed,
-                                    ),
-                                )
-                            }
-                        },
-                        usedTags = usedTags,
-                        allowClear = false,
-                    )
+                    TagFilterPicker(action.mover, usedTags) {
+                        onChange(Action.Move(it, action.target, action.speed))
+                    }
                     IconButton(
                         "Change direction",
                         modifier = Modifier.size(48.dp),
@@ -567,11 +549,11 @@ private fun EditableActionCard(
 
 @Composable
 private fun TargetedMovementEditor(
-    mover: LogicTag,
-    target: LogicTag,
+    mover: TagFilter,
+    target: TagFilter,
     speed: Int?,
     usedTags: Set<LogicTag>,
-    createAction: (LogicTag, LogicTag, Int?) -> Action,
+    createAction: (TagFilter, TagFilter, Int?) -> Action,
     onChange: (Action) -> Unit,
 ) {
     Column(
@@ -587,19 +569,9 @@ private fun TargetedMovementEditor(
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LogicTagPicker(
-                mover,
-                { it?.let { tag -> onChange(createAction(tag, target, speed)) } },
-                usedTags = usedTags,
-                allowClear = false,
-            )
+            TagFilterPicker(mover, usedTags) { onChange(createAction(it, target, speed)) }
             Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
-            LogicTagPicker(
-                target,
-                { it?.let { tag -> onChange(createAction(mover, tag, speed)) } },
-                usedTags = usedTags,
-                allowClear = false,
-            )
+            TagFilterPicker(target, usedTags) { onChange(createAction(mover, it, speed)) }
         }
         SpeedControl(speed, allowInfinity = true) {
             onChange(createAction(mover, target, it))
@@ -611,6 +583,7 @@ private fun TargetedMovementEditor(
 private fun SpeedControl(
     speed: Int?,
     allowInfinity: Boolean = false,
+    modifier: Modifier = Modifier.padding(horizontal = 8.dp),
     onChange: (Int?) -> Unit,
 ) {
     IntegerSliderControl(
@@ -618,7 +591,7 @@ private fun SpeedControl(
         value = speed,
         maxValue = MaxActionSpeed,
         onValueChange = onChange,
-        modifier = Modifier.padding(horizontal = 8.dp),
+        modifier = modifier,
         activeColor = Palette.Black,
         allowInfinity = allowInfinity,
     )

@@ -42,15 +42,17 @@ data class World(
         } ?: addObject(obj)
     }
 
-    fun logicTagFor(objectId: Id): LogicTag? = logicTags.flip()[objectId]
+    fun logicTagsFor(objectId: Id): Set<LogicTag> = logicTags.flip()[objectId].orEmpty()
 
-    fun assignLogicTag(objectId: Id, logicTag: LogicTag?): World =
-        copy(
-            logicTags = if (logicTag != null) logicTags.add(
-                logicTag,
-                objectId,
-            ) else logicTags.remove(objectId),
-        )
+    fun assignLogicTag(objectId: Id, tag: LogicTag): World =
+        copy(logicTags = logicTags.add(tag, objectId))
+
+    fun toggleLogicTag(objectId: Id, tag: LogicTag): World =
+        if (tag in logicTagsFor(objectId)) {
+            copy(logicTags = logicTags.remove(tag, objectId))
+        } else {
+            assignLogicTag(objectId, tag)
+        }
 
     fun clamped(obj: Obj): Obj {
         val maxX = (WorldWidth - obj.sprite.width).coerceAtLeast(0).toFloat()

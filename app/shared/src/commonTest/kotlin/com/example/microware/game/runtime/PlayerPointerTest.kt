@@ -6,6 +6,7 @@ import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -52,7 +53,7 @@ class PlayerPointerTest {
             logics = pointerWinAndLose(tag),
             positions = mapOf(tag to Offset.Zero),
         )
-        player.objects.getValue(tag).velocity = Offset(1f, 0f)
+        player.tagged(tag).velocity = Offset(1f, 0f)
 
         player.press(Offset(2.5f, 0.5f))
         assertEquals(WinState.Playing, player.winState)
@@ -93,10 +94,10 @@ class PlayerPointerTest {
         val secondMover = LogicTag(3)
         val player = playerWithObjects(
             logics = listOf(
-                Logic(Trigger.Press(first), listOf(Action.Move(firstMover, Direction.E, speed = 2))),
-                Logic(Trigger.Press(second), listOf(Action.Move(secondMover, Direction.W, speed = 3))),
-                Logic(Trigger.Release(first), listOf(Action.Move(firstMover, Direction.N, speed = 4))),
-                Logic(Trigger.Release(second), listOf(Action.Move(secondMover, Direction.S, speed = 5))),
+                Logic(Trigger.Press(TagFilter(first)), listOf(Action.Move(TagFilter(firstMover), Direction.E, speed = 2))),
+                Logic(Trigger.Press(TagFilter(second)), listOf(Action.Move(TagFilter(secondMover), Direction.W, speed = 3))),
+                Logic(Trigger.Release(TagFilter(first)), listOf(Action.Move(TagFilter(firstMover), Direction.N, speed = 4))),
+                Logic(Trigger.Release(TagFilter(second)), listOf(Action.Move(TagFilter(secondMover), Direction.S, speed = 5))),
             ),
             positions = mapOf(
                 first to Offset.Zero,
@@ -107,12 +108,12 @@ class PlayerPointerTest {
         )
 
         player.press(Offset(0.5f, 0.5f))
-        assertEquals(Offset(2f, 0f), player.objects.getValue(firstMover).velocity)
-        assertEquals(Offset(-3f, 0f), player.objects.getValue(secondMover).velocity)
+        assertEquals(Offset(2f, 0f), player.tagged(firstMover).velocity)
+        assertEquals(Offset(-3f, 0f), player.tagged(secondMover).velocity)
 
         player.release()
-        assertEquals(Offset(0f, -4f), player.objects.getValue(firstMover).velocity)
-        assertEquals(Offset(0f, 5f), player.objects.getValue(secondMover).velocity)
+        assertEquals(Offset(0f, -4f), player.tagged(firstMover).velocity)
+        assertEquals(Offset(0f, 5f), player.tagged(secondMover).velocity)
     }
 
     @Test
@@ -133,8 +134,8 @@ class PlayerPointerTest {
     }
 
     private fun pointerWinAndLose(tag: LogicTag) = listOf(
-        Logic(Trigger.Press(tag), listOf(Action.Win)),
-        Logic(Trigger.Release(tag), listOf(Action.Lose)),
+        Logic(Trigger.Press(TagFilter(tag)), listOf(Action.Win)),
+        Logic(Trigger.Release(TagFilter(tag)), listOf(Action.Lose)),
     )
 
     private fun playerWithObjects(
@@ -142,9 +143,9 @@ class PlayerPointerTest {
         positions: Map<LogicTag, Offset>,
     ): Player {
         val bitmap = ImageBitmap(1, 1)
-        val objects = positions.mapValuesTo(mutableMapOf()) { (_, offset) ->
-            ObjectState(bitmap, offset, Offset.Zero)
-        }
+        val objects = positions.map { (tag, offset) -> ObjectState(bitmap, offset, setOf(tag)) }
         return Player(logics = logics, objects = objects)
     }
+
+    private fun Player.tagged(tag: LogicTag): ObjectState = objects.single { tag in it.tags }
 }

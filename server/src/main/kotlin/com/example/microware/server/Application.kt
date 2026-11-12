@@ -18,7 +18,9 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.query
 import io.ktor.server.routing.routing
+import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.uuid.Uuid
@@ -47,6 +49,7 @@ private fun prepareDb() {
         SchemaUtils.create(Tables.Obj)
     }
     migrateExperienceFlags()
+    migrateTagSets()
 }
 
 internal fun migrateExperienceFlags() {
@@ -55,6 +58,49 @@ internal fun migrateExperienceFlags() {
         exec("ALTER TABLE EXPERIENCE ADD COLUMN IF NOT EXISTS PUBLISHABLE BOOLEAN DEFAULT TRUE NOT NULL")
     }
 }
+
+private val legacyTagColumns = mapOf(
+    Tables.Obj.tags to "tag",
+    Tables.Trigger.tapTargetTags to "tapTarget",
+    Tables.Trigger.collisionFirstTargetTags to "collisionFirstTarget",
+    Tables.Trigger.collisionSecondTargetTags to "collisionSecondTarget",
+    Tables.Action.moveMoverTags to "moveMover",
+    Tables.Action.moveToMoverTags to "moveToMover",
+    Tables.Action.moveToTargetTags to "moveToTarget",
+    Tables.Action.moveWithinMoverTags to "moveWithinMover",
+    Tables.Action.moveWithinTargetTags to "moveWithinTarget",
+)
+
+/**
+ * Objects, triggers and actions used to reference a single tag each. Databases that predate tag
+ * sets gain the tag set columns, seeded from the single tag columns. Those are left in place but
+ * are no longer read or written.
+ */
+internal fun migrateTagSets() {
+    transaction {
+        for ((tagSet, legacyName) in legacyTagColumns) {
+            if (hasColumn(tagSet.table, tagSet.name)) continue
+
+            tagSet.createStatement().forEach { exec(it) }
+            if (hasColumn(tagSet.table, legacyName)) {
+                val legacyTag = db.identifierManager.quoteIdentifierWhenWrongCaseOrNecessary(legacyName)
+                exec(
+                    """
+                    UPDATE ${identity(tagSet.table)} SET ${identity(tagSet)} = ARRAY[$legacyTag]
+                    WHERE $legacyTag IS NOT NULL
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+}
+
+private fun JdbcTransaction.hasColumn(table: Table, name: String): Boolean = exec(
+    """
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE UPPER(TABLE_NAME) = UPPER('${table.tableName}') AND UPPER(COLUMN_NAME) = UPPER('$name')
+    """.trimIndent(),
+) { it.next() } == true
 
 fun Application.module() {
     install(ContentNegotiation) { json() }

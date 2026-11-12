@@ -7,6 +7,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.TagFilter
 
 internal fun DrawScope.drawAction(action: Action, t: Float = 0f) = when (action) {
     is Action.Move -> drawMoveIcon(action.target, t)
@@ -20,9 +21,9 @@ internal fun DrawScope.drawAction(action: Action, t: Float = 0f) = when (action)
 @Composable
 fun ActionIconsPreview() {
     Row {
-        Icon { drawAction(Action.Move(LogicTag(0), Direction.E, speed = 1)) }
-        Icon { drawAction(Action.MoveTo(LogicTag(0), LogicTag(1), speed = 1)) }
-        Icon { drawAction(Action.MoveWithin(LogicTag(0), LogicTag(1), speed = 1)) }
+        Icon { drawAction(Action.Move(TagFilter(LogicTag(0)), Direction.E, speed = 1)) }
+        Icon { drawAction(Action.MoveTo(TagFilter(LogicTag(0)), TagFilter(LogicTag(1)), speed = 1)) }
+        Icon { drawAction(Action.MoveWithin(TagFilter(LogicTag(0)), TagFilter(LogicTag(1)), speed = 1)) }
         Icon { drawAction(Action.Win) }
         Icon { drawAction(Action.Lose) }
     }
