@@ -77,6 +77,7 @@ internal data class GameStoredTrigger(
     val secondTags: Set<Int> = emptySet(),
     val firstTag: Int? = null,
     val secondTag: Int? = null,
+    val firstCount: Int = 1,
 )
 
 @Serializable
@@ -178,10 +179,14 @@ private fun Trigger.toStoredTrigger(): GameStoredTrigger = when (this) {
     Trigger.Start -> GameStoredTrigger(type = "start")
     is Trigger.Release -> GameStoredTrigger(type = "release", firstTags = target.toStoredTags())
     is Trigger.Press -> GameStoredTrigger(type = "press", firstTags = target.toStoredTags())
-    is Trigger.Collision -> GameStoredTrigger(
-        type = "collision",
+    is Trigger.Contact -> GameStoredTrigger(
+        type = when (this) {
+            is Trigger.Collision -> "collision"
+            is Trigger.Separation -> "separation"
+        },
         firstTags = firstTarget.toStoredTags(),
         secondTags = secondTarget.toStoredTags(),
+        firstCount = firstTargetCount,
     )
 }
 
@@ -192,6 +197,13 @@ private fun GameStoredTrigger.toTrigger(): Trigger = when (type) {
     "collision" -> Trigger.Collision(
         firstTarget = storedFilter(firstTags, firstTag),
         secondTarget = storedFilter(secondTags, secondTag),
+        firstTargetCount = firstCount,
+    )
+
+    "separation" -> Trigger.Separation(
+        firstTarget = storedFilter(firstTags, firstTag),
+        secondTarget = storedFilter(secondTags, secondTag),
+        firstTargetCount = firstCount,
     )
 
     else -> error("Unknown trigger type: $type")

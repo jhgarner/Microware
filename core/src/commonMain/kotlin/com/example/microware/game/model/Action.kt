@@ -34,8 +34,32 @@ sealed interface Trigger {
     @Serializable
     data class Press(val target: TagFilter) : Trigger
 
+    /**
+     * An object matching [secondTarget] is in contact while it touches at least
+     * [firstTargetCount] objects matching [firstTarget].
+     */
     @Serializable
-    data class Collision(val firstTarget: TagFilter, val secondTarget: TagFilter) : Trigger
+    sealed interface Contact : Trigger {
+        val firstTarget: TagFilter
+        val secondTarget: TagFilter
+        val firstTargetCount: Int
+    }
+
+    /** Fires once for each object that comes into contact. */
+    @Serializable
+    data class Collision(
+        override val firstTarget: TagFilter,
+        override val secondTarget: TagFilter,
+        override val firstTargetCount: Int = 1,
+    ) : Contact
+
+    /** Fires once for each object that stops being in contact. */
+    @Serializable
+    data class Separation(
+        override val firstTarget: TagFilter,
+        override val secondTarget: TagFilter,
+        override val firstTargetCount: Int = 1,
+    ) : Contact
 }
 
 @Serializable

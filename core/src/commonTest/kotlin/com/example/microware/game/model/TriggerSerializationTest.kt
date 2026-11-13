@@ -37,6 +37,25 @@ class TriggerSerializationTest {
     }
 
     @Test
+    fun collisionsSavedBeforeObjectCountsNeedOneObject() {
+        val encoded =
+            """{"type":"com.example.microware.game.model.Trigger.Collision","firstTarget":{"tag":1},"secondTarget":{"tag":2}}"""
+
+        assertEquals(1, (Json.decodeFromString<Trigger>(encoded) as Trigger.Collision).firstTargetCount)
+    }
+
+    @Test
+    fun separationAndItsObjectCountRoundTrip() {
+        val trigger: Trigger = Trigger.Separation(
+            TagFilter(LogicTag(1)),
+            TagFilter(LogicTag(2)),
+            firstTargetCount = 3,
+        )
+
+        assertEquals(trigger, Json.decodeFromString<Trigger>(Json.encodeToString(trigger)))
+    }
+
+    @Test
     fun togglingNeverEmptiesAFilter() {
         val filter = TagFilter(LogicTag(1))
 

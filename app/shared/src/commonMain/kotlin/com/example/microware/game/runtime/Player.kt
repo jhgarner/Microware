@@ -228,14 +228,25 @@ class Player(
                 }
             }
         }
-        val started = currentOverlaps - overlaps
+        val previousOverlaps = overlaps
         overlaps = currentOverlaps
 
         for (logic in logics) {
-            val trigger = logic.trigger as? Trigger.Collision ?: continue
-            if (started.any { it.matches(trigger) }) runActions(logic)
+            val trigger = logic.trigger as? Trigger.Contact ?: continue
+            val wereInContact = previousOverlaps.targetsInContact(trigger)
+            val areInContact = currentOverlaps.targetsInContact(trigger)
+            val triggeredTargets = when (trigger) {
+                is Trigger.Collision -> areInContact - wereInContact
+                is Trigger.Separation -> wereInContact - areInContact
+            }
+            repeat(triggeredTargets.size) { runActions(logic) }
         }
     }
+
+    private fun Set<Overlap>.targetsInContact(trigger: Trigger.Contact): Set<ObjectState> =
+        matching(trigger.secondTarget).filterTo(mutableSetOf()) { target ->
+            count { it.joins(target, trigger.firstTarget) } >= trigger.firstTargetCount
+        }
 
     @Composable
     fun PlayGame(
@@ -375,9 +386,8 @@ class Player(
 }
 
 private data class Overlap(val first: ObjectState, val second: ObjectState) {
-    fun matches(trigger: Trigger.Collision): Boolean =
-        first.matches(trigger.firstTarget) && second.matches(trigger.secondTarget) ||
-            first.matches(trigger.secondTarget) && second.matches(trigger.firstTarget)
+    fun joins(target: ObjectState, other: TagFilter): Boolean =
+        first === target && second.matches(other) || second === target && first.matches(other)
 }
 
 private data class GameFrame(

@@ -50,6 +50,7 @@ private fun prepareDb() {
     }
     migrateExperienceFlags()
     migrateTagSets()
+    migrateCollisionCounts()
 }
 
 internal fun migrateExperienceFlags() {
@@ -92,6 +93,14 @@ internal fun migrateTagSets() {
                 )
             }
         }
+    }
+}
+
+/** Collisions that predate object counts keep firing for a single object. */
+internal fun migrateCollisionCounts() {
+    transaction {
+        val count = Tables.Trigger.collisionFirstTargetCount
+        if (!hasColumn(count.table, count.name)) count.createStatement().forEach { exec(it) }
     }
 }
 

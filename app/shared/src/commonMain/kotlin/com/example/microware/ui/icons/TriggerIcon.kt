@@ -13,6 +13,7 @@ internal fun DrawScope.drawTrigger(trigger: Trigger) = when (trigger) {
     is Trigger.Press -> drawDownIcon()
     is Trigger.Release -> drawTapIcon()
     is Trigger.Collision -> drawCollisionIcon()
+    is Trigger.Separation -> drawSeparationIcon()
 }
 
 @Preview
@@ -23,5 +24,6 @@ fun TriggerIconsPreview() {
         Icon { drawTrigger(Trigger.Press(TagFilter(LogicTag(0)))) }
         Icon { drawTrigger(Trigger.Release(TagFilter(LogicTag(0)))) }
         Icon { drawTrigger(Trigger.Collision(TagFilter(LogicTag(0)), TagFilter(LogicTag(1)))) }
+        Icon { drawTrigger(Trigger.Separation(TagFilter(LogicTag(0)), TagFilter(LogicTag(1)))) }
     }
 }

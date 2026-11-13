@@ -117,5 +117,17 @@ class GamePersistenceTest {
         assertEquals(both, (game.logics.single().actions.single() as Action.Move).mover)
     }
 
+    @Test
+    fun separationAndItsObjectCountSurviveSaving() {
+        val trigger = Trigger.Separation(
+            TagFilter(LogicTag(1)),
+            TagFilter(LogicTag(2)),
+            firstTargetCount = 3,
+        )
+        val stored = Json.encodeToString(Logic(trigger, emptyList()).toStoredLogic())
+
+        assertEquals(trigger, Json.decodeFromString<GameStoredLogic>(stored).toLogic().trigger)
+    }
+
     private val storedSprite = Json.encodeToString(SpriteCodec.encode(Sprite.empty(1, 1)))
 }

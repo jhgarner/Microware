@@ -168,7 +168,7 @@ class DaoTest {
                 ),
                 logics = listOf(
                     Model.Logic(
-                        Trigger.Collision(both, TagFilter(LogicTag(3))),
+                        Trigger.Separation(both, TagFilter(LogicTag(3)), firstTargetCount = 4),
                         listOf(Action.MoveTo(both, TagFilter(LogicTag(3)), speed = null)),
                     ),
                 ),
@@ -257,6 +257,8 @@ class DaoTest {
 
             migrateTagSets()
             migrateTagSets()
+            migrateCollisionCounts()
+            migrateCollisionCounts()
 
             val migrated = Dao.experiences(user, communityId).single().games.single()
             assertEquals(listOf(setOf(5), emptySet()), migrated.world.objects.map { it.tags })

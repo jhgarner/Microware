@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
@@ -44,6 +48,7 @@ import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.IconButton
+import com.example.microware.ui.components.IconPopupButton
 import com.example.microware.ui.components.IntegerSliderControl
 import com.example.microware.ui.components.IntegerSliderDimension
 import com.example.microware.ui.components.TrashGap
@@ -54,10 +59,13 @@ import com.example.microware.ui.icons.drawCollisionIcon
 import com.example.microware.ui.icons.drawDirectionIcon
 import com.example.microware.ui.icons.drawDownArrowIcon
 import com.example.microware.ui.icons.drawDownIcon
+import com.example.microware.ui.icons.drawLogicTags
 import com.example.microware.ui.icons.drawLoseIcon
 import com.example.microware.ui.icons.drawMoveIcon
 import com.example.microware.ui.icons.drawMoveToIcon
 import com.example.microware.ui.icons.drawMoveWithinIcon
+import com.example.microware.ui.icons.drawNumberIcon
+import com.example.microware.ui.icons.drawSeparationIcon
 import com.example.microware.ui.icons.drawStartIcon
 import com.example.microware.ui.icons.drawTapIcon
 import com.example.microware.ui.icons.drawTrashIcon
@@ -77,6 +85,7 @@ sealed interface LogicEditorPage {
 }
 
 private const val MaxActionSpeed = 3000
+private const val MaxCollisionCount = 100
 
 internal class LogicEditorState {
     val dragController = DragController<Logic>()
@@ -195,7 +204,7 @@ internal fun LogicBuilder(
         val compactButtonSize = 48.dp
         val compactRowHeight = compactButtonSize
         val largeButtonSize = minOf(
-            (maxWidth - largeTriggerSpacing * 3) / 4,
+            (maxWidth - largeTriggerSpacing * 4) / 5,
             maxHeight,
         )
         val initialTriggerAreaHeight = if (detailsVisible) compactRowHeight else largeButtonSize
@@ -259,6 +268,9 @@ internal fun LogicBuilder(
                 onReleaseSelected = { updateTrigger(Trigger.Release(defaultTag)) },
                 onCollisionSelected = {
                     updateTrigger(Trigger.Collision(defaultTag, defaultTag))
+                },
+                onSeparationSelected = {
+                    updateTrigger(Trigger.Separation(defaultTag, defaultTag))
                 },
             )
 
@@ -360,6 +372,7 @@ private fun TriggerButtons(
     onPressSelected: () -> Unit,
     onReleaseSelected: () -> Unit,
     onCollisionSelected: () -> Unit,
+    onSeparationSelected: () -> Unit,
 ) {
     val buttonModifier = if (layout == TriggerLayout.Large) {
         Modifier.size(buttonWidth, buttonHeight)
@@ -403,6 +416,13 @@ private fun TriggerButtons(
             onClick = onCollisionSelected,
             icon = { drawCollisionIcon(it) },
         )
+        TriggerButton(
+            description = "Separation trigger",
+            selected = trigger is Trigger.Separation,
+            modifier = buttonModifier,
+            onClick = onSeparationSelected,
+            icon = { drawSeparationIcon(it) },
+        )
     }
 }
 
@@ -444,22 +464,65 @@ private fun TriggerParameters(
                 onChange(Trigger.Release(it))
             }
 
-            is Trigger.Collision -> Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(
-                    8.dp,
-                    Alignment.CenterHorizontally,
-                ),
-            ) {
-                TagFilterPicker(trigger.firstTarget, usedTags) {
-                    onChange(trigger.copy(firstTarget = it))
-                }
-                Canvas(Modifier.size(28.dp)) { drawCollisionIcon() }
-                TagFilterPicker(trigger.secondTarget, usedTags) {
-                    onChange(trigger.copy(secondTarget = it))
-                }
-            }
+            is Trigger.Collision -> ContactParameters(
+                trigger = trigger,
+                usedTags = usedTags,
+                icon = { drawCollisionIcon() },
+                createTrigger = Trigger::Collision,
+                onChange = onChange,
+            )
+
+            is Trigger.Separation -> ContactParameters(
+                trigger = trigger,
+                usedTags = usedTags,
+                icon = { drawSeparationIcon() },
+                createTrigger = Trigger::Separation,
+                onChange = onChange,
+            )
         }
+    }
+}
+
+@Composable
+private fun ContactParameters(
+    trigger: Trigger.Contact,
+    usedTags: Set<LogicTag>,
+    icon: DrawScope.() -> Unit,
+    createTrigger: (TagFilter, TagFilter, Int) -> Trigger,
+    onChange: (Trigger) -> Unit,
+) {
+    fun change(
+        firstTarget: TagFilter = trigger.firstTarget,
+        secondTarget: TagFilter = trigger.secondTarget,
+        count: Int = trigger.firstTargetCount,
+    ) = onChange(createTrigger(firstTarget, secondTarget, count))
+
+    ContactCountPicker(trigger.firstTargetCount, trigger.firstTarget) { change(count = it) }
+    TagFilterPicker(trigger.firstTarget, usedTags) { change(firstTarget = it) }
+    Canvas(Modifier.size(28.dp), onDraw = icon)
+    TagFilterPicker(trigger.secondTarget, usedTags) { change(secondTarget = it) }
+}
+
+@Composable
+private fun ContactCountPicker(
+    count: Int,
+    counted: TagFilter,
+    onChange: (Int) -> Unit,
+) {
+    val textMeasurer = rememberTextMeasurer()
+    IconPopupButton(
+        description = "Colliding objects needed: $count",
+        modifier = Modifier.size(48.dp),
+        icon = { drawNumberIcon(count, textMeasurer) },
+    ) {
+        IntegerSliderControl(
+            label = "Colliding objects needed",
+            value = count,
+            maxValue = MaxCollisionCount,
+            onValueChange = { onChange(it!!) },
+            modifier = Modifier.width(280.dp).padding(8.dp),
+            activeColor = Palette.Black,
+        ) { drawLogicTags(counted.tags) }
     }
 }
 
@@ -611,5 +674,22 @@ private fun ActionButton(choice: ActionChoice, onClick: () -> Unit) {
             ActionChoice.Win -> drawWinIcon(time)
             ActionChoice.Lose -> drawLoseIcon()
         }
+    }
+}
+
+@Preview(widthDp = 360)
+@Composable
+fun CollisionTriggerParametersPreview() {
+    var trigger: Trigger by remember {
+        mutableStateOf(
+            Trigger.Collision(
+                firstTarget = TagFilter(LogicTag(0), LogicTag(5)),
+                secondTarget = TagFilter(LogicTag(9)),
+                firstTargetCount = 2,
+            ),
+        )
+    }
+    Box(Modifier.background(Palette.OffWhite.color)) {
+        TriggerParameters(trigger, usedTags = emptySet()) { trigger = it }
     }
 }

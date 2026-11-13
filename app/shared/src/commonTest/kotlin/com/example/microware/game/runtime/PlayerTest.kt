@@ -250,6 +250,163 @@ class PlayerTest {
     }
 
     @Test
+    fun collisionWaitsForTheRequiredNumberOfObjectsToTouchTheSameTarget() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val firstTriangle = taggedObject(triangle, at = Offset(10f, 0f))
+        val secondTriangle = taggedObject(triangle, at = Offset(20f, 0f))
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Collision(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                    listOf(Action.Win),
+                ),
+            ),
+            objects = listOf(firstTriangle, secondTriangle, taggedObject(circle)),
+        )
+
+        firstTriangle.offset = Offset(.5f, 0f)
+        player.step(4)
+        assertEquals(WinState.Playing, player.winState)
+
+        secondTriangle.offset = Offset(-.5f, 0f)
+        player.step(4)
+        assertEquals(WinState.Won, player.winState)
+    }
+
+    @Test
+    fun collisionFiresOnceWhenFurtherObjectsJoinAfterTheCountIsMet() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val latecomer = taggedObject(triangle, at = Offset(10f, 0f))
+        val player = Player(
+            logics = listOf(
+                Logic(Trigger.Collision(TagFilter(triangle), TagFilter(circle)), listOf(Action.Win)),
+            ),
+            objects = listOf(taggedObject(triangle), latecomer, taggedObject(circle)),
+        )
+        player.step(4)
+        assertEquals(WinState.Won, player.winState)
+
+        player.winState = WinState.Playing
+        latecomer.offset = Offset(.5f, 0f)
+        player.step(4)
+
+        assertEquals(WinState.Playing, player.winState)
+    }
+
+    @Test
+    fun separationFiresWhenATargetDropsBelowTheRequiredCount() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val firstTriangle = taggedObject(triangle)
+        val secondTriangle = taggedObject(triangle, at = Offset(.5f, 0f))
+        val thirdTriangle = taggedObject(triangle, at = Offset(-.5f, 0f))
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Separation(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                    listOf(Action.Lose),
+                ),
+            ),
+            objects = listOf(firstTriangle, secondTriangle, thirdTriangle, taggedObject(circle)),
+        )
+        player.step(4)
+
+        thirdTriangle.offset = Offset(10f, 0f)
+        player.step(4)
+        assertEquals(WinState.Playing, player.winState)
+
+        secondTriangle.offset = Offset(20f, 0f)
+        player.step(4)
+        assertEquals(WinState.Lost, player.winState)
+
+        player.winState = WinState.Playing
+        firstTriangle.offset = Offset(30f, 0f)
+        player.step(4)
+        assertEquals(WinState.Playing, player.winState)
+    }
+
+    @Test
+    fun separationNeedsTheCountToHaveBeenMetFirst() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val onlyTriangle = taggedObject(triangle)
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Separation(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                    listOf(Action.Lose),
+                ),
+            ),
+            objects = listOf(onlyTriangle, taggedObject(circle)),
+        )
+        player.step(4)
+
+        onlyTriangle.offset = Offset(10f, 0f)
+        player.step(4)
+
+        assertEquals(WinState.Playing, player.winState)
+    }
+
+    @Test
+    fun collisionCountsObjectsPerTargetRatherThanAcrossTargets() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Collision(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                    listOf(Action.Win),
+                ),
+            ),
+            objects = listOf(
+                taggedObject(triangle, at = Offset(.5f, 0f)),
+                taggedObject(circle),
+                taggedObject(triangle, at = Offset(10.5f, 0f)),
+                taggedObject(circle, at = Offset(10f, 0f)),
+            ),
+        )
+
+        player.step(4)
+
+        assertEquals(WinState.Playing, player.winState)
+    }
+
+    @Test
+    fun collisionRunsItsActionsOncePerTargetTouchingEnoughObjects() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val bystander = LogicTag(2)
+        var moves = 0
+        val countingRandom = object : Random() {
+            override fun nextBits(bitCount: Int): Int = 0
+            override fun nextInt(until: Int): Int = 0.also { moves++ }
+        }
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Collision(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                    listOf(Action.MoveTo(TagFilter(bystander), TagFilter(bystander), speed = null)),
+                ),
+            ),
+            objects = listOf(
+                taggedObject(circle),
+                taggedObject(circle, at = Offset(.5f, 0f)),
+                taggedObject(triangle, at = Offset(.2f, .5f)),
+                taggedObject(triangle, at = Offset(.3f, .5f)),
+                taggedObject(triangle, at = Offset(.4f, .5f)),
+                taggedObject(bystander, at = Offset(50f, 50f)),
+            ),
+            random = countingRandom,
+        )
+
+        player.step(4)
+
+        assertEquals(2, moves)
+    }
+
+    @Test
     fun pressOnlyTriggersForObjectsCarryingAllOfTheFilterTags() {
         val red = LogicTag(0)
         val round = LogicTag(1)

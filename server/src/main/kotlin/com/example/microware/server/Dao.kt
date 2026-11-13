@@ -513,10 +513,14 @@ object Dao {
                     3
                 }
 
-                is Trigger.Collision -> {
+                is Trigger.Contact -> {
                     it[collisionFirstTargetTags] = trigger.firstTarget.toColumn()
                     it[collisionSecondTargetTags] = trigger.secondTarget.toColumn()
-                    2
+                    it[collisionFirstTargetCount] = trigger.firstTargetCount
+                    when (trigger) {
+                        is Trigger.Collision -> 2
+                        is Trigger.Separation -> 4
+                    }
                 }
             }
         }
@@ -585,8 +589,14 @@ private fun ResultRow.toTrigger(): Trigger = when (this[Tables.Trigger.variant])
     2 -> Trigger.Collision(
         firstTarget = this[Tables.Trigger.collisionFirstTargetTags].toTagFilter(),
         secondTarget = this[Tables.Trigger.collisionSecondTargetTags].toTagFilter(),
+        firstTargetCount = this[Tables.Trigger.collisionFirstTargetCount],
     )
     3 -> Trigger.Press(this[Tables.Trigger.tapTargetTags].toTagFilter())
+    4 -> Trigger.Separation(
+        firstTarget = this[Tables.Trigger.collisionFirstTargetTags].toTagFilter(),
+        secondTarget = this[Tables.Trigger.collisionSecondTargetTags].toTagFilter(),
+        firstTargetCount = this[Tables.Trigger.collisionFirstTargetCount],
+    )
 
     else -> error("Unknown trigger variant")
 }

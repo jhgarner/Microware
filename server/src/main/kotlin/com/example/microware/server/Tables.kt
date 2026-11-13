@@ -78,6 +78,7 @@ object Tables {
         val tapTargetTags = tagSet("tapTargetTags")
         val collisionFirstTargetTags = tagSet("collisionFirstTargetTags")
         val collisionSecondTargetTags = tagSet("collisionSecondTargetTags")
+        val collisionFirstTargetCount = integer("collisionFirstTargetCount").default(1)
     }
 
     object Action : Table() {
