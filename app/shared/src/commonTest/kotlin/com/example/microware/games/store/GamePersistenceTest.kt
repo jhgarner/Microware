@@ -6,6 +6,7 @@ import com.example.microware.game.model.Game
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Obj
+import com.example.microware.game.model.Parameter
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.World
@@ -127,6 +128,20 @@ class GamePersistenceTest {
         val stored = Json.encodeToString(Logic(trigger, emptyList()).toStoredLogic())
 
         assertEquals(trigger, Json.decodeFromString<GameStoredLogic>(stored).toLogic().trigger)
+    }
+
+    @Test
+    fun actionParametersSurviveSaving() {
+        val logic = Logic(
+            Trigger.Press(TagFilter(LogicTag(1))),
+            listOf(Action.MoveTo(Parameter.Tapped, TagFilter(LogicTag(2)), speed = null)),
+        )
+        val stored = Json.encodeToString(logic.toStoredLogic())
+
+        val action = Json.decodeFromString<GameStoredLogic>(stored).toLogic().actions.single() as Action.MoveTo
+
+        assertEquals(Parameter.Tapped, action.mover)
+        assertEquals(TagFilter(LogicTag(2)), action.target)
     }
 
     private val storedSprite = Json.encodeToString(SpriteCodec.encode(Sprite.empty(1, 1)))

@@ -15,9 +15,12 @@ import com.example.microware.core.Model.World
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Parameter
+import com.example.microware.game.model.Selector
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import org.jetbrains.exposed.v1.core.Alias
+import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -533,6 +536,7 @@ object Dao {
                     Action.Lose -> 1
                     is Action.Move -> {
                         it[moveMoverTags] = action.mover.toColumn()
+                        it[moveMoverParameter] = action.mover as? Parameter
                         it[moveTarget] = action.target.ordinal
                         it[moveSpeed] = action.speed
                         2
@@ -540,14 +544,18 @@ object Dao {
 
                     is Action.MoveTo -> {
                         it[moveToMoverTags] = action.mover.toColumn()
+                        it[moveToMoverParameter] = action.mover as? Parameter
                         it[moveToTargetTags] = action.target.toColumn()
+                        it[moveToTargetParameter] = action.target as? Parameter
                         it[moveToSpeed] = action.speed
                         3
                     }
 
                     is Action.MoveWithin -> {
                         it[moveWithinMoverTags] = action.mover.toColumn()
+                        it[moveWithinMoverParameter] = action.mover as? Parameter
                         it[moveWithinTargetTags] = action.target.toColumn()
+                        it[moveWithinTargetParameter] = action.target as? Parameter
                         it[moveWithinSpeed] = action.speed
                         4
                     }
@@ -583,6 +591,11 @@ private fun TagFilter.toColumn(): List<Int> = tags.map(LogicTag::tag)
 
 private fun List<Int>.toTagFilter() = TagFilter(map(::LogicTag).toSet())
 
+private fun Selector.toColumn(): List<Int> = (this as? TagFilter)?.toColumn().orEmpty()
+
+private fun ResultRow.selector(parameter: Column<Parameter?>, tags: Column<List<Int>>): Selector =
+    this[parameter] ?: this[tags].toTagFilter()
+
 private fun ResultRow.toTrigger(): Trigger = when (this[Tables.Trigger.variant]) {
     0 -> Trigger.Start
     1 -> Trigger.Release(this[Tables.Trigger.tapTargetTags].toTagFilter())
@@ -605,20 +618,20 @@ private fun ResultRow.toAction(): Action = when (this[Tables.Action.variant]) {
     0 -> Action.Win
     1 -> Action.Lose
     2 -> Action.Move(
-        mover = this[Tables.Action.moveMoverTags].toTagFilter(),
+        mover = selector(Tables.Action.moveMoverParameter, Tables.Action.moveMoverTags),
         target = Direction.entries[this[Tables.Action.moveTarget]!!],
         speed = this[Tables.Action.moveSpeed]!!,
     )
 
     3 -> Action.MoveTo(
-        mover = this[Tables.Action.moveToMoverTags].toTagFilter(),
-        target = this[Tables.Action.moveToTargetTags].toTagFilter(),
+        mover = selector(Tables.Action.moveToMoverParameter, Tables.Action.moveToMoverTags),
+        target = selector(Tables.Action.moveToTargetParameter, Tables.Action.moveToTargetTags),
         speed = this[Tables.Action.moveToSpeed],
     )
 
     4 -> Action.MoveWithin(
-        mover = this[Tables.Action.moveWithinMoverTags].toTagFilter(),
-        target = this[Tables.Action.moveWithinTargetTags].toTagFilter(),
+        mover = selector(Tables.Action.moveWithinMoverParameter, Tables.Action.moveWithinMoverTags),
+        target = selector(Tables.Action.moveWithinTargetParameter, Tables.Action.moveWithinTargetTags),
         speed = this[Tables.Action.moveWithinSpeed],
     )
 

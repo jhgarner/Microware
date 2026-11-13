@@ -50,7 +50,7 @@ private fun prepareDb() {
     }
     migrateExperienceFlags()
     migrateTagSets()
-    migrateCollisionCounts()
+    migrateAddedColumns()
 }
 
 internal fun migrateExperienceFlags() {
@@ -96,11 +96,25 @@ internal fun migrateTagSets() {
     }
 }
 
-/** Collisions that predate object counts keep firing for a single object. */
-internal fun migrateCollisionCounts() {
+private val addedColumns = listOf(
+    Tables.Trigger.collisionFirstTargetCount,
+    Tables.Action.moveMoverParameter,
+    Tables.Action.moveToMoverParameter,
+    Tables.Action.moveToTargetParameter,
+    Tables.Action.moveWithinMoverParameter,
+    Tables.Action.moveWithinTargetParameter,
+)
+
+/**
+ * Databases that predate collision counts and action parameters gain their columns. Existing
+ * collisions need one object and existing actions keep selecting by tag.
+ */
+internal fun migrateAddedColumns() {
     transaction {
-        val count = Tables.Trigger.collisionFirstTargetCount
-        if (!hasColumn(count.table, count.name)) count.createStatement().forEach { exec(it) }
+        addedColumns
+            .filterNot { hasColumn(it.table, it.name) }
+            .flatMap { it.createStatement() }
+            .forEach { exec(it) }
     }
 }
 

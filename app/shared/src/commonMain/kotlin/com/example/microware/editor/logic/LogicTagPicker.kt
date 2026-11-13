@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -95,6 +96,8 @@ fun LogicTagPicker(
     onToggleTag: (LogicTag) -> Unit,
     modifier: Modifier = Modifier,
     usedTags: Set<LogicTag> = allLogicTags.toSet(),
+    selectedIcon: (DrawScope.() -> Unit)? = null,
+    parameters: @Composable () -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     var unusedExpanded by remember { mutableStateOf(false) }
@@ -118,10 +121,10 @@ fun LogicTagPicker(
             border = logicTagBorder,
             contentPadding = PaddingValues(0.dp),
         ) {
-            if (selectedTags.isEmpty()) {
-                ScrollingLogicTagBackground(Modifier.fillMaxSize())
-            } else {
-                Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
+            when {
+                selectedIcon != null -> Canvas(Modifier.fillMaxSize().padding(4.dp), selectedIcon)
+                selectedTags.isEmpty() -> ScrollingLogicTagBackground(Modifier.fillMaxSize())
+                else -> Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
                     drawLogicTags(selectedTags)
                 }
             }
@@ -133,6 +136,7 @@ fun LogicTagPicker(
             modifier = Modifier.width(280.dp),
         ) {
             Column(Modifier.width(280.dp).padding(8.dp)) {
+                parameters()
                 if (preferredTags.isNotEmpty()) {
                     LogicTagGrid(
                         tags = preferredTags,
@@ -246,11 +250,11 @@ private fun LogicTagGrid(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(items = tags, key = { it.tag }) { tag ->
-            LogicTagOption(
-                tag = tag,
+            PickerOption(
+                description = "Logic tag",
                 selected = tag in selectedTags,
                 onClick = { onToggleTag(tag) },
-            )
+            ) { drawLogicTag(tag) }
         }
     }
 }
@@ -258,25 +262,25 @@ private fun LogicTagGrid(
 private fun gridHeight(optionCount: Int) = ((optionCount + 5) / 6 * 44).coerceAtMost(220).dp
 
 @Composable
-private fun LogicTagOption(
-    tag: LogicTag,
+internal fun PickerOption(
+    description: String,
     selected: Boolean,
     onClick: () -> Unit,
+    selectedColor: Palette = Palette.Cyan,
+    icon: DrawScope.() -> Unit,
 ) {
     Box(
         modifier = Modifier
             .size(40.dp)
             .background(
-                color = if (selected) Palette.Cyan.color else Palette.OffWhite.color,
+                color = if (selected) selectedColor.color else Palette.OffWhite.color,
                 shape = RectangleShape,
             )
             .border(1.dp, Color.Black, RectangleShape)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "Logic tag" },
+            .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.fillMaxSize().padding(6.dp)) {
-            drawLogicTag(tag)
-        }
+        Canvas(Modifier.fillMaxSize().padding(6.dp), icon)
     }
 }

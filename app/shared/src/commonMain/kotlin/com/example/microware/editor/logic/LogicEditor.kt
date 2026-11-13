@@ -44,8 +44,11 @@ import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Parameter
+import com.example.microware.game.model.Selector
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
+import com.example.microware.game.model.parameters
 import com.example.microware.ui.components.HandleSize
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.IconPopupButton
@@ -180,7 +183,12 @@ internal fun LogicBuilder(
     fun updateTrigger(trigger: Trigger) {
         when (handler) {
             is LogicBuildHandler.New -> handler.new(trigger)
-            is LogicBuildHandler.Update -> handler.update { logic -> logic.copy(trigger = trigger) }
+            is LogicBuildHandler.Update -> handler.update { logic ->
+                logic.copy(
+                    trigger = trigger,
+                    actions = logic.actions.map { it.keepingParametersOf(trigger, defaultTag) },
+                )
+            }
         }
     }
 
@@ -280,13 +288,12 @@ internal fun LogicBuilder(
                 enter = fadeIn(animationSpec = tween(durationMillis = 180)),
             ) {
                 Column(Modifier.fillMaxSize()) {
-                    trigger?.let { selectedTrigger ->
-                        TriggerParameters(
-                            selectedTrigger,
-                            usedTags,
-                        ) { updateTrigger(it) }
-                        Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
-                    }
+                    val selectedTrigger = trigger ?: return@Column
+                    TriggerParameters(
+                        selectedTrigger,
+                        usedTags,
+                    ) { updateTrigger(it) }
+                    Canvas(Modifier.fillMaxWidth().height(24.dp)) { drawDownArrowIcon() }
 
                     LazyColumn(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -296,6 +303,7 @@ internal fun LogicBuilder(
                         itemsIndexed(actions) { index, action ->
                             EditableActionCard(
                                 action = action,
+                                trigger = selectedTrigger,
                                 usedTags = usedTags,
                                 onChange = { changed ->
                                     updateActions(
@@ -529,6 +537,7 @@ private fun ContactCountPicker(
 @Composable
 private fun EditableActionCard(
     action: Action,
+    trigger: Trigger,
     usedTags: Set<LogicTag>,
     onChange: (Action) -> Unit,
     onDelete: () -> Unit,
@@ -565,7 +574,7 @@ private fun EditableActionCard(
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TagFilterPicker(action.mover, usedTags) {
+                    SelectorPicker(action.mover, trigger, usedTags) {
                         onChange(Action.Move(it, action.target, action.speed))
                     }
                     IconButton(
@@ -591,6 +600,7 @@ private fun EditableActionCard(
                 mover = action.mover,
                 target = action.target,
                 speed = action.speed,
+                trigger = trigger,
                 usedTags = usedTags,
                 createAction = Action::MoveTo,
                 onChange = onChange,
@@ -600,6 +610,7 @@ private fun EditableActionCard(
                 mover = action.mover,
                 target = action.target,
                 speed = action.speed,
+                trigger = trigger,
                 usedTags = usedTags,
                 createAction = Action::MoveWithin,
                 onChange = onChange,
@@ -612,11 +623,12 @@ private fun EditableActionCard(
 
 @Composable
 private fun TargetedMovementEditor(
-    mover: TagFilter,
-    target: TagFilter,
+    mover: Selector,
+    target: Selector,
     speed: Int?,
+    trigger: Trigger,
     usedTags: Set<LogicTag>,
-    createAction: (TagFilter, TagFilter, Int?) -> Action,
+    createAction: (Selector, Selector, Int?) -> Action,
     onChange: (Action) -> Unit,
 ) {
     Column(
@@ -632,13 +644,25 @@ private fun TargetedMovementEditor(
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TagFilterPicker(mover, usedTags) { onChange(createAction(it, target, speed)) }
+            SelectorPicker(mover, trigger, usedTags) { onChange(createAction(it, target, speed)) }
             Canvas(Modifier.size(18.dp)) { drawArrowIcon() }
-            TagFilterPicker(target, usedTags) { onChange(createAction(mover, it, speed)) }
+            SelectorPicker(target, trigger, usedTags) { onChange(createAction(mover, it, speed)) }
         }
         SpeedControl(speed, allowInfinity = true) {
             onChange(createAction(mover, target, it))
         }
+    }
+}
+
+/** Parameters that [trigger] does not offer are replaced by [fallback]. */
+private fun Action.keepingParametersOf(trigger: Trigger, fallback: TagFilter): Action {
+    fun Selector.kept() = if (this is Parameter && this !in trigger.parameters) fallback else this
+
+    return when (this) {
+        is Action.Move -> Action.Move(mover.kept(), target, speed)
+        is Action.MoveTo -> Action.MoveTo(mover.kept(), target.kept(), speed)
+        is Action.MoveWithin -> Action.MoveWithin(mover.kept(), target.kept(), speed)
+        Action.Win, Action.Lose -> this
     }
 }
 

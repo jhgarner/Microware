@@ -13,7 +13,7 @@ import kotlin.jvm.JvmInline
 value class TagFilter(
     @Serializable(with = TagSetSerializer::class)
     val tags: Set<LogicTag>,
-) {
+) : Selector {
     constructor(vararg tags: LogicTag) : this(tags.toSet())
 
     init {

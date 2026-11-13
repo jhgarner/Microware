@@ -6,14 +6,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface Action {
     @Serializable
-    class Move(val mover: TagFilter, val target: Direction, val speed: Int) : Action
+    class Move(val mover: Selector, val target: Direction, val speed: Int) : Action
 
     // If the speed is null, the mover will instantly teleport to its destination.
     @Serializable
-    class MoveTo(val mover: TagFilter, val target: TagFilter, val speed: Int?) : Action
+    class MoveTo(val mover: Selector, val target: Selector, val speed: Int?) : Action
 
     @Serializable
-    class MoveWithin(val mover: TagFilter, val target: TagFilter, val speed: Int?) : Action
+    class MoveWithin(val mover: Selector, val target: Selector, val speed: Int?) : Action
 
     @Serializable
     object Win : Action

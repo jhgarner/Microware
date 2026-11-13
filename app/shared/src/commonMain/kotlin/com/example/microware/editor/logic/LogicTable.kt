@@ -18,12 +18,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Parameter
+import com.example.microware.game.model.Selector
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.ui.components.Grid
@@ -32,6 +35,7 @@ import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.icons.LogicTagRow
 import com.example.microware.ui.icons.drawAction
 import com.example.microware.ui.icons.drawArrowIcon
+import com.example.microware.ui.icons.drawParameter
 import com.example.microware.ui.icons.drawTrigger
 import com.example.microware.util.Id
 
@@ -101,13 +105,17 @@ internal fun LogicCard(
                         drawAction(action)
                     }
                     when (action) {
-                        is Action.Move -> LogicTagRow(
-                            action.mover.tags,
-                            tagSize = if (action.mover.tags.size == 1) LoneTagSize else GroupedTagSize,
+                        is Action.Move -> SelectorIcon(
+                            action.mover,
+                            logic.trigger,
+                            tagSize = when (val mover = action.mover) {
+                                is TagFilter if mover.tags.size > 1 -> GroupedTagSize
+                                else -> LoneTagSize
+                            },
                         )
 
-                        is Action.MoveTo -> MoverAndTargetTags(action.mover, action.target)
-                        is Action.MoveWithin -> MoverAndTargetTags(action.mover, action.target)
+                        is Action.MoveTo -> MoverAndTarget(action.mover, action.target, logic.trigger)
+                        is Action.MoveWithin -> MoverAndTarget(action.mover, action.target, logic.trigger)
                         is Action.Win -> Unit
                         is Action.Lose -> Unit
                     }
@@ -118,11 +126,17 @@ internal fun LogicCard(
 }
 
 @Composable
-private fun MoverAndTargetTags(mover: TagFilter, target: TagFilter) {
+private fun MoverAndTarget(mover: Selector, target: Selector, trigger: Trigger) {
     Column {
-        LogicTagRow(mover.tags, GroupedTagSize)
-        LogicTagRow(target.tags, GroupedTagSize)
+        SelectorIcon(mover, trigger, GroupedTagSize)
+        SelectorIcon(target, trigger, GroupedTagSize)
     }
+}
+
+@Composable
+private fun SelectorIcon(selector: Selector, trigger: Trigger, tagSize: Dp) = when (selector) {
+    is TagFilter -> LogicTagRow(selector.tags, tagSize)
+    is Parameter -> Canvas(Modifier.size(tagSize)) { drawParameter(selector, trigger) }
 }
 
 @Preview
@@ -162,6 +176,32 @@ fun PreviewMultiTagCard() {
                 ),
                 Action.Move(
                     mover = TagFilter(tags.take(4).toSet()),
+                    target = Direction.N,
+                    speed = 20,
+                ),
+            ),
+        ),
+    )
+}
+
+@Preview
+@Composable
+fun PreviewParameterCard() {
+    LogicCard(
+        logic = Logic(
+            trigger = Trigger.Collision(
+                firstTarget = TagFilter(LogicTag(2)),
+                secondTarget = TagFilter(LogicTag(9)),
+                firstTargetCount = 2,
+            ),
+            actions = listOf(
+                Action.MoveTo(
+                    mover = Parameter.RandomFirstTarget,
+                    target = TagFilter(LogicTag(2)),
+                    speed = null,
+                ),
+                Action.Move(
+                    mover = Parameter.SecondTarget,
                     target = Direction.N,
                     speed = 20,
                 ),

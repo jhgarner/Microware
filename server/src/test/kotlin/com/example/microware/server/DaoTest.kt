@@ -5,6 +5,7 @@ import com.example.microware.core.Model.SaveExperienceMetadata
 import com.example.microware.core.Model.Sprite
 import com.example.microware.game.model.Action
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Parameter
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import kotlin.test.Test
@@ -169,7 +170,7 @@ class DaoTest {
                 logics = listOf(
                     Model.Logic(
                         Trigger.Separation(both, TagFilter(LogicTag(3)), firstTargetCount = 4),
-                        listOf(Action.MoveTo(both, TagFilter(LogicTag(3)), speed = null)),
+                        listOf(Action.MoveTo(both, Parameter.SecondTarget, speed = null)),
                     ),
                 ),
             )
@@ -181,7 +182,7 @@ class DaoTest {
             assertEquals(game.logics.single().trigger, stored.logics.single().trigger)
             val action = stored.logics.single().actions.single() as Action.MoveTo
             assertEquals(both, action.mover)
-            assertEquals(TagFilter(LogicTag(3)), action.target)
+            assertEquals(Parameter.SecondTarget, action.target)
         }
     }
 
@@ -257,8 +258,8 @@ class DaoTest {
 
             migrateTagSets()
             migrateTagSets()
-            migrateCollisionCounts()
-            migrateCollisionCounts()
+            migrateAddedColumns()
+            migrateAddedColumns()
 
             val migrated = Dao.experiences(user, communityId).single().games.single()
             assertEquals(listOf(setOf(5), emptySet()), migrated.world.objects.map { it.tags })

@@ -1,5 +1,6 @@
 package com.example.microware.server
 
+import com.example.microware.game.model.Parameter
 import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.Table
@@ -86,18 +87,26 @@ object Tables {
         val index = integer("index")
         val variant = integer("variant")
         val moveMoverTags = tagSet("moveMoverTags")
+        val moveMoverParameter = parameter("moveMoverParameter")
         val moveTarget = integer("moveTarget").nullable()
         val moveSpeed = integer("moveSpeed").nullable()
         val moveToMoverTags = tagSet("moveToMoverTags")
+        val moveToMoverParameter = parameter("moveToMoverParameter")
         val moveToTargetTags = tagSet("moveToTargetTags")
+        val moveToTargetParameter = parameter("moveToTargetParameter")
         val moveToSpeed = integer("moveToSpeed").nullable()
         val moveWithinMoverTags = tagSet("moveWithinMoverTags")
+        val moveWithinMoverParameter = parameter("moveWithinMoverParameter")
         val moveWithinTargetTags = tagSet("moveWithinTargetTags")
+        val moveWithinTargetParameter = parameter("moveWithinTargetParameter")
         val moveWithinSpeed = integer("moveWithinSpeed").nullable()
     }
 
     private fun Table.tagSet(name: String): Column<List<Int>> =
         array<Int>(name).default(emptyList())
+
+    private fun Table.parameter(name: String): Column<Parameter?> =
+        enumerationByName<Parameter>(name, length = 32).nullable()
 
     private fun Table.spriteReference(name: String): Column<EntityID<Long>> =
         reference(name, Sprite, onDelete = ReferenceOption.RESTRICT)

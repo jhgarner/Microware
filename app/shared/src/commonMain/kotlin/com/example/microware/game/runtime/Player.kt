@@ -33,6 +33,8 @@ import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Game
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Parameter
+import com.example.microware.game.model.Selector
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.WorldHeight
@@ -72,7 +74,7 @@ class Player(
     )
 
     init {
-        logics.filter { it.trigger is Trigger.Start }.forEach(::runActions)
+        logics.filter { it.trigger is Trigger.Start }.forEach { runActions(it, emptyMap()) }
     }
 
     val result: GameResult?
@@ -126,12 +128,12 @@ class Player(
         touchedObjects = touching
 
         for (logic in logics) {
-            val triggered = when (val trigger = logic.trigger) {
-                is Trigger.Press -> entered.any { it.matches(trigger.target) }
-                is Trigger.Release -> exited.any { it.matches(trigger.target) }
-                else -> false
+            val tapped = when (val trigger = logic.trigger) {
+                is Trigger.Press -> entered.filter { it.matches(trigger.target) }
+                is Trigger.Release -> exited.filter { it.matches(trigger.target) }
+                else -> emptyList()
             }
-            if (triggered) runActions(logic)
+            if (tapped.isNotEmpty()) runActions(logic, mapOf(Parameter.Tapped to tapped))
         }
     }
 
@@ -155,22 +157,23 @@ class Player(
         }
     }
 
-    private fun runActions(logic: Logic) = logic.actions.forEach(::runAction)
+    private fun runActions(logic: Logic, arguments: Arguments) =
+        logic.actions.forEach { runAction(it, arguments) }
 
-    private fun runAction(action: Action) {
+    private fun runAction(action: Action, arguments: Arguments) {
         when (action) {
             Action.Win -> winState = WinState.Won
             Action.Lose -> winState = WinState.Lost
-            is Action.Move -> for (mover in matching(action.mover)) {
+            is Action.Move -> for (mover in selected(action.mover, arguments)) {
                 mover.velocity = dirVec(action.target) * action.speed.toFloat()
                 mover.destination = null
             }
 
-            is Action.MoveTo -> forEachMoverAndTarget(action.mover, action.target) { mover, target ->
+            is Action.MoveTo -> forEachMoverAndTarget(action.mover, action.target, arguments) { mover, target ->
                 moveTo(mover, target.offset, action.speed)
             }
 
-            is Action.MoveWithin -> forEachMoverAndTarget(action.mover, action.target) { mover, target ->
+            is Action.MoveWithin -> forEachMoverAndTarget(action.mover, action.target, arguments) { mover, target ->
                 moveWithin(mover, target.rect(), action.speed)
             }
         }
@@ -179,14 +182,20 @@ class Player(
     private fun matching(filter: TagFilter): List<ObjectState> =
         taggedObjects.filter { it.matches(filter) }
 
+    private fun selected(selector: Selector, arguments: Arguments): List<ObjectState> = when (selector) {
+        is TagFilter -> matching(selector)
+        is Parameter -> arguments[selector].orEmpty()
+    }
+
     private fun forEachMoverAndTarget(
-        mover: TagFilter,
-        target: TagFilter,
+        mover: Selector,
+        target: Selector,
+        arguments: Arguments,
         move: (mover: ObjectState, target: ObjectState) -> Unit,
     ) {
-        val targets = matching(target)
+        val targets = selected(target, arguments)
         if (targets.isEmpty()) return
-        for (matchingMover in matching(mover)) move(matchingMover, targets.random(random))
+        for (selectedMover in selected(mover, arguments)) move(selectedMover, targets.random(random))
     }
 
     private fun moveWithin(mover: ObjectState, bounds: Rect, speed: Int?) {
@@ -233,20 +242,34 @@ class Player(
 
         for (logic in logics) {
             val trigger = logic.trigger as? Trigger.Contact ?: continue
-            val wereInContact = previousOverlaps.targetsInContact(trigger)
-            val areInContact = currentOverlaps.targetsInContact(trigger)
-            val triggeredTargets = when (trigger) {
-                is Trigger.Collision -> areInContact - wereInContact
-                is Trigger.Separation -> wereInContact - areInContact
+            val wereInContact = previousOverlaps.contacts(trigger)
+            val areInContact = currentOverlaps.contacts(trigger)
+            val triggered = when (trigger) {
+                is Trigger.Collision -> areInContact - wereInContact.keys
+                is Trigger.Separation -> wereInContact - areInContact.keys
             }
-            repeat(triggeredTargets.size) { runActions(logic) }
+            for ((target, touching) in triggered) runActions(logic, contactArguments(target, touching))
         }
     }
 
-    private fun Set<Overlap>.targetsInContact(trigger: Trigger.Contact): Set<ObjectState> =
-        matching(trigger.secondTarget).filterTo(mutableSetOf()) { target ->
-            count { it.joins(target, trigger.firstTarget) } >= trigger.firstTargetCount
-        }
+    /** The second target objects in contact, each with the first target objects touching it. */
+    private fun Set<Overlap>.contacts(trigger: Trigger.Contact): Map<ObjectState, List<ObjectState>> =
+        matching(trigger.secondTarget)
+            .associateWith { target ->
+                mapNotNull { it.partnerOf(target) }.filter { it.matches(trigger.firstTarget) }
+            }
+            .filterValues { it.size >= trigger.firstTargetCount }
+
+    private fun contactArguments(target: ObjectState, touching: List<ObjectState>): Arguments {
+        val all = touching + target
+        return mapOf(
+            Parameter.SecondTarget to listOf(target),
+            Parameter.FirstTargets to touching,
+            Parameter.RandomFirstTarget to listOf(touching.random(random)),
+            Parameter.AllTargets to all,
+            Parameter.RandomTarget to listOf(all.random(random)),
+        )
+    }
 
     @Composable
     fun PlayGame(
@@ -385,9 +408,15 @@ class Player(
     }
 }
 
+/** The objects each [Parameter] stands for while a trigger's actions run. */
+private typealias Arguments = Map<Parameter, List<ObjectState>>
+
 private data class Overlap(val first: ObjectState, val second: ObjectState) {
-    fun joins(target: ObjectState, other: TagFilter): Boolean =
-        first === target && second.matches(other) || second === target && first.matches(other)
+    fun partnerOf(target: ObjectState): ObjectState? = when (target) {
+        first -> second
+        second -> first
+        else -> null
+    }
 }
 
 private data class GameFrame(

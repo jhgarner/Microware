@@ -6,12 +6,14 @@ import com.example.microware.game.model.Action
 import com.example.microware.game.model.Direction
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
+import com.example.microware.game.model.Parameter
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PlayerTest {
     @Test
@@ -374,36 +376,123 @@ class PlayerTest {
     }
 
     @Test
-    fun collisionRunsItsActionsOncePerTargetTouchingEnoughObjects() {
+    fun collisionRunsItsActionsForEachTargetTouchingEnoughObjects() {
         val triangle = LogicTag(0)
         val circle = LogicTag(1)
-        val bystander = LogicTag(2)
-        var moves = 0
-        val countingRandom = object : Random() {
-            override fun nextBits(bitCount: Int): Int = 0
-            override fun nextInt(until: Int): Int = 0.also { moves++ }
-        }
+        val circles = listOf(taggedObject(circle), taggedObject(circle, at = Offset(.5f, 0f)))
+        val farCircle = taggedObject(circle, at = Offset(50f, 50f))
         val player = Player(
             logics = listOf(
                 Logic(
                     Trigger.Collision(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
-                    listOf(Action.MoveTo(TagFilter(bystander), TagFilter(bystander), speed = null)),
+                    listOf(Action.Move(Parameter.SecondTarget, Direction.E, speed = 5)),
                 ),
             ),
-            objects = listOf(
-                taggedObject(circle),
-                taggedObject(circle, at = Offset(.5f, 0f)),
+            objects = circles + farCircle + listOf(
                 taggedObject(triangle, at = Offset(.2f, .5f)),
                 taggedObject(triangle, at = Offset(.3f, .5f)),
                 taggedObject(triangle, at = Offset(.4f, .5f)),
-                taggedObject(bystander, at = Offset(50f, 50f)),
             ),
-            random = countingRandom,
         )
 
         player.step(4)
 
-        assertEquals(2, moves)
+        assertEquals(listOf(Offset(5f, 0f), Offset(5f, 0f)), circles.map { it.velocity })
+        assertEquals(Offset.Zero, farCircle.velocity)
+    }
+
+    @Test
+    fun contactParametersSelectTheObjectsInvolvedOnEachSide() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val touching = listOf(taggedObject(triangle, at = Offset(.5f, 0f)), taggedObject(triangle, at = Offset(-.5f, 0f)))
+        val farTriangle = taggedObject(triangle, at = Offset(50f, 50f))
+        val target = taggedObject(circle)
+        fun moved(parameter: Parameter): List<ObjectState> {
+            val objects = touching + farTriangle + target
+            objects.forEach { it.velocity = Offset.Zero }
+            Player(
+                logics = listOf(
+                    Logic(
+                        Trigger.Collision(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                        listOf(Action.Move(parameter, Direction.E, speed = 5)),
+                    ),
+                ),
+                objects = objects,
+                random = Random(0),
+            ).step(4)
+            return objects.filter { it.velocity != Offset.Zero }
+        }
+
+        assertEquals(touching, moved(Parameter.FirstTargets))
+        assertEquals(listOf(target), moved(Parameter.SecondTarget))
+        assertEquals(touching + target, moved(Parameter.AllTargets))
+        assertTrue(moved(Parameter.RandomFirstTarget).single() in touching)
+        assertTrue(moved(Parameter.RandomTarget).single() in touching + target)
+        assertEquals(emptyList(), moved(Parameter.Tapped))
+    }
+
+    @Test
+    fun aRandomParameterStandsForTheSameObjectInEveryActionOfAFiring() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val triangles = List(8) { taggedObject(triangle, at = Offset(.5f, 0f)) }
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Collision(TagFilter(triangle), TagFilter(circle), firstTargetCount = 2),
+                    List(8) { Action.Move(Parameter.RandomFirstTarget, Direction.E, speed = 5) },
+                ),
+            ),
+            objects = triangles + taggedObject(circle),
+        )
+
+        player.step(4)
+
+        assertEquals(1, triangles.count { it.velocity != Offset.Zero })
+    }
+
+    @Test
+    fun separationParametersSelectTheObjectsThatWereTouching() {
+        val triangle = LogicTag(0)
+        val circle = LogicTag(1)
+        val leaving = taggedObject(triangle)
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Separation(TagFilter(triangle), TagFilter(circle)),
+                    listOf(Action.Move(Parameter.FirstTargets, Direction.E, speed = 5)),
+                ),
+            ),
+            objects = listOf(leaving, taggedObject(circle)),
+        )
+        player.step(4)
+
+        leaving.offset = Offset(10f, 0f)
+        player.step(4)
+
+        assertEquals(Offset(5f, 0f), leaving.velocity)
+    }
+
+    @Test
+    fun tappedSelectsOnlyTheObjectUnderThePointer() {
+        val button = LogicTag(0)
+        val pressed = taggedObject(button)
+        val other = taggedObject(button, at = Offset(5f, 0f))
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Press(TagFilter(button)),
+                    listOf(Action.Move(Parameter.Tapped, Direction.E, speed = 5)),
+                ),
+            ),
+            objects = listOf(pressed, other),
+        )
+
+        player.press(Offset(.5f, .5f))
+
+        assertEquals(Offset(5f, 0f), pressed.velocity)
+        assertEquals(Offset.Zero, other.velocity)
     }
 
     @Test

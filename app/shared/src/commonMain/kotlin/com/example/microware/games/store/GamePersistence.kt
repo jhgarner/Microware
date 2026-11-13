@@ -7,6 +7,8 @@ import com.example.microware.game.model.Game
 import com.example.microware.game.model.Logic
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Obj
+import com.example.microware.game.model.Parameter
+import com.example.microware.game.model.Selector
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.World
@@ -36,6 +38,11 @@ private fun storedFilter(tags: Set<Int>, legacyTag: Int?) = TagFilter(storedTags
 private fun Set<LogicTag>.toStoredTags(): Set<Int> = map(LogicTag::tag).toSet()
 
 private fun TagFilter.toStoredTags(): Set<Int> = tags.toStoredTags()
+
+private fun Selector.toStoredTags(): Set<Int> = (this as? TagFilter)?.toStoredTags().orEmpty()
+
+private fun storedSelector(parameter: Parameter?, tags: Set<Int>, legacyTag: Int?): Selector =
+    parameter ?: storedFilter(tags, legacyTag)
 
 @Serializable
 internal data class StoredGames(
@@ -87,6 +94,8 @@ internal data class GameStoredAction(
     val targetTags: Set<Int> = emptySet(),
     val moverTag: Int? = null,
     val targetTag: Int? = null,
+    val moverParameter: Parameter? = null,
+    val targetParameter: Parameter? = null,
     val direction: String? = null,
     val speed: Int? = null,
 )
@@ -213,6 +222,7 @@ private fun Action.toStoredAction(): GameStoredAction = when (this) {
     is Action.Move -> GameStoredAction(
         type = "move",
         moverTags = mover.toStoredTags(),
+        moverParameter = mover as? Parameter,
         direction = target.name,
         speed = speed,
     )
@@ -220,14 +230,18 @@ private fun Action.toStoredAction(): GameStoredAction = when (this) {
     is Action.MoveTo -> GameStoredAction(
         type = "moveTo",
         moverTags = mover.toStoredTags(),
+        moverParameter = mover as? Parameter,
         targetTags = target.toStoredTags(),
+        targetParameter = target as? Parameter,
         speed = speed,
     )
 
     is Action.MoveWithin -> GameStoredAction(
         type = "moveWithin",
         moverTags = mover.toStoredTags(),
+        moverParameter = mover as? Parameter,
         targetTags = target.toStoredTags(),
+        targetParameter = target as? Parameter,
         speed = speed,
     )
 
@@ -237,20 +251,20 @@ private fun Action.toStoredAction(): GameStoredAction = when (this) {
 
 private fun GameStoredAction.toAction(): Action = when (type) {
     "move" -> Action.Move(
-        mover = storedFilter(moverTags, moverTag),
+        mover = storedSelector(moverParameter, moverTags, moverTag),
         target = Direction.valueOf(requireNotNull(direction)),
         speed = requireNotNull(speed),
     )
 
     "moveTo" -> Action.MoveTo(
-        mover = storedFilter(moverTags, moverTag),
-        target = storedFilter(targetTags, targetTag),
+        mover = storedSelector(moverParameter, moverTags, moverTag),
+        target = storedSelector(targetParameter, targetTags, targetTag),
         speed = speed,
     )
 
     "moveWithin" -> Action.MoveWithin(
-        mover = storedFilter(moverTags, moverTag),
-        target = storedFilter(targetTags, targetTag),
+        mover = storedSelector(moverParameter, moverTags, moverTag),
+        target = storedSelector(targetParameter, targetTags, targetTag),
         speed = speed,
     )
 
