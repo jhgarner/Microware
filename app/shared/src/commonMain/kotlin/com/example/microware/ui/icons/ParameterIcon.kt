@@ -12,6 +12,7 @@ import com.example.microware.game.model.Parameter
 import com.example.microware.game.model.TagFilter
 import com.example.microware.game.model.Trigger
 import com.example.microware.game.model.parameters
+import kotlin.random.Random
 
 private const val CandidateAlpha = .45f
 private const val UninvolvedAlpha = .12f
@@ -20,34 +21,47 @@ private const val RandomPicksPerLoop = 6
 private data class Circle(val center: Offset, val radius: Float, val color: Palette)
 
 /** The trigger's own picture, with the objects the parameter stands for picked out of it. */
-internal fun DrawScope.drawParameter(parameter: Parameter, trigger: Trigger, t: Float = 0f) =
+internal fun DrawScope.drawParameter(
+    parameter: Parameter,
+    trigger: Trigger,
+    t: Float = 0f,
+    seed: Int = 0,
+) =
     when (trigger) {
         Trigger.Start -> Unit
         is Trigger.Press -> drawDownIcon()
         is Trigger.Release -> drawTapIcon()
-        is Trigger.Contact -> drawContactParameter(parameter, trigger, t)
+        is Trigger.Contact -> drawContactParameter(parameter, trigger, t, seed)
     }
 
 /**
  * Objects the parameter leaves out fade away. A random parameter dims the objects it picks from
  * and lights them one at a time.
  */
-private fun DrawScope.drawContactParameter(parameter: Parameter, trigger: Trigger.Contact, t: Float) {
+private fun DrawScope.drawContactParameter(
+    parameter: Parameter,
+    trigger: Trigger.Contact,
+    t: Float,
+    seed: Int,
+) {
     val circles = contactCircles(trigger)
     val involved = when (parameter) {
-        Parameter.Tapped -> emptyList()
-        Parameter.SecondTarget -> circles.takeLast(1)
-        Parameter.FirstTargets, Parameter.RandomFirstTarget -> circles.dropLast(1)
-        Parameter.AllTargets, Parameter.RandomTarget -> circles
+        Parameter.Tapped -> emptySet()
+        Parameter.SecondTarget -> setOf(circles.last())
+        Parameter.FirstTargets, Parameter.RandomFirstTarget -> circles.dropLast(1).toSet()
+        Parameter.AllTargets, Parameter.RandomTarget -> circles.toSet()
     }
+    val uninvolved = circles - involved
     val picked = when (parameter) {
-        Parameter.RandomFirstTarget, Parameter.RandomTarget ->
-            involved[(t * RandomPicksPerLoop).toInt() % involved.size]
+        Parameter.RandomFirstTarget, Parameter.RandomTarget -> {
+            val index = (t * RandomPicksPerLoop).toInt() % involved.size
+            involved.shuffled(Random(seed))[index]
+        }
 
         else -> null
     }
 
-    for (circle in circles) {
+    for (circle in uninvolved.asSequence() + involved.asSequence()) {
         drawCircle(
             color = circle.color.color,
             radius = size.minDimension * circle.radius,
@@ -71,7 +85,7 @@ private fun contactCircles(trigger: Trigger.Contact): List<Circle> {
             .map { Circle(it, .15f, Palette.Cyan) }
     }
     return firsts.map { it.copy(center = it.center - spread) } +
-        Circle(Offset(.68f, .5f) + spread, .22f, Palette.Red)
+            Circle(Offset(.68f, .5f) + spread, .22f, Palette.Red)
 }
 
 @Preview
@@ -95,6 +109,27 @@ fun ParameterIconsPreview() {
                 Icon { drawTrigger(trigger) }
                 for (parameter in trigger.parameters) {
                     Icon { drawParameter(parameter, trigger) }
+                }
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
+fun AnimatedParameterIcons() {
+    val first = TagFilter(LogicTag(0))
+    val second = TagFilter(LogicTag(1))
+    val triggers = listOf(
+        Trigger.Collision(first, second, firstTargetCount = 2),
+        Trigger.Collision(first, first, firstTargetCount = 2),
+    )
+    Column {
+        for (trigger in triggers) {
+            Row {
+                Icon { drawTrigger(trigger) }
+                for (parameter in trigger.parameters) {
+                    Animated { drawParameter(parameter, trigger, it, 36) }
                 }
             }
         }

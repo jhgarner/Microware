@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.Dp
@@ -35,6 +36,7 @@ import com.example.microware.ui.gestures.Offer
 import com.example.microware.ui.icons.LogicTagRow
 import com.example.microware.ui.icons.drawAction
 import com.example.microware.ui.icons.drawArrowIcon
+import com.example.microware.ui.icons.drawNumberIcon
 import com.example.microware.ui.icons.drawParameter
 import com.example.microware.ui.icons.drawTrigger
 import com.example.microware.util.Id
@@ -86,8 +88,14 @@ internal fun LogicCard(
             .semantics { contentDescription = "Drag logic item" },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Canvas(Modifier.size(40.dp).padding(5.dp)) {
-            drawTrigger(logic.trigger)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Canvas(Modifier.size(40.dp).padding(5.dp)) {
+                drawTrigger(logic.trigger)
+            }
+            TriggerTargets(logic.trigger)
         }
         Canvas(Modifier.size(28.dp).padding(4.dp)) {
             drawArrowIcon()
@@ -105,15 +113,7 @@ internal fun LogicCard(
                         drawAction(action)
                     }
                     when (action) {
-                        is Action.Move -> SelectorIcon(
-                            action.mover,
-                            logic.trigger,
-                            tagSize = when (val mover = action.mover) {
-                                is TagFilter if mover.tags.size > 1 -> GroupedTagSize
-                                else -> LoneTagSize
-                            },
-                        )
-
+                        is Action.Move -> LoneSelector(action.mover, logic.trigger)
                         is Action.MoveTo -> MoverAndTarget(action.mover, action.target, logic.trigger)
                         is Action.MoveWithin -> MoverAndTarget(action.mover, action.target, logic.trigger)
                         is Action.Win -> Unit
@@ -126,18 +126,52 @@ internal fun LogicCard(
 }
 
 @Composable
-private fun MoverAndTarget(mover: Selector, target: Selector, trigger: Trigger) {
-    Column {
-        SelectorIcon(mover, trigger, GroupedTagSize)
-        SelectorIcon(target, trigger, GroupedTagSize)
+private fun TriggerTargets(trigger: Trigger) = when (trigger) {
+    Trigger.Start -> Unit
+    is Trigger.Press -> LoneTags(trigger.target)
+    is Trigger.Release -> LoneTags(trigger.target)
+    is Trigger.Contact -> Column(horizontalAlignment = Alignment.End) {
+        Row {
+            if (trigger.firstTargetCount > 1) TargetCount(trigger.firstTargetCount)
+            LogicTagRow(trigger.firstTarget.tags, GroupedTagSize)
+        }
+        LogicTagRow(trigger.secondTarget.tags, GroupedTagSize)
     }
 }
 
 @Composable
-private fun SelectorIcon(selector: Selector, trigger: Trigger, tagSize: Dp) = when (selector) {
-    is TagFilter -> LogicTagRow(selector.tags, tagSize)
-    is Parameter -> Canvas(Modifier.size(tagSize)) { drawParameter(selector, trigger) }
+private fun TargetCount(count: Int) {
+    val textMeasurer = rememberTextMeasurer()
+    Canvas(Modifier.size(GroupedTagSize)) { drawNumberIcon(count, textMeasurer) }
 }
+
+@Composable
+private fun MoverAndTarget(mover: Selector, target: Selector, trigger: Trigger) {
+    Column {
+        GroupedSelector(mover, trigger)
+        GroupedSelector(target, trigger)
+    }
+}
+
+@Composable
+private fun LoneSelector(selector: Selector, trigger: Trigger) = when (selector) {
+    is TagFilter -> LoneTags(selector)
+    is Parameter -> ParameterIcon(selector, trigger, LoneTagSize)
+}
+
+@Composable
+private fun GroupedSelector(selector: Selector, trigger: Trigger) = when (selector) {
+    is TagFilter -> LogicTagRow(selector.tags, GroupedTagSize)
+    is Parameter -> ParameterIcon(selector, trigger, GroupedTagSize)
+}
+
+@Composable
+private fun LoneTags(filter: TagFilter) =
+    LogicTagRow(filter.tags, if (filter.tags.size > 1) GroupedTagSize else LoneTagSize)
+
+@Composable
+private fun ParameterIcon(parameter: Parameter, trigger: Trigger, size: Dp) =
+    Canvas(Modifier.size(size)) { drawParameter(parameter, trigger) }
 
 @Preview
 @Composable
@@ -167,7 +201,7 @@ fun PreviewMultiTagCard() {
     val tags = listOf(3, 20, 37, 54, 11).map(::LogicTag)
     LogicCard(
         logic = Logic(
-            trigger = Trigger.Start,
+            trigger = Trigger.Press(TagFilter(tags.take(3).toSet())),
             actions = listOf(
                 Action.MoveTo(
                     mover = TagFilter(tags.take(2).toSet()),

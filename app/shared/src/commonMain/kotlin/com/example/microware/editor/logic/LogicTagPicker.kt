@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
 import com.example.microware.game.model.LogicTag
@@ -130,50 +132,76 @@ fun LogicTagPicker(
             }
         }
 
-        DropdownMenu(
+        TagPopupMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.width(280.dp),
-        ) {
-            Column(Modifier.width(280.dp).padding(8.dp)) {
-                parameters()
-                if (preferredTags.isNotEmpty()) {
-                    LogicTagGrid(
-                        tags = preferredTags,
-                        selectedTags = selectedTags,
-                        modifier = Modifier.fillMaxWidth().height(gridHeight(preferredTags.size)),
-                        onToggleTag = onToggleTag,
+            onDismiss = { expanded = false },
+            unusedExpanded = unusedExpanded,
+            toggleUnusedExpanded = { unusedExpanded = !unusedExpanded },
+            onToggleTag = onToggleTag,
+            parameters = parameters,
+            preferredTags = preferredTags,
+            selectedTags = selectedTags,
+            unusedTags = unusedTags,
+        )
+    }
+}
+
+@Composable
+private fun TagPopupMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    unusedExpanded: Boolean,
+    toggleUnusedExpanded: () -> Unit,
+    onToggleTag: (LogicTag) -> Unit,
+    parameters: @Composable () -> Unit,
+    preferredTags: List<LogicTag>,
+    selectedTags: Set<LogicTag>,
+    unusedTags: List<LogicTag>,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier.width(280.dp),
+    ) {
+        Column(Modifier.width(280.dp).padding(8.dp)) {
+            parameters()
+            if (preferredTags.isNotEmpty()) {
+                LogicTagGrid(
+                    tags = preferredTags,
+                    selectedTags = selectedTags,
+                    modifier = Modifier.fillMaxWidth().height(gridHeight(preferredTags.size)),
+                    onToggleTag = onToggleTag,
+                )
+            }
+            if (unusedTags.isNotEmpty()) {
+                IconButton(
+                    description = if (unusedExpanded) "Hide unused logic tags" else "Show unused logic tags",
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    onClick = toggleUnusedExpanded,
+                    aspectRatio = 1f,
+                ) { _ ->
+                    val y = if (unusedExpanded) size.height * .65f else size.height * .35f
+                    val tipY = if (unusedExpanded) size.height * .25f else size.height * .75f
+                    drawLine(
+                        Color.Black,
+                        Offset(size.width * .2f, y),
+                        Offset(size.width * .5f, tipY),
+                        2.dp.toPx(),
+                    )
+                    drawLine(
+                        Color.Black,
+                        Offset(size.width * .8f, y),
+                        Offset(size.width * .5f, tipY),
+                        2.dp.toPx(),
                     )
                 }
-                if (unusedTags.isNotEmpty()) {
-                    IconButton(
-                        description = if (unusedExpanded) "Hide unused logic tags" else "Show unused logic tags",
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { unusedExpanded = !unusedExpanded },
-                    ) { _ ->
-                        val y = if (unusedExpanded) size.height * .65f else size.height * .35f
-                        val tipY = if (unusedExpanded) size.height * .25f else size.height * .75f
-                        drawLine(
-                            Color.Black,
-                            Offset(size.width * .2f, y),
-                            Offset(size.width * .5f, tipY),
-                            2.dp.toPx(),
-                        )
-                        drawLine(
-                            Color.Black,
-                            Offset(size.width * .8f, y),
-                            Offset(size.width * .5f, tipY),
-                            2.dp.toPx(),
-                        )
-                    }
-                    if (unusedExpanded) {
-                        LogicTagGrid(
-                            tags = unusedTags,
-                            selectedTags = selectedTags,
-                            modifier = Modifier.fillMaxWidth().height(gridHeight(unusedTags.size)),
-                            onToggleTag = onToggleTag,
-                        )
-                    }
+                if (unusedExpanded) {
+                    LogicTagGrid(
+                        tags = unusedTags,
+                        selectedTags = selectedTags,
+                        modifier = Modifier.fillMaxWidth().height(gridHeight(unusedTags.size)),
+                        onToggleTag = onToggleTag,
+                    )
                 }
             }
         }
@@ -282,5 +310,23 @@ internal fun PickerOption(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize().padding(6.dp), icon)
+    }
+}
+
+@Preview
+@Composable
+private fun OpenLogicTags() {
+    Box(Modifier.size(300.dp)) {
+        TagPopupMenu(
+            expanded = true,
+            onDismiss = {},
+            unusedExpanded = true,
+            toggleUnusedExpanded = {},
+            onToggleTag = {},
+            parameters = {},
+            preferredTags = listOf(LogicTag(1)),
+            selectedTags = setOf(),
+            unusedTags = listOf(LogicTag(2)),
+        )
     }
 }

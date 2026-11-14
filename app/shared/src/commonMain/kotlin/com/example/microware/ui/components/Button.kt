@@ -36,7 +36,7 @@ internal fun IconButton(
     padding: Dp = 4.dp,
     selected: Boolean = false,
     enabled: Boolean = true,
-    aspectRatio: Float = 1f,
+    aspectRatio: Float? = 1f,
     onClick: () -> Unit,
     icon: DrawScope.(Float) -> Unit,
 ) {
@@ -75,7 +75,7 @@ internal fun IconButton(
             Modifier
                 .fillMaxSize()
                 .wrapContentSize(Alignment.Center)
-                .aspectRatio(aspectRatio),
+                .then(aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier),
         ) {
             icon(iconAnimation.value)
         }

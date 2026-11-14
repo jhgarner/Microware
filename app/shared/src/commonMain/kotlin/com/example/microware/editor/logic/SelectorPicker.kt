@@ -1,10 +1,5 @@
 package com.example.microware.editor.logic
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,8 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,14 +56,12 @@ private fun ParameterRow(
     val parameters = trigger.parameters
     if (parameters.isEmpty()) return
 
-    val time by rememberInfiniteTransition(label = "parameters").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(parameterAnimationDurationMillis, easing = LinearEasing),
-        ),
-        label = "parameter time",
-    )
+    val loops by produceState(0f) {
+        val start = withFrameNanos { it }
+        while (true) {
+            withFrameNanos { value = (it - start) / 1_000_000f / parameterAnimationDurationMillis }
+        }
+    }
 
     Row(
         modifier = Modifier.padding(bottom = 12.dp),
@@ -78,7 +73,7 @@ private fun ParameterRow(
                 selected = parameter == selected,
                 onClick = { onSelect(parameter) },
                 selectedColor = Palette.LightGray,
-            ) { drawParameter(parameter, trigger, time) }
+            ) { drawParameter(parameter, trigger, t = loops % 1f, seed = loops.toInt()) }
         }
     }
 }
