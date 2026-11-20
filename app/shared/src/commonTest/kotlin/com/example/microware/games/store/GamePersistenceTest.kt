@@ -144,5 +144,19 @@ class GamePersistenceTest {
         assertEquals(TagFilter(LogicTag(2)), action.target)
     }
 
+    @Test
+    fun emptyFiltersSurviveSaving() {
+        val logic = Logic(
+            Trigger.Collision(TagFilter.Empty, TagFilter(LogicTag(1))),
+            listOf(Action.MoveTo(TagFilter.Empty, Parameter.SecondTarget, speed = null)),
+        )
+        val stored = Json.encodeToString(logic.toStoredLogic())
+
+        val loaded = Json.decodeFromString<GameStoredLogic>(stored).toLogic()
+
+        assertEquals(logic.trigger, loaded.trigger)
+        assertEquals(TagFilter.Empty, (loaded.actions.single() as Action.MoveTo).mover)
+    }
+
     private val storedSprite = Json.encodeToString(SpriteCodec.encode(Sprite.empty(1, 1)))
 }

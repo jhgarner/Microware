@@ -4,6 +4,7 @@ import com.example.microware.core.Model
 import com.example.microware.core.Model.SaveExperienceMetadata
 import com.example.microware.core.Model.Sprite
 import com.example.microware.game.model.Action
+import com.example.microware.game.model.Direction
 import com.example.microware.game.model.LogicTag
 import com.example.microware.game.model.Parameter
 import com.example.microware.game.model.TagFilter
@@ -183,6 +184,42 @@ class DaoTest {
             val action = stored.logics.single().actions.single() as Action.MoveTo
             assertEquals(both, action.mover)
             assertEquals(Parameter.SecondTarget, action.target)
+        }
+    }
+
+    @Test
+    fun gamesKeepTheirEmptyFilters() {
+        connectToDatabase()
+        transaction {
+            SchemaUtils.create(*gameTables)
+            val user = Uuid.random()
+            val communityId = Dao.createCommunity(user).value
+            val experienceId = Dao.saveExperienceMetadata(
+                user,
+                SaveExperienceMetadata(null, communityId, banner()),
+            ).value
+            val game = Model.Game(
+                id = null,
+                world = Model.World(emptyList()),
+                logics = listOf(
+                    Model.Logic(
+                        Trigger.Collision(TagFilter.Empty, tagFilter(1)),
+                        listOf(
+                            Action.MoveTo(TagFilter.Empty, TagFilter.Empty, speed = null),
+                            Action.Move(TagFilter.Empty, Direction.N, speed = 3),
+                        ),
+                    ),
+                ),
+            )
+
+            Dao.publishGame(user, experienceId, game)
+
+            val stored = Dao.experiences(user, communityId).single().games.single().logics.single()
+            assertEquals(game.logics.single().trigger, stored.trigger)
+            val moveTo = stored.actions[0] as Action.MoveTo
+            assertEquals(TagFilter.Empty, moveTo.mover)
+            assertEquals(TagFilter.Empty, moveTo.target)
+            assertEquals(TagFilter.Empty, (stored.actions[1] as Action.Move).mover)
         }
     }
 

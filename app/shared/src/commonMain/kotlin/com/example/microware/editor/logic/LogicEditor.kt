@@ -172,7 +172,6 @@ internal fun LogicBuilder(
 ) {
     val updater = handler as? LogicBuildHandler.Update
     val initialLogic = updater?.logic
-    val defaultTag = TagFilter(usedTags.firstOrNull() ?: LogicTag(0))
     var trigger by remember(initialLogic) { mutableStateOf(initialLogic?.trigger) }
     var actions by remember(initialLogic) { mutableStateOf(initialLogic?.actions.orEmpty()) }
     var triggerLayout by remember(initialLogic) {
@@ -186,7 +185,7 @@ internal fun LogicBuilder(
             is LogicBuildHandler.Update -> handler.update { logic ->
                 logic.copy(
                     trigger = trigger,
-                    actions = logic.actions.map { it.keepingParametersOf(trigger, defaultTag) },
+                    actions = logic.actions.map { it.keepingParametersOf(trigger) },
                 )
             }
         }
@@ -272,13 +271,13 @@ internal fun LogicBuilder(
                 buttonHeight = triggerButtonHeight.value.dp,
                 buttonSpacing = triggerButtonSpacing.value.dp,
                 onStartSelected = { updateTrigger(Trigger.Start) },
-                onPressSelected = { updateTrigger(Trigger.Press(defaultTag)) },
-                onReleaseSelected = { updateTrigger(Trigger.Release(defaultTag)) },
+                onPressSelected = { updateTrigger(Trigger.Press(TagFilter.Empty)) },
+                onReleaseSelected = { updateTrigger(Trigger.Release(TagFilter.Empty)) },
                 onCollisionSelected = {
-                    updateTrigger(Trigger.Collision(defaultTag, defaultTag))
+                    updateTrigger(Trigger.Collision(TagFilter.Empty, TagFilter.Empty))
                 },
                 onSeparationSelected = {
-                    updateTrigger(Trigger.Separation(defaultTag, defaultTag))
+                    updateTrigger(Trigger.Separation(TagFilter.Empty, TagFilter.Empty))
                 },
             )
 
@@ -329,7 +328,7 @@ internal fun LogicBuilder(
                                 ActionButton(ActionChoice.Move) {
                                     updateActions(
                                         actions + Action.Move(
-                                            defaultTag,
+                                            TagFilter.Empty,
                                             Direction.E,
                                             50,
                                         ),
@@ -338,8 +337,8 @@ internal fun LogicBuilder(
                                 ActionButton(ActionChoice.MoveTo) {
                                     updateActions(
                                         actions + Action.MoveTo(
-                                            defaultTag,
-                                            defaultTag,
+                                            TagFilter.Empty,
+                                            TagFilter.Empty,
                                             50,
                                         ),
                                     )
@@ -347,8 +346,8 @@ internal fun LogicBuilder(
                                 ActionButton(ActionChoice.MoveWithin) {
                                     updateActions(
                                         actions + Action.MoveWithin(
-                                            defaultTag,
-                                            defaultTag,
+                                            TagFilter.Empty,
+                                            TagFilter.Empty,
                                             50,
                                         ),
                                     )
@@ -654,9 +653,9 @@ private fun TargetedMovementEditor(
     }
 }
 
-/** Parameters that [trigger] does not offer are replaced by [fallback]. */
-private fun Action.keepingParametersOf(trigger: Trigger, fallback: TagFilter): Action {
-    fun Selector.kept() = if (this is Parameter && this !in trigger.parameters) fallback else this
+/** Parameters that [trigger] does not offer are cleared. */
+private fun Action.keepingParametersOf(trigger: Trigger): Action {
+    fun Selector.kept() = if (this is Parameter && this !in trigger.parameters) TagFilter.Empty else this
 
     return when (this) {
         is Action.Move -> Action.Move(mover.kept(), target, speed)

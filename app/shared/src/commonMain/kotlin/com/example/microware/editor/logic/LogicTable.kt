@@ -133,9 +133,9 @@ private fun TriggerTargets(trigger: Trigger) = when (trigger) {
     is Trigger.Contact -> Column(horizontalAlignment = Alignment.End) {
         Row {
             if (trigger.firstTargetCount > 1) TargetCount(trigger.firstTargetCount)
-            LogicTagRow(trigger.firstTarget.tags, GroupedTagSize)
+            Tags(trigger.firstTarget, GroupedTagSize)
         }
-        LogicTagRow(trigger.secondTarget.tags, GroupedTagSize)
+        Tags(trigger.secondTarget, GroupedTagSize)
     }
 }
 
@@ -161,13 +161,17 @@ private fun LoneSelector(selector: Selector, trigger: Trigger) = when (selector)
 
 @Composable
 private fun GroupedSelector(selector: Selector, trigger: Trigger) = when (selector) {
-    is TagFilter -> LogicTagRow(selector.tags, GroupedTagSize)
+    is TagFilter -> Tags(selector, GroupedTagSize)
     is Parameter -> ParameterIcon(selector, trigger, GroupedTagSize)
 }
 
 @Composable
 private fun LoneTags(filter: TagFilter) =
-    LogicTagRow(filter.tags, if (filter.tags.size > 1) GroupedTagSize else LoneTagSize)
+    Tags(filter, if (filter.tags.size > 1) GroupedTagSize else LoneTagSize)
+
+@Composable
+private fun Tags(filter: TagFilter, tagSize: Dp) =
+    if (filter.isEmpty) EmptyLogicTags(Modifier.size(tagSize)) else LogicTagRow(filter.tags, tagSize)
 
 @Composable
 private fun ParameterIcon(parameter: Parameter, trigger: Trigger, size: Dp) =
@@ -239,6 +243,20 @@ fun PreviewParameterCard() {
                     target = Direction.N,
                     speed = 20,
                 ),
+            ),
+        ),
+    )
+}
+
+@Preview
+@Composable
+fun PreviewEmptyTagsCard() {
+    LogicCard(
+        logic = Logic(
+            trigger = Trigger.Collision(TagFilter.Empty, TagFilter(LogicTag(9))),
+            actions = listOf(
+                Action.MoveTo(mover = TagFilter.Empty, target = TagFilter.Empty, speed = null),
+                Action.Move(mover = TagFilter.Empty, target = Direction.N, speed = 20),
             ),
         ),
     )

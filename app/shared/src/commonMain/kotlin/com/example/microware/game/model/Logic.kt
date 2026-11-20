@@ -16,6 +16,9 @@ data class Logic(
     override val self = this
     override fun newId(id: Id): Logic = copy(id = id)
 
+    /** The part of this logic that can be played, or null when its trigger can never fire. */
+    fun playable(): Logic? = if (trigger.isComplete) copy(actions = actions.filter { it.isComplete }) else null
+
     fun toModel(): Model.Logic = Model.Logic(trigger = trigger, actions = actions)
 }
 

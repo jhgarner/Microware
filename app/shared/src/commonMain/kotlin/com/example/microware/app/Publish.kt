@@ -31,6 +31,7 @@ import com.example.microware.game.sprite.Sprite.Companion.load
 import com.example.microware.publishGame
 import com.example.microware.publishableExperiences
 import com.example.microware.publishedAt
+import com.example.microware.ui.components.EmptyDesert
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.LoadingContent
 import com.example.microware.ui.icons.drawSaveIcon
@@ -76,6 +77,7 @@ fun PublishGame(
                 }
             },
         )
+        EmptyDesert(visible = loaded.isEmpty())
     }
 }
 

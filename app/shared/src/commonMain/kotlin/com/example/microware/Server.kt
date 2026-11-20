@@ -17,13 +17,11 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
-import io.ktor.http.URLProtocol
 import io.ktor.http.contentType
 import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
 
 private val user: User = User.loadOrCreate()
-private const val HOST = "jhgarner.tplinkdns.com"
 
 private val client = HttpClient() {
     install(ContentNegotiation) {
@@ -32,9 +30,9 @@ private val client = HttpClient() {
 }
 
 private fun URLBuilder.server(path: String) {
-    protocol = URLProtocol.HTTPS
-    host = HOST
-    this.port = 6375
+    protocol = serverAddress.protocol
+    host = serverAddress.host
+    port = serverAddress.port
     path(path)
 }
 

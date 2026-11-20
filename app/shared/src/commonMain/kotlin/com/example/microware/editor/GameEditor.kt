@@ -63,18 +63,11 @@ fun BoxWithConstraintsScope.GameEditor(
     var logicPage by remember { mutableStateOf<LogicEditorPage>(LogicEditorPage.List) }
     var lastEditorPage by remember { mutableStateOf(GameEditorPage.World) }
     var playSession by remember { mutableStateOf(0) }
-    val logicEnabled = game.world.logicTags.isNotEmpty() || game.logics.isNotEmpty()
     val worldEditorState = rememberWorldEditorState()
     val logicEditorState = rememberLogicEditorState()
     val player = remember(playSession) { Player(game) }
     val pagerState = rememberPagerState(initialPage = GameEditorPage.World.ordinal) {
         GameEditorPage.entries.size
-    }
-
-    LaunchedEffect(logicEnabled) {
-        if (!logicEnabled && page == GameEditorPage.Logic) {
-            page = GameEditorPage.World
-        }
     }
 
     LaunchedEffect(pagerState.settledPage) {
@@ -93,15 +86,13 @@ fun BoxWithConstraintsScope.GameEditor(
     val toolbarPage = GameEditorPage.entries[pagerState.targetPage]
 
     val onPageChange1 = { selectedPage: GameEditorPage ->
-        if (selectedPage != GameEditorPage.Logic || logicEnabled) {
-            if (selectedPage == GameEditorPage.World) {
-                logicPage = LogicEditorPage.List
-            }
-            if (selectedPage == GameEditorPage.Play) {
-                playSession++
-            }
-            page = selectedPage
+        if (selectedPage == GameEditorPage.World) {
+            logicPage = LogicEditorPage.List
         }
+        if (selectedPage == GameEditorPage.Play) {
+            playSession++
+        }
+        page = selectedPage
     }
     val onBack1 = {
         if (page == GameEditorPage.Logic && logicPage is LogicEditorPage.Editing) {
@@ -156,9 +147,8 @@ fun BoxWithConstraintsScope.GameEditor(
                     EditorTabButton(
                         description = "Edit logic",
                         selected = page == GameEditorPage.Logic,
-                        enabled = logicEnabled,
                         onClick = { onPageChange1(GameEditorPage.Logic) },
-                    ) { _ -> drawLogicIcon(enabled = logicEnabled) }
+                    ) { _ -> drawLogicIcon() }
                     EditorTabButton(
                         description = "Play game",
                         selected = page == GameEditorPage.Play,

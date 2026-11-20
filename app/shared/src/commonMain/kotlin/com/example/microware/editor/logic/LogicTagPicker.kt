@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -220,6 +221,11 @@ fun TagFilterPicker(
         usedTags = usedTags,
     )
 }
+
+/** How a filter without any tags looks outside of its picker. */
+@Composable
+internal fun EmptyLogicTags(modifier: Modifier) =
+    ScrollingLogicTagBackground(modifier.border(logicTagBorder).clipToBounds())
 
 @Composable
 private fun ScrollingLogicTagBackground(modifier: Modifier) {

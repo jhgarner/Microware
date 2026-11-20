@@ -3,6 +3,8 @@ package com.example.microware.game.model
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TriggerSerializationTest {
     @Test
@@ -88,11 +90,34 @@ class TriggerSerializationTest {
     }
 
     @Test
-    fun togglingNeverEmptiesAFilter() {
+    fun togglingTheLastTagEmptiesAFilter() {
         val filter = TagFilter(LogicTag(1))
 
-        assertEquals(filter, filter.toggling(LogicTag(1)))
+        assertEquals(TagFilter.Empty, filter.toggling(LogicTag(1)))
         assertEquals(TagFilter(LogicTag(1), LogicTag(2)), filter.toggling(LogicTag(2)))
         assertEquals(filter, filter.toggling(LogicTag(2)).toggling(LogicTag(2)))
+    }
+
+    @Test
+    fun emptyFiltersRoundTrip() {
+        val action: Action = Action.MoveTo(TagFilter.Empty, Parameter.SecondTarget, speed = null)
+
+        val decoded = Json.decodeFromString<Action>(Json.encodeToString(action)) as Action.MoveTo
+
+        assertEquals(TagFilter.Empty, decoded.mover)
+    }
+
+    @Test
+    fun emptyFiltersLeaveTriggersAndActionsIncomplete() {
+        val tagged = TagFilter(LogicTag(1))
+
+        assertTrue(Trigger.Start.isComplete)
+        assertTrue(Trigger.Collision(tagged, tagged).isComplete)
+        assertFalse(Trigger.Collision(tagged, TagFilter.Empty).isComplete)
+        assertFalse(Trigger.Press(TagFilter.Empty).isComplete)
+        assertTrue(Action.MoveTo(Parameter.Tapped, tagged, speed = 1).isComplete)
+        assertFalse(Action.MoveTo(Parameter.Tapped, TagFilter.Empty, speed = 1).isComplete)
+        assertFalse(Action.Move(TagFilter.Empty, Direction.N, speed = 1).isComplete)
+        assertTrue(Action.Win.isComplete)
     }
 }

@@ -225,6 +225,8 @@ fun <T : Identifiable<T>> Grid(
                     }
                 }
 
+                EmptyDesert(visible = items.isEmpty())
+
                 if (offer != null && ghost != null) {
                     Box(Modifier.followPointer(offer).size(itemSize)) { ghost(offer.item) }
                 }

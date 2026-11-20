@@ -1,6 +1,7 @@
 package com.example.microware.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -26,23 +27,21 @@ import androidx.compose.ui.unit.dp
 import com.example.microware.ui.icons.drawBinoculars
 import com.example.microware.ui.icons.drawDesert
 import com.example.microware.util.Loadable
-import com.example.microware.util.getOrElse
 
 private val BinocularsSize = DpSize(128.dp, 112.dp)
 private val DesertSize = DpSize(240.dp, 160.dp)
 private const val ExitMillis = 400
 
-/** Shows [content] with binoculars searching while [items] load and a desert once they're empty. */
+/** Shows binoculars searching while [items] load and [content] once they have. */
 @Composable
 fun <T> LoadingContent(
     items: Loadable<List<T>>,
     modifier: Modifier = Modifier,
-    content: @Composable (List<T>) -> Unit,
+    content: @Composable BoxScope.(List<T>) -> Unit,
 ) {
     Box(modifier) {
-        content(items.getOrElse(emptyList()))
+        if (items is Loadable.Loaded) content(items.value)
         Searching(visible = items is Loadable.Loading)
-        EmptyDesert(visible = items is Loadable.Loaded && items.value.isEmpty())
     }
 }
 
@@ -68,7 +67,7 @@ fun BoxScope.Searching(visible: Boolean) {
 @Composable
 fun BoxScope.EmptyDesert(visible: Boolean) {
     AnimatedVisibility(
-        visible = visible,
+        visibleState = remember { MutableTransitionState(false) }.apply { targetState = visible },
         modifier = Modifier.align(Alignment.Center),
         enter = fadeIn(tween(delayMillis = ExitMillis / 2)),
         exit = fadeOut(),

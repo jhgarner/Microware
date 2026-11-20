@@ -45,12 +45,13 @@ import kotlin.math.min
 import kotlin.random.Random
 
 class Player(
-    val logics: List<Logic>,
+    logics: List<Logic>,
     val objects: List<ObjectState> = emptyList(),
     var timeMs: Long = 0L,
     var winState: WinState = WinState.Playing,
     private val random: Random = Random.Default,
 ) {
+    private val logics = logics.mapNotNull { it.playable() }
     private val taggedObjects = objects.filter { it.tags.isNotEmpty() }
     private var pointerLocation: Offset? = null
     private var touchedObjects: Set<ObjectState> = emptySet()

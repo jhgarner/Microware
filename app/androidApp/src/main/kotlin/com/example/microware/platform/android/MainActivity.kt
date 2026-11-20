@@ -6,8 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.microware.BuildConfig
+import com.example.microware.ServerAddress
 import com.example.microware.app.App
 import com.example.microware.platform.initializeAppStorage
+import com.example.microware.serverAddress
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +26,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         initializeAppStorage(applicationContext)
+        serverAddress = if (BuildConfig.DEBUG) ServerAddress.Test else ServerAddress.Production
 
         setContent {
             App()

@@ -7,7 +7,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonTransformingSerializer
 import kotlin.jvm.JvmInline
 
-/** Selects the objects that carry every one of [tags]. */
+/** Selects the objects that carry every one of [tags]. An empty filter has no tags chosen yet, leaving whatever uses it incomplete. */
 @Serializable
 @JvmInline
 value class TagFilter(
@@ -16,17 +16,14 @@ value class TagFilter(
 ) : Selector {
     constructor(vararg tags: LogicTag) : this(tags.toSet())
 
-    init {
-        require(tags.isNotEmpty())
-    }
+    val isEmpty: Boolean get() = tags.isEmpty()
 
     fun matches(objectTags: Set<LogicTag>): Boolean = objectTags.containsAll(tags)
 
-    /** Removing the last tag is ignored, so the filter always selects something. */
-    fun toggling(tag: LogicTag): TagFilter = when {
-        tag !in tags -> TagFilter(tags + tag)
-        tags.size > 1 -> TagFilter(tags - tag)
-        else -> this
+    fun toggling(tag: LogicTag): TagFilter = TagFilter(if (tag in tags) tags - tag else tags + tag)
+
+    companion object {
+        val Empty = TagFilter(emptySet())
     }
 }
 

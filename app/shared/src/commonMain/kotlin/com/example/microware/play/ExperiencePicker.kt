@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toIntSize
+import com.example.microware.ui.components.EmptyDesert
 import com.example.microware.ui.components.IconButton
 import com.example.microware.ui.components.LoadingContent
 import com.example.microware.ui.icons.drawBackIcon
@@ -66,6 +67,7 @@ fun PickExperience(
                     }
                 }
             }
+            EmptyDesert(visible = loaded.isEmpty())
         }
     }
 }

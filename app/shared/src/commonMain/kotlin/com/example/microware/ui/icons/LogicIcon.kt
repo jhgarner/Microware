@@ -11,12 +11,11 @@ import androidx.compose.ui.unit.dp
 import com.example.microware.Palette
 import com.example.microware.game.model.LogicTag
 
-internal fun DrawScope.drawLogicIcon(enabled: Boolean = true) {
+internal fun DrawScope.drawLogicIcon() {
     val pageStroke = 2.dp.toPx()
     val textStroke = 1.5.dp.toPx()
-    val pageColor = if (enabled) Palette.Tan.color else Palette.OffWhite.color
-    val outlineColor = if (enabled) Color.Black else Palette.DarkGray.color
-    val tagColor = if (enabled) null else Palette.DarkGray.color
+    val pageColor = Palette.Tan.color
+    val outlineColor = Color.Black
     fun point(x: Float, y: Float) = Offset(size.width * x, size.height * y)
     fun Float.x(): Float = size.width * this
     fun Float.y(): Float = size.width * this
@@ -51,14 +50,10 @@ internal fun DrawScope.drawLogicIcon(enabled: Boolean = true) {
     drawLine(Palette.DarkGray.color, point(.57f, .34f), point(.77f, .34f), textStroke)
     drawLine(Palette.DarkGray.color, point(.57f, .63f), point(.77f, .63f), textStroke)
 
-    drawLogicTagAt(LogicTag(58), point(.33f, .49f), size.minDimension * .17f, tagColor)
-    drawLogicTagAt(LogicTag(29), point(.67f, .49f), size.minDimension * .17f, tagColor)
+    drawLogicTagAt(LogicTag(58), point(.33f, .49f), size.minDimension * .17f)
+    drawLogicTagAt(LogicTag(29), point(.67f, .49f), size.minDimension * .17f)
 }
 
 @Preview
 @Composable
 fun LogicIconPreview() = Icon { drawLogicIcon() }
-
-@Preview
-@Composable
-fun DisabledLogicIconPreview() = Icon { drawLogicIcon(enabled = false) }

@@ -11,7 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -57,9 +57,9 @@ private fun ParameterRow(
     if (parameters.isEmpty()) return
 
     val loops by produceState(0f) {
-        val start = withFrameNanos { it }
+        val start = withInfiniteAnimationFrameNanos { it }
         while (true) {
-            withFrameNanos { value = (it - start) / 1_000_000f / parameterAnimationDurationMillis }
+            withInfiniteAnimationFrameNanos { value = (it - start) / 1_000_000f / parameterAnimationDurationMillis }
         }
     }
 

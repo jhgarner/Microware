@@ -72,9 +72,8 @@ android {
     }
     buildTypes {
         debug {
-            if (providers.gradleProperty("isolatedVerification").isPresent) {
-                applicationIdSuffix = ".verification"
-            }
+            applicationIdSuffix =
+                if (providers.gradleProperty("isolatedVerification").isPresent) ".verification" else ".debug"
         }
         release {
             signingConfig = signingConfigs.findByName("release")
@@ -99,5 +98,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }

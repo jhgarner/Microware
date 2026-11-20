@@ -208,6 +208,49 @@ class PlayerTest {
     }
 
     @Test
+    fun actionsWithAnEmptyFilterAreSkipped() {
+        val tag = LogicTag(0)
+        val tagged = taggedObject(tag)
+
+        val player = Player(
+            logics = listOf(
+                Logic(
+                    Trigger.Start,
+                    listOf(
+                        Action.Move(TagFilter.Empty, Direction.E, speed = 5),
+                        Action.MoveTo(TagFilter(tag), TagFilter.Empty, speed = null),
+                        Action.Win,
+                    ),
+                ),
+            ),
+            objects = listOf(tagged),
+        )
+        player.step(Player.GameDurationMillis)
+
+        assertEquals(Offset.Zero, tagged.velocity)
+        assertEquals(Offset.Zero, tagged.offset)
+        assertEquals(GameResult.Won, player.result)
+    }
+
+    @Test
+    fun logicWithAnEmptyTriggerFilterIsSkipped() {
+        val tag = LogicTag(0)
+        val player = playerWithObjects(
+            logics = listOf(
+                Logic(Trigger.Start, listOf(Action.Win)),
+                Logic(Trigger.Press(TagFilter.Empty), listOf(Action.Lose)),
+                Logic(Trigger.Collision(TagFilter.Empty, TagFilter(tag)), listOf(Action.Lose)),
+            ),
+            positions = mapOf(tag to Offset.Zero),
+        )
+
+        player.press(Offset(0.5f, 0.5f))
+        player.step(Player.GameDurationMillis)
+
+        assertEquals(GameResult.Won, player.result)
+    }
+
+    @Test
     fun eachMoverPicksItsTargetAtRandomAmongTheMatchingObjects() {
         val mover = LogicTag(0)
         val target = LogicTag(1)
